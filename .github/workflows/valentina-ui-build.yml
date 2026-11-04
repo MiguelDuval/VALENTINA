@@ -1,4 +1,4 @@
-name: VALENTINA UI verification
+name: VALENTINA Windows test build
 on:
   pull_request:
     paths:
@@ -31,4 +31,12 @@ jobs:
           ./scripts/build-valentina.ps1 -OutputDirectory ./dist
           if (-not (Test-Path ./dist/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
-      # Do not upload the executable. It remains local.
+      - name: Upload VALENTINA Windows executable
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VALENTINA-windows-x64-${{ github.sha }}
+          path: dist/VALENTINA.exe
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
