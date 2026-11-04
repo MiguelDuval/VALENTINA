@@ -1,0 +1,18 @@
+{
+  "company_id": "cmp_synthetic_001",
+  "name": "Example Municipal Services",
+  "normalized_name": "example municipal services",
+  "website": "https://example.com",
+  "domain": "example.com",
+  "industry_tags": ["synthetic-test"],
+  "location": {
+    "municipality": "Example City",
+    "province": "Example Province",
+    "autonomous_community": "Example Region",
+    "country_code": "ES"
+  },
+  "source_evidence_ids": ["evidence_synthetic_001"],
+  "first_seen_at": "2026-10-28T09:00:00Z",
+  "last_seen_at": "2026-10-28T09:00:00Z",
+  "notes": "Fictional fixture. Not a real company."
+}
