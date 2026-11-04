@@ -135,3 +135,16 @@ The source registry is a policy contract, not yet a technical network boundary. 
 - Never claim domain/path allowlisting is enforced until a VALENTINA adapter applies it server-side to every request, redirect and resolved IP.
 - Before unattended source collection is enabled, implement and test a narrow, fail-closed Go MCP source adapter. It must accept an approved source ID rather than an arbitrary unrestricted URL, enforce host/path scope, block unsafe destinations, honor source request limits and preserve evidence.
 - Once that adapter exists, unattended agents must use only its scoped tools, not raw unrestricted `fetch_url`.
+
+
+## Mandatory UI-and-installer MVP roadmap
+
+Read [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) before planning feature order, UI work, domain service work or packaging. The primary MVP deliverables are a purpose-built local VALENTINA review interface and one Windows installer. Do not revert to a UI-last/UFO²-first sequence.
+
+- The owner supplies only the minimum business profile inputs described in the roadmap. Do not invent the sector or opportunity scope.
+- Build only the minimum backend needed for one vertical slice: source-scope enforcement, validated domain records, evidence, persistence and a human review decision.
+- The proposed VALENTINA Go companion should consolidate SQLite, source-policy enforcement, MCP and the local HTTP API/UI boundary. Confirm the exact process boundary in an ADR before implementation; do not silently introduce multiple independent services.
+- Start UI work with synthetic fixtures, then connect it to real SQLite-backed records. Do not claim a mock UI is functional.
+- Keep the first workflow manual. One reliable source is enough for the first usable release; broad coverage is deferred.
+- The installer is one user-facing Setup package, even if it installs more than one executable. Do not promise a one-binary architecture until proven.
+- Defer Playwright, UFO², auto-scheduling, contact-person CRM, remote sync, multiple users, cross-platform installers, auto-updates and advanced analytics unless an explicit MVP blocker is demonstrated.
