@@ -87,3 +87,20 @@ Before any implementation task that depends on Huginn source code, every agent M
 5. Keep all VALENTINA-specific code outside `upstream/huginn`. A submodule pointer change or upstream patch requires a separate owner-approved change and review.
 
 The source submodule is mandatory. A clone without initialized submodules is an incomplete working copy for any source-level task.
+
+
+## Mandatory deployment and installer policy
+
+Before changing packaging, installation, startup, update or local administration, every agent MUST read [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md).
+
+The binding decision is Windows-first, single-user packaging:
+- The target deliverable is a versioned `VALENTINA-Setup-x64.exe` produced with pinned NSIS tooling. It installs the pinned Huginn Go executable with the web frontend embedded.
+- Go and Node.js are build-time only. Do not make them end-user prerequisites. Do not bundle Python, Playwright browsers, UFO², Docker, WSL, a local LLM or database servers into the base install.
+- Reuse Huginn's existing tray/web UI for application and system administration. Do not create a second desktop framework or generic admin frontend.
+- Do not claim Huginn already supplies a purpose-built CRM. Dedicated company/opportunity/review screens require a separate, minimal VALENTINA domain feature justified by the structured data model and approved architecture.
+- Keep mutable state outside the application install directory. Do not delete user data during upgrade or uninstall by default.
+- Keep API keys out of executables, installer resources, config committed to Git, process arguments, logs and registry values. Use a protected OS credential mechanism.
+- Keep Huginn bound to loopback. Start-at-login must be explicit opt-in; do not add a privileged Windows service by default.
+- Do not publish installer binaries publicly by default; respect Huginn's BSL 1.1 internal-use grant.
+- A successful build is not proof of a successful installation. Require real Windows 11 install/launch/upgrade/uninstall verification before release claims.
+- Any new runtime, desktop shell, updater, service model, public distribution or material change from this policy requires an owner-approved ADR before implementation.
