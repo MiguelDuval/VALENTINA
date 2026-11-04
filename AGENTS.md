@@ -50,3 +50,27 @@ If a task conflicts with these rules, stop before making the conflicting change 
 
 - Keep this file and the security policy aligned with the actual implementation. Update the documentation whenever credential flows, CI secret usage, or data-storage design changes.
 - In every handoff, state the branch, commit SHA, PR (if created), test/CI evidence, skipped checks, and any secret or external-service prerequisites. Never include secret values.
+
+
+## Mandatory VALENTINA architecture
+
+Before making architecture, integration, deployment or application changes, read:
+
+1. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — binding Huginn-first architecture.
+2. [`docs/UPSTREAM-CANDIDATES.md`](docs/UPSTREAM-CANDIDATES.md) — upstream audit and licensing decision.
+3. [`docs/SECURITY-AND-SECRETS.md`](docs/SECURITY-AND-SECRETS.md) — security and credential policy.
+
+The following are binding:
+
+- Build VALENTINA on `scrypster/huginn` (Go local AI-agent platform), not the unrelated Ruby `huginn/huginn`.
+- Reuse Huginn's existing UI, agents, routines, workflows, REST API, MCP client and model configuration as the initial application. Do not create a second React UI, FastAPI backend, scheduler, PostgreSQL/Redis/Kubernetes stack or microservice architecture without an owner-approved ADR proving a concrete need.
+- Do not fork or vendor the entire Huginn source for the MVP. Pin and validate an upstream release; keep VALENTINA-specific configuration and minimal MCP extensions separate.
+- Prefer existing Huginn tools and integrations. Add one small source-adapter/SQLite MCP service only after a real source proof-of-concept demonstrates the need. Do not create one service per website.
+- NVIDIA NIM is the preferred initial model provider. Verify the generic `custom` OpenAI-compatible backend with a real request, tool-call and streaming test before claiming integration works. Store the key only in protected local configuration/keyring or trusted GitHub Actions secrets.
+- UFO² is optional and deferred. Use it only for a proven GUI-only Windows task; it is not the default web scraper.
+- Unattended discovery agents must have least-privilege read-only tool allowlists. Do not grant arbitrary shell, write, Git mutation or external-mutation tools. Do not use `--dangerously-skip-permissions` for unattended discovery.
+- Every source connector must respect source terms and privacy rules, validate URLs and network destinations, preserve evidence, and treat page content as untrusted input.
+- Huginn must remain bound to localhost for the initial local deployment. Never expose its UI/API token or port publicly.
+- Any deviation, new framework, database, service, upstream fork or change in license/distribution scope requires an explicit owner-approved ADR before implementation.
+
+Architecture is a project constraint, not a suggestion. Optimizing for the fewest maintained components is mandatory.
