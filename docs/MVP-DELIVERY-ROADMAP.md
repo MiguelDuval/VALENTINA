@@ -3,13 +3,14 @@
 **Decision:** ADR-004, updated by owner-approved ADR-005  
 **Status:** Execution baseline for a private, local, single-operator application  
 **Date:** 2026-11-04  
-**Primary outcome:** A polished VALENTINA-branded browser application and one simple Windows installer.
+**Primary outcome:** A polished VALENTINA-branded browser application and a testable Windows executable, followed by a simple per-user installer.
 
 ## 1. The actual MVP outcome
 
-The first meaningful release is:
+The first useful private test build is:
 
-- One Windows 11 x64 `VALENTINA-Setup-x64.exe` installer.
+- One Windows 11 x64 `VALENTINA.exe` test binary attached to a successful GitHub Actions run (downloaded as a ZIP artifact).
+- Later, one per-user `VALENTINA-Setup-x64.exe` installer, also delivered only as a successful workflow artifact.
 - One local Go application process with its Vue browser client embedded.
 - A user-facing VALENTINA identity: app logo, name, browser title, navigation, first-run and normal screens.
 - A first screen focused on the renovation opportunity review queue, not a generic agent chat.
@@ -19,6 +20,8 @@ The first meaningful release is:
 - Local-only operation, protected credentials and data-preserving upgrade/uninstall.
 
 The user sees one VALENTINA app. The upstream runtime is the technical foundation, not a second product UI exposed alongside VALENTINA.
+
+Do not publish GitHub Releases or release tags. Test binaries and future installer executables are downloaded only from completed successful Actions runs; artifacts are retained for 30 days.
 
 ## 2. Architecture: reuse the existing application shell
 
