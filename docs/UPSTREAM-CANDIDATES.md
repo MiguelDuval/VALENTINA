@@ -123,11 +123,15 @@ Do not begin large-scale scraping or contact collection until the target busines
 
 ## Security and visibility note
 
-At the time of this review, **MiguelDuval/VALENTINA is public**. The repository currently contains only generic project documentation, but it should be changed to private before adding proprietary source code, credentials, customer/contact data, internal business information, or real lead records. Never commit API keys or production data. Keep secrets in environment variables or a proper secret store.
+**MiguelDuval/VALENTINA intentionally remains public.** This is a deliberate development constraint; do not change repository visibility or require a paid GitHub plan without an explicit owner decision. All source code, documentation, workflows, and Git history committed here are public, so this repository must never contain material that is expected to remain confidential.
+
+Never commit API keys, credentials, customer/contact personal data, real leads, private business records, production databases, exports, or backups. Keep GitHub Actions credentials in GitHub Actions repository secrets and local application credentials in the local configuration/OS credential store. During the initial development phase, NVIDIA NIM hosted inference is the preferred provider; the GitHub Actions secret name is `NVIDIA_NIM_API_KEY`. Do not assume it has been configured, expose it to untrusted pull requests, or print it in logs.
+
+The binding rules for all coding agents and contributors are in [`AGENTS.md`](../AGENTS.md) and [`docs/SECURITY-AND-SECRETS.md`](SECURITY-AND-SECRETS.md). Read and follow them before changing code, workflows, or configuration.
 
 ## Audit trail
 
 The repository was initially empty. Read/write access was tested through the connected GitHub API by creating and reading back the initial README.
 
 - Initial bootstrap commit: `4965d56066d17d3778afe4999d53edea6efcb664`
-- This evaluation is being added on a separate documentation branch; it does not change `main`.
+- The initial evaluation was committed on `docs/upstream-evaluation-20261104`; the current security-policy branch is based on that documentation branch. `main` remains unchanged until a reviewed pull request is merged.
