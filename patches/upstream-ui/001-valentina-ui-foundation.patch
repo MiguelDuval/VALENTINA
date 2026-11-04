@@ -1,0 +1,556 @@
+diff --git a/web/tailwind.config.js b/web/tailwind.config.js
+--- a/web/tailwind.config.js
++++ b/web/tailwind.config.js
+@@ -4,20 +4,26 @@
+   darkMode: 'class',
+   theme: {
+     extend: {
+-      colors: {
+-        'huginn-bg':      '#0d1117',
+-        'huginn-surface': '#161b22',
+-        'huginn-border':  '#30363d',
+-        'huginn-text':    '#e6edf3',
+-        'huginn-muted':   '#8b949e',
+-        'huginn-blue':    '#58a6ff',
+-        'huginn-yellow':  '#d29922',
+-        'huginn-green':   '#3fb950',
+-        'huginn-red':     '#f85149',
+-      },
+-      fontFamily: {
+-        mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
+-      },
++      colors: {
++        'valentina-bg': '#0a1016', 'valentina-sidebar': '#0e171f',
++        'valentina-surface': '#141f29', 'valentina-panel': '#192632',
++        'valentina-raised': '#202f3c', 'valentina-border': '#2a3a47',
++        'valentina-text': '#e8f0f5', 'valentina-muted': '#9aaab7',
++        'valentina-accent': '#49d6c2', 'valentina-blue': '#82aaff',
++        'valentina-violet': '#b39cff', 'valentina-amber': '#f0bd68',
++        'valentina-green': '#59d6a6', 'valentina-red': '#ff7e88',
++        // Compatibility aliases keep existing upstream views working.
++        'huginn-bg': '#0a1016', 'huginn-sidebar': '#0e171f',
++        'huginn-surface': '#141f29', 'huginn-border': '#2a3a47',
++        'huginn-text': '#e8f0f5', 'huginn-muted': '#9aaab7',
++        'huginn-blue': '#82aaff', 'huginn-yellow': '#f0bd68',
++        'huginn-amber': '#f0bd68', 'huginn-green': '#59d6a6',
++        'huginn-red': '#ff7e88',
++      },
++      fontFamily: {
++        sans: ['Inter', 'Segoe UI Variable', 'Segoe UI', 'system-ui', 'sans-serif'],
++        mono: ['JetBrains Mono', 'Cascadia Code', 'Fira Code', 'ui-monospace', 'monospace'],
++      },
+     },
+   },
+   plugins: [],
+diff --git a/web/src/style.css b/web/src/style.css
+--- a/web/src/style.css
++++ b/web/src/style.css
+@@ -2,15 +2,27 @@
+ @tailwind components;
+ @tailwind utilities;
+ 
+-body {
+-  @apply bg-huginn-bg text-huginn-text font-mono m-0;
+-}
++:root { color-scheme: dark; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
++body { @apply bg-huginn-bg text-huginn-text font-sans m-0; min-width: 360px; min-height: 100vh; letter-spacing: -0.008em; }
++button, input, select, textarea { font: inherit; }
++:focus-visible { outline: 2px solid #49d6c2; outline-offset: 2px; }
++::selection { color: #071511; background: rgba(73, 214, 194, 0.38); }
++button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+ 
+ #app {
+   @apply w-full h-full;
+ }
+ 
+-/* Markdown rendered content */
++.valentina-nav { overflow-x: hidden; background: #0e171f; }
++.valentina-nav-item { min-width: 0; }
++@media (max-width: 1080px) {
++ .valentina-nav { width: 72px; padding-left: 8px; padding-right: 8px; }
++ .valentina-wordmark-copy, .valentina-nav-label, .valentina-profile-label { display: none; }
++ .valentina-nav .valentina-wordmark { justify-content: center; padding-left: 0; padding-right: 0; }
++ .valentina-nav-item { width: 48px; justify-content: center; padding-left: 0; padding-right: 0; }
++ .valentina-nav .valentina-profile-button { justify-content: center; padding-left: 0; padding-right: 0; }
++}
++/* Markdown rendered content */
+ .md-content { @apply text-huginn-text; overflow-x: auto; max-width: 100%; }
+ .md-content p { @apply mb-3 last:mb-0; }
+ .md-content h1,.md-content h2,.md-content h3,.md-content h4 {
+@@ -146,7 +158,7 @@
+ /* Credential form field — shared by all provider form components */
+ .field {
+   @apply w-full bg-huginn-bg border border-huginn-border rounded-lg px-3 py-1.5 text-xs text-huginn-text
+-         placeholder-huginn-muted/50 focus:outline-none focus:border-huginn-blue/50 transition-colors;
++         placeholder-huginn-muted/60 focus:outline-none focus:border-valentina-accent/70 focus:ring-1 focus:ring-valentina-accent/20 transition-colors;
+ }
+ select.field {
+   @apply appearance-none;
+diff --git a/web/index.html b/web/index.html
+--- a/web/index.html
++++ b/web/index.html
+@@ -1,9 +1,12 @@
+ <!doctype html>
+-<html lang="en" class="dark">
+-  <head>
+-    <meta charset="UTF-8" />
+-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>Huginn</title>
++<html lang="ru" class="dark">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <meta name="theme-color" content="#0a1016" />
++    <meta name="application-name" content="VALENTINA" />
++    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
++    <title>VALENTINA</title>
+   </head>
+   <body>
+     <div id="app"></div>
+diff --git a/web/public/favicon.svg b/web/public/favicon.svg
+--- a/web/public/favicon.svg
++++ b/web/public/favicon.svg
+@@ -1,4 +1,6 @@
+-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+-  <rect width="32" height="32" rx="6" fill="#4f46e5"/>
+-  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="#f59e0b">H</text>
+-</svg>
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
++  <defs><linearGradient id="v" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#65ead6"/><stop offset="1" stop-color="#789cff"/></linearGradient></defs>
++  <rect width="64" height="64" rx="18" fill="#0e171f"/>
++  <path d="M14 15h10l8 25 8-25h10L36 51H28z" fill="url(#v)"/>
++  <circle cx="51" cy="13" r="3" fill="#65ead6"/>
++</svg>
+diff --git a/web/src/router/index.ts b/web/src/router/index.ts
+--- a/web/src/router/index.ts
++++ b/web/src/router/index.ts
+@@ -1,5 +1,6 @@
+-import { createRouter, createWebHashHistory } from 'vue-router'
+-import ChatView from '../views/ChatView.vue'
++import { createRouter, createWebHashHistory } from 'vue-router'
++import OverviewView from '../views/OverviewView.vue'
++import ChatView from '../views/ChatView.vue'
+ import AgentsView from '../views/AgentsView.vue'
+ import ModelsView from '../views/ModelsView.vue'
+ import ConnectionsView from '../views/ConnectionsView.vue'
+@@ -14,9 +15,10 @@
+ 
+ export default createRouter({
+   history: createWebHashHistory(),
+-  routes: [
+-    { path: '/', redirect: '/chat' },
+-    { path: '/chat/:sessionId?', component: ChatView, props: true },
++  routes: [
++    { path: '/', redirect: '/overview' },
++    { path: '/overview', component: OverviewView },
++    { path: '/chat/:sessionId?', component: ChatView, props: true },
+     { path: '/space/:spaceId', component: ChatView, props: true },
+     { path: '/agents/:agentName?', component: AgentsView, props: true },
+     { path: '/models/:provider?', component: ModelsView, props: true },
+diff --git a/web/src/utils/navLayout.ts b/web/src/utils/navLayout.ts
+--- a/web/src/utils/navLayout.ts
++++ b/web/src/utils/navLayout.ts
+@@ -8,9 +8,10 @@
+ The company/channel/DM rail is chat-only.
+ */
+ 
+-export type AppSection =
+-  | 'chat'
+-  | 'agents'
++export type AppSection =
++  | 'overview'
++  | 'chat'
++  | 'agents'
+   | 'memory'
+   | 'models'
+   | 'automation'
+@@ -43,10 +44,11 @@
+ }
+ 
+ /** Top-level app surfaces that must not show the company/channel/DM rail. */
+-export const TOP_LEVEL_SECTIONS: readonly string[] = [
+-  'stats',        // analytics
+-  'logs',
+-  'settings',
++export const TOP_LEVEL_SECTIONS: readonly string[] = [
++  'overview',
++  'stats',        // analytics
++  'logs',
++  'settings',
+   'agents',       // people
+   'connections',  // plugins
+   'skills',       // plugins / skill library
+@@ -75,28 +77,29 @@
+ export const NAV_GROUPS: readonly RailNavGroup[] = [
+   {
+     id: 'chat',
+-    items: [
+-      { section: 'chat',        label: 'Chat',         path: '/chat',           icon: 'chat' },
+-    ],
++    items: [
++      { section: 'overview',    label: 'Обзор',        path: '/overview',       icon: 'overview' },
++      { section: 'chat',        label: 'Ассистент',    path: '/chat',           icon: 'chat' },
++    ],
+   },
+   {
+     id: 'admin',
+     items: [
+-      { section: 'agents',      label: 'Agents',       path: '/agents',         icon: 'agents' },
+-      { section: 'memory',      label: 'Memory',       path: '/memory',         icon: 'memory' },
+-      { section: 'models',      label: 'Models',       path: '/models',         icon: 'models' },
+-      { section: 'automation',  label: 'Automation',   path: '/workflows',      icon: 'automation' },
+-      { section: 'connections', label: 'Connections',  path: '/connections',    icon: 'connections' },
+-      { section: 'skills',      label: 'Skills',       path: '/skills/browse',  icon: 'skills' },
+-      { section: 'settings',    label: 'Settings',     path: '/settings',       icon: 'settings' },
++      { section: 'agents',      label: 'Агенты',       path: '/agents',         icon: 'agents' },
++      { section: 'memory',      label: 'Память',       path: '/memory',         icon: 'memory' },
++      { section: 'models',      label: 'Модели',       path: '/models',         icon: 'models' },
++      { section: 'automation',  label: 'Процессы',     path: '/workflows',      icon: 'automation' },
++      { section: 'connections', label: 'Подключения',  path: '/connections',    icon: 'connections' },
++      { section: 'skills',      label: 'Навыки',       path: '/skills/browse',  icon: 'skills' },
++      { section: 'settings',    label: 'Настройки',    path: '/settings',       icon: 'settings' },
+     ],
+   },
+   {
+     id: 'logs',
+     items: [
+-      { section: 'stats',       label: 'Stats',        path: '/stats',          icon: 'stats' },
+-      { section: 'logs',        label: 'Logs',         path: '/logs',           icon: 'logs' },
+-      { section: 'inbox',       label: 'Activity Log', path: '/inbox',          icon: 'inbox' },
++      { section: 'stats',       label: 'Статистика',   path: '/stats',          icon: 'stats' },
++      { section: 'logs',        label: 'Журнал',       path: '/logs',           icon: 'logs' },
++      { section: 'inbox',       label: 'Уведомления',  path: '/inbox',          icon: 'inbox' },
+     ],
+   },
+ ]
+diff --git a/web/src/utils/__tests__/navLayout.test.ts b/web/src/utils/__tests__/navLayout.test.ts
+--- a/web/src/utils/__tests__/navLayout.test.ts
++++ b/web/src/utils/__tests__/navLayout.test.ts
+@@ -30,8 +30,9 @@
+     expect(sectionFromPath('/settings')).toBe('settings')
+     expect(sectionFromPath('/agents')).toBe('agents')
+     expect(sectionFromPath('/agents/atlas')).toBe('agents')
+-    expect(sectionFromPath('/connections')).toBe('connections')
+-    expect(sectionFromPath('/skills/browse')).toBe('skills')
++    expect(sectionFromPath('/connections')).toBe('connections')
++    expect(sectionFromPath('/overview')).toBe('overview')
++    expect(sectionFromPath('/skills/browse')).toBe('skills')
+     expect(sectionFromPath('/inbox')).toBe('inbox')
+     expect(sectionFromPath('/models')).toBe('models')
+     expect(sectionFromPath('/memory')).toBe('memory')
+@@ -44,8 +45,9 @@
+   const topLevelRoutes = [
+     '/stats',
+     '/logs',
+-    '/settings',
+-    '/agents',
++    '/settings',
++    '/overview',
++    '/agents',
+     '/agents/atlas',
+     '/connections',
+     '/skills',
+@@ -75,7 +77,7 @@
+ 
+   it('covers the documented top-level section names', () => {
+     expect(TOP_LEVEL_SECTIONS).toEqual(expect.arrayContaining([
+-      'stats', 'logs', 'settings', 'agents', 'connections', 'skills',
++      'stats', 'logs', 'settings', 'overview', 'agents', 'connections', 'skills',
+       'automation', 'inbox', 'models', 'memory', 'cloud',
+     ]))
+     for (const section of TOP_LEVEL_SECTIONS) {
+@@ -90,7 +92,7 @@
+   })
+ 
+   it('keeps chat in its own group', () => {
+-    expect(NAV_GROUPS[0].items.map((i) => i.section)).toEqual(['chat'])
++    expect(NAV_GROUPS[0].items.map((i) => i.section)).toEqual(['overview', 'chat'])
+   })
+ 
+   it('puts settings with admin, not between stats and logs', () => {
+@@ -104,8 +106,8 @@
+ 
+   it('flat NAV_ITEMS follows group order', () => {
+     expect(NAV_ITEMS.map((i) => i.section)).toEqual([
+-      'chat',
+-      'agents', 'memory', 'models', 'automation', 'connections', 'skills', 'settings',
++      'overview', 'chat',
++      'agents', 'memory', 'models', 'automation', 'connections', 'skills', 'settings',
+       'stats', 'logs', 'inbox',
+     ])
+   })
+diff --git a/web/src/App.vue b/web/src/App.vue
+--- a/web/src/App.vue
++++ b/web/src/App.vue
+@@ -1,5 +1,5 @@
+ <template>
+-  <div class="flex h-screen bg-huginn-bg text-huginn-text font-mono overflow-hidden">
++  <div class="flex h-screen bg-huginn-bg text-huginn-text font-sans overflow-hidden">
+ 
+     <!-- Stale binary banner -->
+     <Transition name="slide-down">
+@@ -11,7 +11,7 @@
+           <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0L8 8m4-4l4 4"/>
+           </svg>
+-          <span>A new version of huginn has been installed.</span>
++          <span>Установлено обновление VALENTINA.</span>
+         </div>
+         <div class="flex items-center gap-2 shrink-0">
+           <button
+@@ -43,18 +43,18 @@
+           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+         </svg>
+-        <span>Restarting huginn…</span>
++        <span>Перезапуск VALENTINA…</span>
+       </div>
+     </Transition>
+ 
+     <!-- ── Column 1: Icon strip (48px) ─────────────────────────────── -->
+-    <nav data-testid="icon-rail" class="w-12 flex-shrink-0 flex flex-col items-center py-3 gap-1 border-r border-huginn-border" style="background:#090e14">
+-
+-      <!-- Logo mark -->
+-      <div class="w-8 h-8 rounded-xl flex items-center justify-center mb-3 select-none"
+-        style="background:linear-gradient(135deg,rgba(88,166,255,0.2),rgba(88,166,255,0.05));border:1px solid rgba(88,166,255,0.3)">
+-        <span class="text-huginn-blue font-bold text-sm leading-none">H</span>
+-      </div>
++    <nav data-testid="icon-rail" aria-label="Основная навигация VALENTINA" class="valentina-nav w-56 flex-shrink-0 flex flex-col items-stretch px-3 py-4 gap-1.5 border-r border-huginn-border">
++      <div class="valentina-wordmark w-full flex items-center gap-3 px-2 mb-5 select-none">
++        <div class="w-10 h-10 flex-shrink-0 rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,rgba(73,214,194,0.2),rgba(130,170,255,0.12));border:1px solid rgba(73,214,194,0.3)">
++          <span class="font-bold text-xl leading-none" style="color:#65ead6">V</span>
++        </div>
++        <div class="valentina-wordmark-copy min-w-0"><p class="text-sm font-semibold tracking-[0.16em] text-valentina-text">VALENTINA</p><p class="mt-0.5 text-[10px] text-valentina-muted">Личная рабочая среда</p></div>
++      </div>
+ 
+       <!-- Nav icons, Slack-class groups: chat / admin / logs -->
+       <template v-for="(group, gi) in navGroups" :key="group.id">
+@@ -69,10 +69,10 @@
+         :key="item.section"
+         :data-testid="`rail-${item.section}`"
+         @click="goToSection(item.path)"
+-        class="relative w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 group"
++        class="valentina-nav-item relative w-full h-10 rounded-xl flex items-center justify-start gap-3 px-3 transition-all duration-150 group"
+-        :class="activeSection === item.section
+-          ? 'bg-huginn-blue/20 text-huginn-blue'
+-          : 'text-huginn-muted hover:text-huginn-text hover:bg-huginn-surface'"
++        :class="activeSection === item.section
++          ? 'bg-valentina-accent/10 text-valentina-accent'
++          : 'text-huginn-muted hover:text-huginn-text hover:bg-huginn-surface'"
+         :title="item.label"
+         :aria-label="item.label"
+       >
+@@ -101,7 +101,8 @@
+ 
+         <!-- Icon -->
+         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+-          <path v-if="item.icon === 'chat'" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
++          <g v-if="item.icon === 'overview'"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9M9 20v-6h6v6"/></g>
++          <path v-else-if="item.icon === 'chat'" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+           <g v-else-if="item.icon === 'agents'">
+             <circle cx="12" cy="8" r="4" />
+             <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
+@@ -149,9 +150,9 @@
+           <g v-else-if="item.icon === 'automation'">
+             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+           </g>
+-        </svg>
+-
+-        <!-- Tooltip -->
++        </svg>
++        <span class="valentina-nav-label flex-1 min-w-0 truncate text-xs font-medium text-left" :class="activeSection === item.section ? 'text-valentina-accent' : 'text-huginn-muted group-hover:text-huginn-text'">{{ item.label }}</span>
++        <!-- Tooltip -->
+         <div class="absolute left-full ml-2 px-2 py-1 bg-huginn-surface border border-huginn-border rounded text-xs text-huginn-text whitespace-nowrap pointer-events-none z-50
+                     opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+           {{ item.label }}
+@@ -163,17 +164,12 @@
+       <div class="flex-1" />
+ 
+       <!-- Profile / Cloud button -->
+-      <div class="relative mb-1" ref="profileButtonRef">
+-        <button
+-          @click="toggleProfilePopover"
+-          class="relative w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 group text-huginn-muted hover:text-huginn-text hover:bg-huginn-surface"
+-          :class="profilePopoverOpen ? 'bg-huginn-surface text-huginn-text' : ''"
+-          title="Account & Cloud"
+-        >
+-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+-            <circle cx="12" cy="8" r="4" />
+-            <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
+-          </svg>
++      <div class="relative self-stretch mt-2 px-1 mb-1" ref="profileButtonRef">
++        <button @click="toggleProfilePopover" class="valentina-profile-button relative w-full h-10 rounded-xl flex items-center justify-start gap-3 px-3 transition-all duration-150 group text-huginn-muted hover:text-huginn-text hover:bg-huginn-surface" :class="profilePopoverOpen ? 'bg-huginn-surface text-huginn-text' : ''" title="Состояние системы">
++          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
++            <circle cx="12" cy="8" r="4" /><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
++          </svg>
++          <span class="valentina-profile-label text-xs">Состояние системы</span>
+           <!-- Status dot: green=local, blue=cloud, red=unreachable -->
+           <span data-testid="ws-status-dot" class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#090e14] transition-colors duration-300"
+             :class="!wsConnected ? 'bg-huginn-red' : cloudConnected ? 'bg-huginn-blue' : 'bg-huginn-green'"
+@@ -191,7 +187,7 @@
+                 :class="cloudConnected ? 'bg-huginn-blue' : 'bg-huginn-muted/40'"
+                 :style="cloudConnected ? 'box-shadow:0 0 4px rgba(88,166,255,0.5)' : ''" />
+               <span class="text-xs font-semibold text-huginn-text">
+-                {{ cloudConnected ? 'Huginn Cloud' : 'Not connected' }}
++                {{ cloudConnected ? 'Удалённый доступ активен' : 'Локальный режим' }}
+               </span>
+             </div>
+             <template v-if="cloudConnected">
+@@ -203,10 +199,10 @@
+               </button>
+             </template>
+             <template v-else>
+-              <p class="text-[11px] text-huginn-muted ml-4 mb-2 leading-relaxed">Access your agents from anywhere</p>
++              <p class="text-[11px] text-huginn-muted ml-4 mb-2 leading-relaxed">Локальный режим активен. Удалённый доступ можно настроить отдельно.</p>
+               <button @click="connectCloud" :disabled="cloudConnecting"
+                 class="ml-4 px-3 py-1.5 text-[10px] rounded-lg bg-huginn-blue text-white hover:bg-huginn-blue/80 disabled:opacity-50 transition-colors">
+-                {{ cloudConnecting ? 'Connecting...' : 'Connect to Huginn Cloud' }}
++                {{ cloudConnecting ? 'Подключение…' : 'Подключить удалённый доступ' }}
+               </button>
+             </template>
+           </div>
+@@ -219,14 +215,14 @@
+             <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors duration-300"
+               :class="wsConnected ? 'bg-huginn-green' : 'bg-huginn-red'" />
+             <span class="text-[11px] text-huginn-muted">
+-              Local server {{ wsConnected ? 'reachable' : 'unreachable' }}
++              Локальный сервер: {{ wsConnected ? 'доступен' : 'недоступен' }}
+             </span>
+           </div>
+ 
+           <!-- Build version footer — small, muted, just for update confirmation -->
+           <div class="px-4 pb-2.5 pt-0.5 flex items-center justify-between text-[10px] text-huginn-muted/60"
+             data-testid="popover-version-row">
+-            <span class="uppercase tracking-wider">Version</span>
++            <span class="uppercase tracking-wider">Версия</span>
+             <span class="font-mono">{{ versionLabel }}</span>
+           </div>
+         </div>
+@@ -991,13 +987,13 @@
+         <!-- App loading -->
+         <div v-if="appLoading" class="flex flex-col items-center justify-center h-full gap-4">
+           <div class="w-8 h-8 border-2 border-huginn-border border-t-huginn-blue rounded-full animate-spin" />
+-          <p class="text-huginn-muted text-sm">Starting huginn...</p>
++          <p class="text-huginn-muted text-sm">Запуск VALENTINA…</p>
+         </div>
+ 
+         <!-- App error -->
+         <div v-else-if="appError" class="flex flex-col items-center justify-center h-full gap-3">
+           <p class="text-huginn-red text-sm">{{ appError }}</p>
+-          <button @click="initApp" class="text-huginn-blue text-xs hover:underline">Retry connection</button>
++          <button @click="initApp" class="text-valentina-accent text-xs hover:underline">Retry connection</button>
+         </div>
+ 
+         <RouterView v-else />
+diff --git a/web/src/views/OverviewView.vue b/web/src/views/OverviewView.vue
+new file mode 100644
+--- /dev/null
++++ b/web/src/views/OverviewView.vue
+@@ -0,0 +1,71 @@
++<template>
++  <div class="h-full overflow-y-auto bg-valentina-bg"><div class="mx-auto w-full max-w-[1440px] space-y-7 px-6 py-7 sm:px-8 lg:px-10">
++    <header class="flex flex-wrap items-start justify-between gap-5"><div>
++      <p class="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-valentina-accent/80">ЛИЧНАЯ РАБОЧАЯ СРЕДА</p>
++      <h1 class="text-2xl font-semibold tracking-tight text-valentina-text sm:text-[30px]">Добро пожаловать в <span class="text-valentina-accent">VALENTINA</span></h1>
++      <p class="mt-2 max-w-2xl text-sm leading-6 text-valentina-muted">Поиск коммерческих заказов, управление исследованием и контроль AI-инструментов — в одном месте.</p></div>
++      <div class="flex items-center gap-2 rounded-full border border-valentina-border bg-valentina-surface px-3 py-2"><span class="h-2 w-2 rounded-full" :class="serverOnline ? 'bg-valentina-green' : 'bg-valentina-red'"/><span class="text-xs font-medium text-valentina-text">{{ serverStatusLabel }}</span><span v-if="health?.version" class="border-l border-valentina-border pl-2 text-[10px] text-valentina-muted">{{ health.version }}</span></div></header>
++    <section class="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Показатели системы">
++      <article v-for="card in metricCards" :key="card.title" class="rounded-2xl border border-valentina-border bg-valentina-surface p-4"><div class="flex items-center justify-between"><p class="text-xs text-valentina-muted">{{ card.title }}</p><span class="text-lg" :class="card.tone">{{ card.icon }}</span></div><div class="mt-3 flex items-end gap-2"><span class="text-3xl font-semibold tabular-nums text-valentina-text">{{ loading ? '—' : card.value }}</span><span class="pb-1 text-xs text-valentina-muted">{{ card.caption }}</span></div><RouterLink :to="card.to" class="mt-3 inline-flex text-xs font-medium text-valentina-accent hover:text-valentina-text">{{ card.link }} →</RouterLink></article>
++    </section>
++    <section class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.85fr)]">
++      <article class="rounded-2xl border border-valentina-accent/25 bg-gradient-to-br from-valentina-accent/[0.08] via-valentina-surface to-valentina-surface p-5 sm:p-6"><span class="rounded-full border border-valentina-accent/25 bg-valentina-accent/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-valentina-accent">Главная задача</span><span class="ml-2 text-[10px] text-valentina-muted">Ремонт · отделка · субподряд</span>
++        <h2 class="mt-4 text-xl font-semibold text-valentina-text">Коммерческие возможности</h2><p class="mt-2 max-w-xl text-sm leading-6 text-valentina-muted">Здесь будут собираться заявки на ремонт и отделку, запросы субподрядчиков, тендеры и ранние сигналы спроса в Валенсии и Comunitat Valenciana.</p>
++        <div class="mt-6 rounded-xl border border-valentina-border bg-valentina-bg/60 p-4"><p class="text-sm font-medium text-valentina-text">Реальные результаты появятся после подключения реестра заказов и первого источника.</p><p class="mt-1 text-xs leading-5 text-valentina-muted">Пока мы не показываем вымышленные заявки или статистику. Следующий шаг — настроить модель и исследовательский процесс.</p></div>
++        <div class="mt-5 flex flex-wrap gap-2"><RouterLink to="/workflows" class="rounded-xl bg-valentina-accent px-4 py-2.5 text-xs font-semibold text-[#071511]">Открыть исследование →</RouterLink><RouterLink to="/chat" class="rounded-xl border border-valentina-border bg-valentina-raised px-4 py-2.5 text-xs text-valentina-text">Открыть ассистента</RouterLink></div>
++      </article>
++      <article class="rounded-2xl border border-valentina-border bg-valentina-surface p-5"><div class="flex items-center justify-between"><h2 class="text-sm font-semibold text-valentina-text">Состояние системы</h2><button @click="refreshDashboard" :disabled="loading" aria-label="Обновить состояние" class="rounded-lg p-2 text-valentina-muted hover:bg-valentina-raised hover:text-valentina-accent">⟳</button></div>
++        <div class="mt-5 flex items-center justify-between"><span class="text-xs text-valentina-muted">Локальный сервер</span><span class="text-xs font-medium" :class="serverOnline ? 'text-valentina-green' : 'text-valentina-red'">{{ serverStatusLabel }}</span></div>
++        <div class="mt-4 border-t border-valentina-border pt-3"><p class="text-[10px] uppercase tracking-wider text-valentina-muted">Последняя проверка</p><p class="mt-1 text-xs text-valentina-text">{{ lastUpdatedLabel }}</p></div><p v-if="loadError" class="mt-3 rounded-lg border border-valentina-red/25 bg-valentina-red/5 p-2.5 text-xs leading-5 text-valentina-red">{{ loadError }}</p><RouterLink to="/stats" class="mt-5 inline-flex text-xs font-medium text-valentina-accent">Диагностика и статистика →</RouterLink></article>
++    </section>
++    <section><div class="mb-3"><h2 class="text-sm font-semibold text-valentina-text">Быстрый доступ</h2><p class="mt-1 text-xs text-valentina-muted">Рабочие инструменты и настройки VALENTINA</p></div>
++      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><RouterLink v-for="item in quickLinks" :key="item.title" :to="item.to" class="group rounded-xl border border-valentina-border bg-valentina-surface/70 p-4 transition hover:border-valentina-accent/40 hover:bg-valentina-surface"><div class="text-lg" :class="item.tone">{{ item.icon }}</div><p class="mt-3 text-sm font-medium text-valentina-text">{{ item.title }}</p><p class="mt-1 text-xs leading-5 text-valentina-muted">{{ item.description }}</p><span class="mt-3 inline-flex text-xs text-valentina-accent">Открыть →</span></RouterLink></div>
++    </section>
++    <footer class="flex flex-wrap justify-between gap-2 border-t border-valentina-border pt-4 text-[10px] text-valentina-muted"><span>VALENTINA · локальная рабочая среда</span><span>Данные остаются на этом устройстве, кроме явно настроенных внешних API</span></footer>
++  </div></div>
++</template>
++<script setup lang="ts">
++import { computed, onMounted, ref } from 'vue'
++import { RouterLink } from 'vue-router'
++import { api } from '../composables/useApi'
++import { useAgents } from '../composables/useAgents'
++import { useWorkflows } from '../composables/useWorkflows'
++import { useNotifications } from '../composables/useNotifications'
++const { agents, fetchAgents } = useAgents()
++const { workflows, fetchWorkflows } = useWorkflows()
++const { pendingCount, fetchSummary } = useNotifications()
++const loading = ref(true)
++const health = ref<{ status: string; version?: string } | null>(null)
++const loadError = ref('')
++const lastUpdated = ref<Date | null>(null)
++const serverOnline = computed(() => health.value?.status === 'ok')
++const serverStatusLabel = computed(() => serverOnline.value ? 'Работает' : 'Нет связи')
++const enabledWorkflowCount = computed(() => workflows.value.filter(w => w.enabled).length)
++const metricCards = computed(() => [
++ { title: 'AI-агенты', value: agents.value.length, caption: 'настроено', to: '/agents', link: 'Управление', icon: '◈', tone: 'text-valentina-blue' },
++ { title: 'Активные процессы', value: enabledWorkflowCount.value, caption: 'включено', to: '/workflows', link: 'Открыть', icon: '⌘', tone: 'text-valentina-violet' },
++ { title: 'Требуют внимания', value: pendingCount.value, caption: 'уведомлений', to: '/inbox', link: 'Проверить', icon: '◷', tone: 'text-valentina-amber' },
++])
++const quickLinks = [
++ { title: 'Модели и NVIDIA NIM', description: 'Провайдер, модель и защищённый API-ключ', to: '/models', icon: '✧', tone: 'text-valentina-blue' },
++ { title: 'AI-агенты', description: 'Роли исследователя, проверяющего и оценщика', to: '/agents', icon: '◉', tone: 'text-valentina-violet' },
++ { title: 'Подключения', description: 'Источники, инструменты и внешние сервисы', to: '/connections', icon: '⌁', tone: 'text-valentina-green' },
++ { title: 'Исследовательские процессы', description: 'Запуск, история, шаги и результаты', to: '/workflows', icon: '▦', tone: 'text-valentina-amber' },
++]
++const lastUpdatedLabel = computed(() => lastUpdated.value ? lastUpdated.value.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'Ещё не проверялось')
++async function refreshDashboard() {
++ loading.value = true
++ loadError.value = ''
++ try {
++  const [healthResult] = await Promise.all([api.health(), fetchAgents(), fetchWorkflows(), fetchSummary()])
++  health.value = healthResult
++ } catch {
++  health.value = null
++  loadError.value = 'Не удалось получить состояние локального сервера. Проверьте подключение и повторите попытку.'
++ } finally {
++  lastUpdated.value = new Date()
++  loading.value = false
++ }
++}
++onMounted(refreshDashboard)
++</script>
+diff --git a/web/src/views/__tests__/OverviewView.test.ts b/web/src/views/__tests__/OverviewView.test.ts
+new file mode 100644
+--- /dev/null
++++ b/web/src/views/__tests__/OverviewView.test.ts
+@@ -0,0 +1,18 @@
++import { describe, it, expect, vi } from 'vitest'
++import { shallowMount, flushPromises } from '@vue/test-utils'
++vi.mock('../../composables/useApi', () => ({ api: { health: vi.fn().mockResolvedValue({ status: 'ok', version: '0.5.0' }) } }))
++vi.mock('../../composables/useAgents', async () => { const { ref } = await import('vue'); return { useAgents: () => ({ agents: ref([{ name: 'Scout' }]), fetchAgents: vi.fn().mockResolvedValue(undefined) }) } })
++vi.mock('../../composables/useWorkflows', async () => { const { ref } = await import('vue'); return { useWorkflows: () => ({ workflows: ref([{ id: 'one', enabled: true }]), fetchWorkflows: vi.fn().mockResolvedValue(undefined) }) } })
++vi.mock('../../composables/useNotifications', async () => { const { ref } = await import('vue'); return { useNotifications: () => ({ pendingCount: ref(2), fetchSummary: vi.fn().mockResolvedValue(undefined) }) } })
++import OverviewView from '../OverviewView.vue'
++describe('OverviewView', () => {
++ it('renders system status and an honest opportunity empty state', async () => {
++  const wrapper = shallowMount(OverviewView, { global: { stubs: { RouterLink: true } } })
++  await flushPromises()
++  expect(wrapper.text()).toContain('VALENTINA')
++  expect(wrapper.text()).toContain('Работает')
++  expect(wrapper.text()).toContain('Коммерческие возможности')
++  expect(wrapper.text()).toContain('Реальные результаты появятся после подключения реестра заказов')
++  expect(wrapper.text()).toContain('0.5.0')
++ })
++})
+diff --git a/web/src/views/__tests__/App.test.ts b/web/src/views/__tests__/App.test.ts
+--- a/web/src/views/__tests__/App.test.ts
++++ b/web/src/views/__tests__/App.test.ts
+@@ -812,7 +812,7 @@
+       const rail = w.find('[data-testid="icon-rail"]')
+       expect(rail.exists()).toBe(true)
+       expect(rail.find('[data-testid="rail-section-admin"]').exists()).toBe(true)
+       expect(rail.find('[data-testid="rail-section-logs"]').exists()).toBe(true)
+-      expect(rail.find('[data-testid="rail-chat"]').attributes('title')).toBe('Chat')
+-      expect(rail.find('[data-testid="rail-settings"]').attributes('title')).toBe('Settings')
++      expect(rail.find('[data-testid="rail-chat"]').attributes('title')).toBe('Ассистент')
++      expect(rail.find('[data-testid="rail-settings"]').attributes('title')).toBe('Настройки')
+       const html = rail.html()

@@ -102,4 +102,12 @@ A build is not a successful installation. Verify on a real Windows 11 x64 machin
 9. Uninstall that preserves user data by default.
 10. Presence of the complete license texts and third-party notices.
 
-The first private build may be unsigned and may trigger Windows SmartScreen. Paid code signing and public distribution are deferred unless they become an explicit requirement.
+The first private test build may be unsigned and may trigger Windows SmartScreen. Paid code signing is deferred unless it becomes necessary for local testing.
+
+## 8. Test executable distribution — owner requirement
+
+VALENTINA does not publish official releases. Do not create GitHub Releases, release tags or public installer-release pages.
+
+For owner testing, a successful Windows GitHub Actions run attaches the built `VALENTINA.exe` as a SHA-labelled workflow artifact. The download is a ZIP containing the executable, retained for 30 days. Failed or cancelled runs have no downloadable executable artifact. The owner downloads it from the completed run's **Artifacts** section.
+
+The workflow artifact is a test-build delivery mechanism, not a claim that the product, installer or Windows acceptance gates are complete. The first artifact is the standalone `VALENTINA.exe`; a future NSIS setup executable may also be uploaded as a workflow artifact when the installer is actually implemented and tested.
