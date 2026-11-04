@@ -11,7 +11,7 @@ Do not hard-code quality thresholds before there is a representative owner-revie
 
 ## 2. Golden evaluation set
 
-Create a small golden dataset once the owner profile and first permitted source are selected. Public Git may contain only synthetic fixtures or sanitized examples. Actual leads, contacts, owner-specific rules and source payloads stay outside Git.
+Create a small golden dataset once the owner profile and first permitted source are selected. Public Git may contain only synthetic fixtures or sanitized examples. The initial fictional examples are under testdata/fixtures/synthetic/ and use the reserved example.com domain. Actual leads, contacts, owner-specific rules and source payloads stay outside Git.
 
 The golden set should include:
 - A clearly relevant opportunity.
