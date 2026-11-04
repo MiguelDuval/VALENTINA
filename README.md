@@ -8,7 +8,7 @@ VALENTINA collects permitted public information, preserves evidence and source p
 
 ## Architecture decision
 
-**Huginn-first / reuse-first.** VALENTINA is built on the existing [`scrypster/huginn`](https://github.com/scrypster/huginn) local AI-agent platform. Huginn supplies the initial UI, agents, model configuration, MCP connectivity, routines, workflows and scheduling. VALENTINA adds only the smallest source-specific connectors and, when required by a real source proof-of-concept, one local MCP service with SQLite for normalized opportunities and evidence.
+**Reuse-first, VALENTINA-branded.** VALENTINA uses the pinned [`scrypster/huginn`](https://github.com/scrypster/huginn) Go runtime and its existing Vue 3 browser client as the single local application foundation. The browser UI is customized as VALENTINA, keeps the useful agent/model/connection/workflow functions, and adds renovation-opportunity review screens. The intended local product is one application process, not a second CRM website or companion app.
 
 Do not confuse this with the unrelated Ruby project [`huginn/huginn`](https://github.com/huginn/huginn).
 
@@ -31,7 +31,8 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 - [`docs/DATA-AND-EVIDENCE.md`](docs/DATA-AND-EVIDENCE.md) — provisional company/opportunity/evidence contracts and deduplication.
 - [`docs/SOURCE-REGISTRY.md`](docs/SOURCE-REGISTRY.md) — source approval, scope, collection limits and source onboarding.
 - [`docs/QUALITY-AND-OPERATIONS.md`](docs/QUALITY-AND-OPERATIONS.md) — evaluation, quality metrics, failure handling and recovery.
-- [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) — prioritized path to the own CRM interface and Windows installer.
+- [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) — prioritized path to the VALENTINA-branded browser UI and Windows installer.
+- [`docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md`](docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md) — approved white-label and single-runtime decision.
 
 ## Starter kit and data contracts
 
@@ -54,7 +55,7 @@ This repository is intentionally **public**. All committed code, documentation, 
 
 ## Installation direction
 
-The intended first user-facing package is a Windows x64 `VALENTINA-Setup.exe` installer. It is expected to install the pinned Huginn application plus one small VALENTINA Go companion for the dedicated local CRM interface, SQLite-backed business records and enforced source policy. The exact process boundary remains an implementation ADR gate. Normal users should not need to install Go, Node.js, Python, Docker or a database server. Huginn remains the advanced agent/workflow administration console; VALENTINA supplies the company/opportunity review workspace.
+The intended first user-facing package is a Windows x64 `VALENTINA-Setup-x64.exe` installer. It packages one local Go application with the customized Vue frontend embedded. The normal interface is VALENTINA; engine administration remains available inside its AI & Automation / Advanced areas. Normal users should not need to install Go, Node.js, Python, Docker or a database server.
 
 See [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) for the binding packaging decision.
 
@@ -62,8 +63,8 @@ See [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) for t
 
 1. Capture the minimum local owner business profile.
 2. Build and verify the pinned Huginn runtime on Windows 11 x64.
-3. Implement one compact VALENTINA Go companion for source-policy enforcement, MCP, SQLite and the local HTTP UI/API after a dedicated process-boundary ADR.
-4. Build the five core CRM views using synthetic fixtures, then connect them to the local service.
+3. Build the tracked VALENTINA white-label patch set against the pinned Vue client and make Overview the default route.
+4. Add the renovation opportunity screens and the smallest in-process Go API/SQLite/MCP domain extension; then connect the UI to real records.
 5. Implement one approved real source and one manual end-to-end research workflow.
 6. Package Huginn and VALENTINA behind one per-user Windows NSIS installer.
 7. Verify install, first-run, source workflow, persistence, backup/restore, upgrade and data-preserving uninstall.
