@@ -33,13 +33,14 @@ Unknown fields stay unknown. Do not invent a profile from generic assumptions.
 
 1. **Define scope:** select the profile, geography, categories, time window and optional source restrictions.
 2. **Discover:** search approved public sources and collect candidate URLs. A search hit is not a verified opportunity.
-3. **Fetch:** retrieve the original publisher page through the least fragile permitted method.
-4. **Extract:** map relevant facts into the versioned VALENTINA data contract; preserve original language and source links.
-5. **Verify:** inspect the original source; verify publisher, dates, location, eligibility, value and deadline. Missing facts remain unknown.
-6. **Normalize and deduplicate:** deterministic normalization and matching first; AI can suggest ambiguous duplicate pairs for human review.
-7. **Assess fit:** compare verified facts to the owner profile and explain both matches and missing information.
-8. **Review:** present evidence, fit assessment, freshness and duplicate links. The owner decides what to qualify, reject, archive or follow up.
-9. **Learn:** record why an item was accepted/rejected and use those labels to improve search terms and synthetic evaluation fixtures.
+3. **Classify demand evidence:** distinguish an explicit request, public tender, subcontracting request and early public demand signal. Keep indirect signals in a separate visible class; never present one as a confirmed client request or awarded job.
+4. **Fetch:** retrieve the original publisher page through the least fragile permitted method.
+5. **Extract:** map relevant facts into the versioned VALENTINA data contract; preserve original language and source links.
+6. **Verify:** inspect the original source; verify publisher, dates, location, eligibility, value and deadline. Missing facts remain unknown.
+7. **Normalize and deduplicate:** deterministic normalization and matching first; AI can suggest ambiguous duplicate pairs for human review.
+8. **Assess fit:** compare verified facts to the owner profile and explain both matches and missing information.
+9. **Review:** present evidence, fit assessment, freshness and duplicate links. The owner decides what to qualify, reject, archive or follow up.
+10. **Learn:** record why an item was accepted/rejected and use those labels to improve search terms and synthetic evaluation fixtures.
 
 The first implementation should be manual-triggered. Enable recurring schedules only after the source process proves reliable and its costs and failure behavior are understood.
 
