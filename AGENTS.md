@@ -81,7 +81,7 @@ Architecture is a project constraint, not a suggestion. Optimizing for the fewes
 Before any implementation task that depends on Huginn source code, every agent MUST:
 
 1. Read [`docs/UPSTREAM-INTEGRATION.md`](docs/UPSTREAM-INTEGRATION.md) and [`docs/OPTIONAL-INTEGRATIONS.md`](docs/OPTIONAL-INTEGRATIONS.md).
-2. On Windows, run `.`scripts`/bootstrap.ps1`; on Unix-like systems, run `bash scripts/bootstrap.sh`. Alternatively, use `git submodule update --init --recursive`.
+2. On Windows, run `.\scripts\bootstrap.ps1`; on Unix-like systems, run `bash scripts/bootstrap.sh`. Alternatively, use `git submodule update --init --recursive`.
 3. Verify `git -C upstream/huginn rev-parse HEAD` equals the exact pinned SHA documented in `docs/UPSTREAM-INTEGRATION.md`.
 4. Never report source review or build readiness if the submodule is missing or at another commit.
 5. Keep all VALENTINA-specific code outside `upstream/huginn`. A submodule pointer change or upstream patch requires a separate owner-approved change and review.
