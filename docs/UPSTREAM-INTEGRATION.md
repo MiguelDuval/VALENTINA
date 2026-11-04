@@ -30,7 +30,7 @@ Clone VALENTINA with submodules enabled:
 ```powershell
 git clone --recurse-submodules https://github.com/MiguelDuval/VALENTINA.git
 cd VALENTINA
-`.\scripts\bootstrap.ps1
+.\scripts\bootstrap.ps1
 ```
 
 The bootstrap script initializes submodules and verifies the exact Huginn commit. On an existing clone, it is safe to run again.
