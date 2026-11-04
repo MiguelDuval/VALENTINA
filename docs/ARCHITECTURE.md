@@ -179,13 +179,17 @@ Unless the owner approves an ADR backed by a demonstrated need, do not build or 
 
 ## 9. Delivery sequence
 
-1. **Huginn runtime proof:** install the pinned release locally; verify startup, UI, restart persistence, API token handling, routines/workflows and backup/restore.
-2. **NIM proof:** configure the `custom` OpenAI-compatible backend and verify completion, tool calls, streaming, and vision only if required. Record model ID, endpoint, result and skipped tests without exposing credentials.
-3. **One-source proof:** choose one permitted, representative source. Test search → fetch → extract → evidence → review, with realistic rate limits and failure cases.
-4. **Structured registry only when needed:** implement one small VALENTINA MCP service and SQLite store for deterministic normalization, deduplication and review history. Do not create a separate UI/API if MCP tools suffice.
-5. **Expand source coverage:** add adapters one at a time, reusing the same normalized schema and test contract.
-6. **UFO² proof, only if needed:** validate one specific GUI-only workflow and a narrow, approval-gated bridge.
-7. **UI changes last:** customize or replace parts of Huginn UI only after daily use identifies concrete shortcomings that cannot be solved with configuration or existing views.
+The prioritized user-facing objective is the installed CRM-style VALENTINA application described in [MVP-DELIVERY-ROADMAP.md](MVP-DELIVERY-ROADMAP.md). The earlier source coverage / UFO² / UI-last ordering is superseded.
+
+1. **Owner profile:** capture only the minimum business, opportunity, geography and exclusion criteria needed to define relevance.
+2. **Runtime baseline:** build and verify the pinned Huginn release on Windows 11 x64, its local web UI, data/config paths, safe startup/shutdown and credential handling.
+3. **VALENTINA domain foundation:** implement one small Go companion service combining the source-policy enforcement boundary, MCP integration, local HTTP API and SQLite-backed domain records. Confirm the exact process boundary in a dedicated ADR before implementation.
+4. **Own CRM UI:** build the VALENTINA overview, review queue, opportunity details/evidence, companies and source/settings views. Start with synthetic fixtures, then connect to the local service.
+5. **One real source:** implement one approved source adapter and a manual end-to-end research run. Broad source coverage and scheduling are not MVP blockers.
+6. **Windows installer:** package Huginn and VALENTINA components behind one per-user NSIS Setup executable, with safe first-run configuration, Start Menu entry and data-preserving upgrade/uninstall.
+7. **Release verification:** verify installation, source workflow, persistence, backup/restore, upgrade and uninstall on the target Windows machine.
+
+Playwright MCP, UFO², recurring unattended collection, broad source coverage, multi-user access and cross-platform packages are deferred unless a demonstrated need blocks the MVP.
 
 ## 10. Acceptance criteria
 
