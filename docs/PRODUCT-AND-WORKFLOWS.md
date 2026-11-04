@@ -99,7 +99,7 @@ Pinned upstream references:
 
 ## 6. Deterministic code vs AI
 
-Use deterministic code for URL/host allowlists, redirects and SSRF validation, response limits, date parsing, schema validation, canonical URLs, identifiers, exact-match deduplication, expiry, rate limits, retries, bookkeeping, export and backup.
+Use deterministic code for URL/host allowlists, redirects and SSRF validation, response limits, date parsing, schema validation, canonical URLs, identifiers, exact-match deduplication, expiry, rate limits, retries, bookkeeping, export and backup. The pinned Huginn fetch_url does not enforce the VALENTINA source registry's host/path allowlists; the starter agent prompts are not a hard authorization boundary. The workflow must stay manual/disabled until a source-gating adapter enforces them server-side.
 
 Use the model for search-query expansion, understanding public descriptions, mapping source text to a fixed schema, explaining fit against explicit owner criteria and suggesting likely duplicates.
 
