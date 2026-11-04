@@ -544,8 +544,13 @@ new file mode 100644
 diff --git a/web/src/views/__tests__/App.test.ts b/web/src/views/__tests__/App.test.ts
 --- a/web/src/views/__tests__/App.test.ts
 +++ b/web/src/views/__tests__/App.test.ts
-@@ -816,2 +816,2 @@
+@@ -812,7 +812,7 @@
+       const rail = w.find('[data-testid="icon-rail"]')
+       expect(rail.exists()).toBe(true)
+       expect(rail.find('[data-testid="rail-section-admin"]').exists()).toBe(true)
+       expect(rail.find('[data-testid="rail-section-logs"]').exists()).toBe(true)
 -      expect(rail.find('[data-testid="rail-chat"]').attributes('title')).toBe('Chat')
 -      expect(rail.find('[data-testid="rail-settings"]').attributes('title')).toBe('Settings')
 +      expect(rail.find('[data-testid="rail-chat"]').attributes('title')).toBe('Ассистент')
 +      expect(rail.find('[data-testid="rail-settings"]').attributes('title')).toBe('Настройки')
+       const html = rail.html()
