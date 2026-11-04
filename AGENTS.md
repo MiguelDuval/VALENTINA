@@ -85,7 +85,7 @@ Before any implementation task that depends on Huginn source code, every agent M
 2. On Windows, run `.\scripts\bootstrap.ps1`; on Unix-like systems, run `bash scripts/bootstrap.sh`. Alternatively, use `git submodule update --init --recursive`.
 3. Verify `git -C upstream/huginn rev-parse HEAD` equals the exact pinned SHA documented in `docs/UPSTREAM-INTEGRATION.md`.
 4. Never report source review or build readiness if the submodule is missing or at another commit.
-5. Keep all VALENTINA-specific code outside `upstream/huginn`. A submodule pointer change or upstream patch requires a separate owner-approved change and review.
+5. Keep all authored VALENTINA code and patch files outside `upstream/huginn`. ADR-005 authorizes a tracked, reproducible UI patch set that is applied only to a clean temporary copy/worktree for building the branded application. Never commit modified upstream files into the submodule or change its pinned pointer as part of this patch workflow. A permanent upstream fork, upstream commit/pointer change, or any patch outside ADR-005's UI/domain scope requires a separate owner-approved change and review.
 
 The source submodule is mandatory. A clone without initialized submodules is an incomplete working copy for any source-level task.
 
