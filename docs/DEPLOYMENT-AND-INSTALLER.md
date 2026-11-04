@@ -155,11 +155,11 @@ When implementation begins:
 1. Build the pinned Huginn release in a controlled Windows build environment using the exact Go and Node toolchain versions required by that release.
 2. Build the Huginn web frontend, then compile it with `go build -tags embed_frontend`.
 3. Build the VALENTINA companion with its UI assets embedded; validate MCP and HTTP startup/shutdown behavior.
-3. Run upstream tests and the Windows build/smoke checks that are available.
-4. Package the executable and required notices using a pinned NSIS version.
-5. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
-6. Record SHA-256 hashes and version metadata for the installer and application executable.
-7. Never claim an installation test succeeded based solely on a successful compilation.
+4. Run upstream tests and the Windows build/smoke checks that are available.
+5. Package both application components and required notices using a pinned NSIS version.
+6. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
+7. Record SHA-256 hashes and version metadata for the installer and both application executables.
+8. Never claim an installation test succeeded based solely on a successful compilation.
 
 Do not publish VALENTINA/Huginn binaries as public GitHub releases by default. The repository is public, but the pinned upstream Huginn license is BSL 1.1 with a limited internal-use grant. Keep initial installation artifacts for the owner's internal use. Any wider distribution, hosted offering, third-party delivery or commercial product packaging requires a fresh license review before publication.
 
