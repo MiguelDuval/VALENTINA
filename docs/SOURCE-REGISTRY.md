@@ -55,13 +55,28 @@ Pinned source references:
 - https://github.com/scrypster/huginn/blob/f01c1d84c08b1de972d8cc268da25602598adff8/internal/tools/web_search.go
 - https://github.com/scrypster/huginn/blob/v0.5.0/docs/features/local-tools.md
 
-## 5. Source vs evidence
+## 5. Important enforcement gap in the current starter kit
+
+The source registry and agent prompts are policy/configuration documents; they are **not a hard technical hostname allowlist in the pinned Huginn release**.
+
+Huginn's built-in `fetch_url` blocks private/internal destinations and applies response/time limits, but the tool does not receive a VALENTINA source-profile ID and does not enforce this registry's `allowed_hosts` or `allowed_path_prefixes` fields. A prompt telling an agent to use approved hosts is not an authorization boundary, and prompt injection can attempt to make an agent fetch unrelated public URLs.
+
+Therefore:
+- The current starter workflow is manual-only and disabled by default.
+- Do not run discovery/verification unattended or describe the registry as technically enforced while agents call built-in `fetch_url` directly.
+- Before enabling unattended operation or treating source scope as guaranteed, implement one narrow VALENTINA fetch/search MCP adapter that resolves a source ID, checks the exact host/path allowlist, re-validates every redirect and resolved IP, enforces request/response limits and records the source ID. It must fail closed when a source is missing, paused or not approved.
+- Keep raw `fetch_url` out of the unattended agent tool allowlist once the enforcing adapter is available.
+- The adapter itself must have deterministic unit tests for allowed host, disallowed host, path escape, redirect to a disallowed host, private/reserved IP, DNS rebinding/re-resolution, timeout, content size, unsupported type and paused/unapproved source.
+
+This is the concrete point where a small VALENTINA-owned MCP component becomes justified: not because Huginn lacks workflow orchestration, but because the native fetch tool cannot enforce VALENTINA's source-specific policy. Its implementation should be one small Go service, not a fleet of per-source microservices.
+
+## 6. Source vs evidence
 
 A Source describes an approved publisher/endpoint and collection rules. A SourceEvidence record describes one actual observation of one page/document at a particular time.
 
 A generic source URL is not proof that a specific opportunity exists. Every candidate must retain its exact original page URL and observation time.
 
-## 6. Source discovery order
+## 7. Source discovery order
 
 The target business profile has not yet been fully specified. Therefore, no fixed list of tenders, directories, marketplaces, job boards, event sites or commercial portals is declared approved here.
 
@@ -74,13 +89,13 @@ Once the local profile is completed, evaluate candidates in this order:
 
 This is a discovery plan, not blanket permission to scrape any named website.
 
-## 7. Template and approval
+## 8. Template and approval
 
 Use templates/source-profile.template.yaml as the starting point. The logical schema is schemas/source-profile.schema.json.
 
 A source profile must be reviewed before it is copied into an active local registry. Do not commit sensitive strategy URLs, cookies, access tokens, account details or secrets. An approved flag does not replace human review of source terms.
 
-## 8. Change control
+## 9. Change control
 
 When a source changes structure, terms, access rules or rate limits:
 - Pause the adapter if it may exceed the approved scope.
