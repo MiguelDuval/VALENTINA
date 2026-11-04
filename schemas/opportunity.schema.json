@@ -10,6 +10,7 @@
     "title",
     "summary",
     "opportunity_type",
+    "demand_evidence_type",
     "status",
     "source_evidence_ids",
     "first_seen_at",
