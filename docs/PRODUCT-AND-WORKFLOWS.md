@@ -20,6 +20,7 @@ The public repository contains only a placeholder at templates/owner-profile.tem
 The profile should describe:
 - Business offerings, capabilities, target customer types and sector keywords/synonyms.
 - Geographic coverage: Valencia municipality, selected municipalities, province, Comunitat Valenciana, Spain or other expressly approved areas.
+- Ordered geographic priority bands and travel-accessibility preferences; bands are ranking preferences unless the owner explicitly marks an area as a hard exclusion. Unknown route information stays unknown.
 - Opportunity categories to include and exclude.
 - Minimum/maximum commercial values or project sizes, if applicable.
 - Hard disqualifiers, capacity limits and competitor exclusions.
