@@ -27,6 +27,14 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 - [`docs/UPSTREAM-INTEGRATION.md`](docs/UPSTREAM-INTEGRATION.md) — Huginn source submodule, pin, bootstrap and build instructions.
 - [`docs/OPTIONAL-INTEGRATIONS.md`](docs/OPTIONAL-INTEGRATIONS.md) — NVIDIA NIM, Playwright MCP, UFO² and optional Brave Search.
 - [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) — Windows-first standalone installer, runtime boundaries, administration UI and update/uninstall safety.
+- [`docs/PRODUCT-AND-WORKFLOWS.md`](docs/PRODUCT-AND-WORKFLOWS.md) — user workflow, agent roles and deterministic-vs-AI boundaries.
+- [`docs/DATA-AND-EVIDENCE.md`](docs/DATA-AND-EVIDENCE.md) — provisional company/opportunity/evidence contracts and deduplication.
+- [`docs/SOURCE-REGISTRY.md`](docs/SOURCE-REGISTRY.md) — source approval, scope, collection limits and source onboarding.
+- [`docs/QUALITY-AND-OPERATIONS.md`](docs/QUALITY-AND-OPERATIONS.md) — evaluation, quality metrics, failure handling and recovery.
+
+## Starter kit and data contracts
+
+The repository includes provisional JSON Schemas under `schemas/`, a private owner-profile placeholder, and safe Huginn agent/Skill/workflow templates under `templates/`. They are not activated automatically. See [`templates/huginn/README.md`](templates/huginn/README.md). The completed owner profile, live source registry, actual leads and local database must remain outside Git.
 
 ## Working principles
 
