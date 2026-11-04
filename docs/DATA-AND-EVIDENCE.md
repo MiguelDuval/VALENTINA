@@ -87,6 +87,10 @@ The provisional machine-readable contracts in schemas/ are:
 - opportunity.schema.json
 - source-evidence.schema.json
 - source-profile.schema.json
+- owner-profile.schema.json (validates the local-only business profile)
+- workflow-input.schema.json (validates the manual research workflow inputs)
+
+Synthetic examples for Company, Opportunity and SourceEvidence are in testdata/fixtures/synthetic/. They contain no real source evidence or business data.
 
 They are data contracts for prompt outputs, fixtures and future validation, not a commitment to the physical SQLite schema. A database design must additionally specify keys, indexes, foreign keys, transactions, migrations, backup and recovery.
 
