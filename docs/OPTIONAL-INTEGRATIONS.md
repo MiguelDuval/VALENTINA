@@ -117,3 +117,15 @@ Keep the Brave key in protected local configuration. Enable this only when this 
 6. UFO² only when a Windows desktop application workflow cannot be handled more simply.
 
 Keep the number of maintained runtimes and services to the minimum that solves a demonstrated task.
+
+
+## 7. Installer and runtime boundaries
+
+The normal VALENTINA installer must not install optional runtimes preemptively:
+- NVIDIA NIM is the initial hosted model path; do not ship a local inference engine or model with the base installer.
+- Go and Node.js are needed only when building the pinned Huginn executable with its embedded frontend. They are not normal end-user prerequisites.
+- Playwright and its browser binaries remain a separately enabled optional component.
+- UFO² and its Python environment remain a separately enabled optional component.
+- A future SQLite-backed VALENTINA service does not require a separate database server.
+
+See [DEPLOYMENT-AND-INSTALLER.md](DEPLOYMENT-AND-INSTALLER.md) for the installer and first-run requirements.
