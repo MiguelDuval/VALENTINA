@@ -6,13 +6,6 @@ on:
       - "scripts/build-valentina.ps1"
       - "docs/UI-*.md"
       - ".github/workflows/valentina-ui-build.yml"
-  push:
-    branches: [feature/valentina-ui-foundation-20261104]
-    paths:
-      - "patches/upstream-ui/**"
-      - "scripts/build-valentina.ps1"
-      - "docs/UI-*.md"
-      - ".github/workflows/valentina-ui-build.yml"
 permissions:
   contents: read
 jobs:
@@ -31,6 +24,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: upstream/huginn/go.mod
+          cache: false
       - name: Patch, test and build
         shell: pwsh
         run: |
