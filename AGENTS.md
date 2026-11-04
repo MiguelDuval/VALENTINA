@@ -37,6 +37,16 @@ If a task conflicts with these rules, stop before making the conflicting change 
 - Never construct shell commands directly from untrusted issue, PR, branch, commit, or scraped-page text. Validate and safely pass data.
 - Use separate, low-privilege test credentials. Never use a personal or production API key in routine CI.
 
+
+## Windows executable artifact policy — owner requirement
+
+- Do not create GitHub Releases, draft releases, published release pages, or release tags. VALENTINA has no official-release distribution process.
+- Windows test builds are distributed only as executable files attached to successful GitHub Actions workflow runs.
+- Every successful Windows build workflow must upload the produced VALENTINA executable as a SHA-labelled Actions artifact. A failed or cancelled build must not expose an artifact.
+- The Actions artifact download is a ZIP wrapper containing the actual `.exe`; document this clearly for the owner. Keep the artifact for 30 days unless the owner changes this policy.
+- Never upload API keys, credentials, private owner profiles, databases, actual lead/contact data, logs or backups. The binary must contain no embedded personal credentials or operational data.
+- Do not commit binaries to Git, attach them to PR comments, or substitute a GitHub Release for the workflow artifact.
+
 ## Required Git workflow
 
 - Work on a task-specific branch created from the current intended base. Do not commit directly to `main` unless the owner explicitly instructs you.
