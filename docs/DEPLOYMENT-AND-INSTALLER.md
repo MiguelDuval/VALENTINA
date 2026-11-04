@@ -156,8 +156,8 @@ When implementation begins:
 2. Build the Huginn web frontend, then compile it with `go build -tags embed_frontend`.
 3. Build the VALENTINA companion with its UI assets embedded; validate MCP and HTTP startup/shutdown behavior.
 4. Run upstream tests and the Windows build/smoke checks that are available.
-7. Package both application components and required notices using a pinned NSIS version.
-8. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
+5. Package both application components and required notices using a pinned NSIS version.
+6. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
 7. Record SHA-256 hashes and version metadata for the installer and both application executables.
 8. Never claim an installation test succeeded based solely on a successful compilation.
 
