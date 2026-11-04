@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MiguelDuval/VALENTINA/blob/main/schemas/source-profile.schema.json",
+  "title": "VALENTINA Source Profile v0.1",
+  "description": "Schema for an approved public-source collection profile. Credentials are never part of this object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_id", "name", "publisher", "source_type", "base_url", "allowed_hosts", "terms_url", "terms_reviewed_at", "approval_status", "retrieval_method", "rate_limits", "allowed_fields"],
+  "properties": {
+    "source_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,79}$" },
+    "name": { "type": "string", "minLength": 1 },
+    "publisher": { "type": "string", "minLength": 1 },
+    "source_type": { "enum": ["official_api", "rss_atom", "sitemap", "html", "pdf_document", "dynamic_page", "dataset", "other"] },
+    "base_url": { "type": "string", "format": "uri" },
+    "allowed_hosts": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+    "allowed_path_prefixes": { "type": "array", "items": { "type": "string" } },
+    "terms_url": { "type": ["string", "null"], "format": "uri" },
+    "terms_reviewed_at": { "type": ["string", "null"], "format": "date" },
+    "robots_reviewed_at": { "type": ["string", "null"], "format": "date" },
+    "approval_status": { "enum": ["pending_review", "approved", "blocked", "paused"] },
+    "approval_reason": { "type": ["string", "null"], "maxLength": 2000 },
+    "retrieval_method": { "enum": ["official_api", "feed", "sitemap", "http_fetch", "source_mcp", "playwright_mcp", "ufo2_gui"] },
+    "adapter_id": { "type": ["string", "null"] },
+    "adapter_version": { "type": ["string", "null"] },
+    "authentication_required": { "type": "boolean" },
+    "credential_reference": { "type": ["string", "null"], "description": "Reference name for protected OS credentials only; never a token or secret value." },
+    "rate_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_interval_seconds", "max_parallel_requests", "timeout_seconds", "max_response_bytes"],
+      "properties": {
+        "minimum_interval_seconds": { "type": "integer", "minimum": 1 },
+        "max_parallel_requests": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "daily_request_limit": { "type": ["integer", "null"], "minimum": 1 },
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "max_response_bytes": { "type": "integer", "minimum": 1024 }
+      }
+    },
+    "allowed_fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+    "prohibited_fields": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "languages": { "type": "array", "items": { "type": "string" } },
+    "expected_update_frequency": { "type": ["string", "null"] },
+    "last_reviewed_at": { "type": ["string", "null"], "format": "date" },
+    "notes": { "type": ["string", "null"], "maxLength": 3000 }
+  }
+}

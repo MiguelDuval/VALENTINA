@@ -1,0 +1,57 @@
+# Copy this file to private/owner-profile.yaml and fill it in locally.
+# The private/ directory is git-ignored. Never commit the completed profile.
+profile_version: "0.1"
+updated_at: null
+
+business:
+  internal_label: "REPLACE_WITH_LOCAL_LABEL"
+  offerings:
+    - id: "offering-1"
+      name: "REPLACE"
+      description: "REPLACE"
+      keywords: []
+      synonyms: []
+      excluded_terms: []
+  target_customer_types: []
+  sector_tags: []
+
+geography:
+  country_code: "ES"
+  autonomous_community: "Comunitat Valenciana"
+  province: "Valencia"
+  municipalities: []
+  radius_km: null
+  include_remote_or_national_opportunities: false
+
+opportunity_categories: []
+excluded_categories: []
+minimum_value:
+  amount: null
+  currency: "EUR"
+  basis: null
+
+qualification_criteria:
+  # Use hard_gate only for genuine disqualifiers.
+  - id: "criterion-1"
+    description: "REPLACE"
+    importance: "medium" # low | medium | high | critical
+    hard_gate: false
+    evidence_required: true
+
+languages:
+  search: ["es", "ca", "en"]
+  summary: "ru"
+
+source_policy:
+  allow_only_approved_registry_sources: true
+  excluded_domains: []
+  require_original_publisher_evidence: true
+
+privacy:
+  collect_personal_contact_data: false
+  store_named_contacts: false
+  notes: "Any exception requires a separate necessity, legal-basis, retention and access review."
+
+review:
+  default_status: "needs_review"
+  require_human_approval_before_outreach: true

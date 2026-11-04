@@ -1,0 +1,53 @@
+{
+  "opportunity_id": "opp_synthetic_001",
+  "company_id": "cmp_synthetic_001",
+  "title": "Synthetic community-space maintenance opportunity",
+  "summary": "Fictional opportunity used only to validate source evidence, schema handling and review states.",
+  "opportunity_type": "synthetic-test",
+  "status": "needs_review",
+  "geography": {
+    "municipality": "Example City",
+    "province": "Example Province",
+    "autonomous_community": "Example Region",
+    "country_code": "ES",
+    "location_text": "Fictional test location"
+  },
+  "published_at": "2026-10-27T08:00:00Z",
+  "deadline_at": null,
+  "valid_from": null,
+  "valid_until": null,
+  "value": {
+    "amount": null,
+    "currency": "EUR",
+    "basis": null
+  },
+  "fit_assessment": {
+    "profile_version": "synthetic-0.1",
+    "fit_status": "insufficient_information",
+    "evaluated_at": "2026-10-28T09:05:00Z",
+    "criteria": [
+      {
+        "criterion_id": "synthetic-capability-match",
+        "outcome": "unknown",
+        "reason": "No real owner profile or capability evidence is present in a synthetic test.",
+        "evidence_ids": [
+          "evidence_synthetic_001"
+        ]
+      }
+    ],
+    "missing_information": [
+      "Real eligibility criteria",
+      "Real deadline",
+      "Real commercial value"
+    ]
+  },
+  "source_evidence_ids": [
+    "evidence_synthetic_001"
+  ],
+  "first_seen_at": "2026-10-28T09:00:00Z",
+  "last_seen_at": "2026-10-28T09:00:00Z",
+  "duplicate_group_id": null,
+  "review_note": "Synthetic fixture only.",
+  "demand_evidence_type": "unknown",
+  "demand_evidence_note": "This synthetic fixture intentionally contains no source facts that distinguish an explicit request from an indirect public signal."
+}

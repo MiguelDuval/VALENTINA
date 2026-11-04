@@ -1,0 +1,3 @@
+[submodule "upstream/huginn"]
+	path = upstream/huginn
+	url = https://github.com/scrypster/huginn.git

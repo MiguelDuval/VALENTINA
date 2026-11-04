@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MiguelDuval/VALENTINA/blob/main/schemas/source-evidence.schema.json",
+  "title": "VALENTINA Source Evidence v0.1",
+  "description": "Minimal record of a source observation and the facts extracted from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidence_id", "source_id", "canonical_url", "publisher", "observed_at", "facts"],
+  "properties": {
+    "evidence_id": { "type": "string", "minLength": 1 },
+    "source_id": { "type": "string", "minLength": 1 },
+    "canonical_url": { "type": "string", "format": "uri" },
+    "publisher": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "page_title": { "type": ["string", "null"], "maxLength": 500 },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "published_at": { "type": ["string", "null"], "format": "date-time" },
+    "content_hash": { "type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$" },
+    "retrieval_status": { "enum": ["success", "not_found", "blocked", "timeout", "too_large", "rate_limited", "authentication_required", "unsupported_content", "parse_failed", "unknown"] },
+    "extractor_id": { "type": ["string", "null"] },
+    "extractor_version": { "type": ["string", "null"] },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field_path", "value", "extraction_method"],
+        "properties": {
+          "field_path": { "type": "string", "minLength": 1 },
+          "value": {},
+          "extraction_method": { "enum": ["deterministic", "llm_assisted", "manual"] },
+          "evidence_excerpt": { "type": ["string", "null"], "maxLength": 300 },
+          "evidence_locator": { "type": ["string", "null"], "maxLength": 500 },
+          "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

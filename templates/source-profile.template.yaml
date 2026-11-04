@@ -1,0 +1,38 @@
+# Placeholder only. Review access terms, allowed scope and rate limits before approval.
+# Copy approved profiles into protected local storage. Never place credentials here.
+source_id: "replace-source-id"
+name: "REPLACE_SOURCE_NAME"
+publisher: "REPLACE_PUBLISHER"
+source_type: "official_api" # official_api | rss_atom | sitemap | html | pdf_document | dynamic_page | dataset | other
+base_url: "https://example.com/"
+allowed_hosts:
+  - "example.com"
+allowed_path_prefixes: []
+terms_url: "https://example.com/terms"
+terms_reviewed_at: null
+robots_reviewed_at: null
+approval_status: "pending_review" # pending_review | approved | blocked | paused
+approval_reason: null
+retrieval_method: "official_api" # official_api | feed | sitemap | http_fetch | source_mcp | playwright_mcp | ufo2_gui
+adapter_id: null
+adapter_version: null
+authentication_required: false
+credential_reference: null # reference name only; no key/token/password
+rate_limits:
+  minimum_interval_seconds: 10
+  max_parallel_requests: 1
+  daily_request_limit: null
+  timeout_seconds: 10
+  max_response_bytes: 524288
+allowed_fields:
+  - "title"
+  - "description"
+  - "publisher"
+  - "published_at"
+  - "deadline_at"
+prohibited_fields:
+  - "personal_social_profiles"
+languages: ["es", "ca", "en"]
+expected_update_frequency: null
+last_reviewed_at: null
+notes: "Replace placeholders and review terms, scope, limits and purpose before approval."

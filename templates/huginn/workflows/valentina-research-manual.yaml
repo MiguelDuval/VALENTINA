@@ -1,0 +1,63 @@
+# Template only. Copy to the local Huginn workflows directory after reviewing the owner profile.
+# Disabled by default. Manual only. It does not write to a business database.
+id: wf-valentina-research-manual
+name: VALENTINA — Manual Research and Review
+description: Discover candidates, verify original sources, then assess fit. Human review remains mandatory.
+enabled: false
+trigger:
+  mode: manual
+steps:
+  - position: 1
+    name: discover
+    agent: VALENTINA-Scout
+    prompt: |
+      Search only within this owner-approved scope:
+      {{inputs.search_scope}}
+
+      Owner-profile version:
+      {{inputs.profile_version}}
+
+      Approved source IDs and scope:
+      {{inputs.approved_sources}}
+
+      Return a compact JSON array of candidate pages. Each item must include
+      the original publisher URL, publisher, candidate title, discovery reason,
+      publication/deadline hints if visible, and facts still needing verification.
+      Do not treat search snippets as evidence.
+    on_failure: stop
+    max_retries: 1
+
+  - position: 2
+    name: verify_original_sources
+    agent: VALENTINA-Verifier
+    prompt: |
+      Verify the following discovered candidates against their exact original
+      publisher pages. Do not broaden the search. Preserve missing and conflicting
+      facts as unknown/conflicting.
+
+      Candidate output:
+      {{prev.output}}
+
+      Return strict JSON matching the provisional SourceEvidence and Opportunity
+      contracts. Include concise evidence for all material claims.
+    on_failure: stop
+    max_retries: 1
+
+  - position: 3
+    name: assess_business_fit
+    agent: VALENTINA-Assessor
+    prompt: |
+      Assess the following source-verified opportunities only against the owner
+      profile version {{inputs.profile_version}} and the supplied criteria.
+
+      Owner profile criteria:
+      {{inputs.owner_profile_summary}}
+
+      Verified records:
+      {{prev.output}}
+
+      Return the fit classification, criterion-by-criterion reasoning, missing
+      information and human-review priority. Do not change record state and do
+      not contact anyone.
+    on_failure: stop
+    max_retries: 0

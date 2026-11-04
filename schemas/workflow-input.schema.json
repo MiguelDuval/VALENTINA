@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MiguelDuval/VALENTINA/blob/main/schemas/workflow-input.schema.json",
+  "title": "VALENTINA Manual Research Workflow Input v0.1",
+  "description": "Manual trigger payload for the disabled Huginn starter workflow. Contains a reduced profile summary, not credentials or private contact records.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["search_scope", "profile_version", "approved_sources", "owner_profile_summary"],
+  "properties": {
+    "search_scope": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "profile_version": { "type": "string", "minLength": 1 },
+    "approved_sources": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "owner_profile_summary": { "type": "string", "minLength": 1, "maxLength": 8000 }
+  }
+}

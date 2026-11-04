@@ -1,0 +1,33 @@
+# Local credentials and environment configuration
+.env
+.env.*
+!.env.example
+!.env.template
+secrets/
+private/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local databases and operational data (never commit real leads or contacts)
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+data/local/
+data/production/
+exports/
+backups/
+
+# Logs and local diagnostics
+*.log
+logs/
+
+# Common local development outputs
+.venv/
+venv/
+node_modules/
+dist/
+build/
