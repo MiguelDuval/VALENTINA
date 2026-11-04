@@ -26,6 +26,7 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 - [`docs/UPSTREAM-CANDIDATES.md`](docs/UPSTREAM-CANDIDATES.md) — upstream audit, licensing and adoption decision.
 - [`docs/UPSTREAM-INTEGRATION.md`](docs/UPSTREAM-INTEGRATION.md) — Huginn source submodule, pin, bootstrap and build instructions.
 - [`docs/OPTIONAL-INTEGRATIONS.md`](docs/OPTIONAL-INTEGRATIONS.md) — NVIDIA NIM, Playwright MCP, UFO² and optional Brave Search.
+- [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) — Windows-first standalone installer, runtime boundaries, administration UI and update/uninstall safety.
 
 ## Working principles
 
@@ -41,6 +42,12 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 ## Repository visibility
 
 This repository is intentionally **public**. All committed code, documentation, workflow definitions, issues, pull requests and Git history may be read by anyone. Do not commit secrets, actual commercial leads, personal/contact records, local databases, exports, logs, backups or confidential operational data. Do not change repository visibility without an explicit owner instruction.
+
+## Installation direction
+
+The intended first user-facing package is a Windows x64 `VALENTINA-Setup.exe` installer. It will install the Go application with its web interface embedded; normal users should not need to install Go, Node.js, Python, Docker or a database server. Huginn supplies the initial local application/admin UI. Dedicated VALENTINA CRM screens are a separate domain feature and are not claimed to exist yet.
+
+See [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) for the binding packaging decision.
 
 ## Initial implementation sequence
 
