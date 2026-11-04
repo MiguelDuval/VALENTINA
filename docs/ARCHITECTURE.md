@@ -111,6 +111,7 @@ When the first real source integration requires reliable structured persistence,
 
 Minimum logical records:
 - **Company:** stable internal ID, normalized name, public website/domain when available.
+- **Contact (only when necessary):** company reference, publicly listed business contact details, source evidence and collection purpose. Minimize personal data; do not collect unrelated personal information.
 - **Opportunity:** stable internal ID, company reference, title, description, category, location, price/rate when available, publication/expiry information and review status.
 - **SourceEvidence:** opportunity reference, source, canonical URL, observed time, published time when known, captured factual fields and extraction version.
 - **Review state:** new, reviewed, relevant, rejected, contacted only after human action; include review timestamps and reason where useful.
