@@ -161,7 +161,7 @@ Huginn is under **Business Source License 1.1 (BSL 1.1)**. This is source-availa
 
 The checked-in Additional Use Grant permits production use for, among other cases, an individual or use that is strictly internal and not offered as a product or service to third parties in any form. That matches the current VALENTINA scope.
 
-The license requires a separate commercial license for offering Huginn or a derivative as a hosted service, SaaS, managed platform, API service, commercial product, or paid/unpaid service to third parties. The stated change license is Apache 2.0 on 2026? No: the checked-in license states **March 7, 2030**. Preserve the original license and notices if source is copied or modified. Re-check the license before any change of distribution or audience.
+The license requires a separate commercial license for offering Huginn or a derivative as a hosted service, SaaS, managed platform, API service, commercial product, or paid/unpaid service to third parties. The checked-in license names **March 7, 2030** as the Change Date, when the Change License becomes Apache 2.0. Preserve the original license and notices if source is copied or modified. Re-check the license before any change of distribution or audience.
 
 ## 9. Recommended minimal VALENTINA topology
 
