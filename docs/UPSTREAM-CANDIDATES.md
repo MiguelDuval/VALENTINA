@@ -1,137 +1,226 @@
-# Upstream component evaluation
+# Upstream project audit and adoption decision
 
-**Date:** 2026-11-04  
-**Repository:** [MiguelDuval/VALENTINA](https://github.com/MiguelDuval/VALENTINA)  
-**Status:** Initial technical assessment; no upstream project has been forked or vendored.
+**Audit date:** 2026-11-04  
+**Status:** Huginn-first decision adopted for VALENTINA  
+**Selected upstream:** [scrypster/huginn](https://github.com/scrypster/huginn)  
+**Mandatory architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
-## Executive decision
+## 1. Executive decision
 
-Build VALENTINA as the product-specific application and data system. Reuse upstream software as separately installed services or normal dependencies wherever possible. Do not copy several complete applications into this repository.
+Use **scrypster/huginn as the base application and main local control hub for VALENTINA**. Reuse its web UI, agents, sessions, model backends, MCP client, REST API, routines, workflows and scheduler. Do not build a replacement frontend, orchestration server or scheduler.
 
-Initial direction:
+This is a reuse-first decision, not a claim that upstream Huginn already provides a complete lead-management or web-crawling product. The minimal custom work expected is:
+- Configuration and VALENTINA-specific agents/workflows.
+- Source-specific MCP adapters for websites that cannot be handled by existing read-only tools.
+- A small local SQLite-backed VALENTINA MCP service only when a real source proof-of-concept demonstrates the need for structured deduplication and review history.
+- An optional narrow UFO² bridge only for a proven GUI-only Windows workflow.
 
-1. Use **scrypster/huginn** as an optional agent orchestration service, connected to VALENTINA through its supported API and/or MCP. Do not fork it for the MVP.
-2. Use **NVIDIA NIM** as a model inference endpoint. NIM is an API/runtime service, not source code to fork.
-3. Keep **Microsoft UFO²** as an optional Windows desktop executor. First test an external invocation/bridge; do not fork it unless a concrete required change cannot be made through configuration or an integration layer.
-4. Choose one primary web collection library after the target business and actual source sites are known: **Scrapy** for a Python-centric crawler or **Crawlee** for a TypeScript-centric HTTP/browser crawler.
-5. Keep VALENTINA's own business rules, provenance, deduplication, review process, data model, database, and branded interface in this repository.
+Do not fork or vendor the full upstream source for the initial build. Install a pinned official release and keep VALENTINA-specific files/configuration separate.
 
-## Repository identity: two different projects called Huginn
+## 2. Resolve the name collision
 
-These repositories must not be confused:
+There are two unrelated projects called Huginn:
 
-| Repository | What it is | License | Relevance |
-|---|---|---|---|
-| [scrypster/huginn](https://github.com/scrypster/huginn) / [huginn.sh](https://huginn.sh) | Go-based local AI-agent and coding orchestration application | BSL 1.1 | This is the Huginn discussed in the VALENTINA architecture |
-| [huginn/huginn](https://github.com/huginn/huginn) | Classic Ruby event-monitoring and automation system | MIT | Different product; not the AI orchestration UI |
+| Project | Description | Decision |
+|---|---|---|
+| [scrypster/huginn](https://github.com/scrypster/huginn) | Go-based local AI-agent platform with web UI, multi-agent delegation, routines, workflows, MCP and model providers | **Selected** |
+| [huginn/huginn](https://github.com/huginn/huginn) | Ruby-based event-monitoring and automation system | **Not selected; do not substitute** |
 
-Do not fork or integrate the classic Ruby project by mistake.
+Do not use documentation or capabilities from the Ruby project to describe the selected Go project.
 
-## Candidate assessment
+## 3. Audit snapshot of scrypster/huginn
 
-### 1. scrypster/huginn — agent orchestration
+Repository facts observed through GitHub on 2026-11-04:
 
-- Upstream: https://github.com/scrypster/huginn
-- Default branch observed: `develop`
-- Observed release: `v0.5.0` (2026-08-30)
-- License: **Business Source License 1.1 (BSL 1.1)**, not MIT and not currently an OSI open-source license.
-- Relevant capabilities: multi-agent delegation, custom agents, per-agent model/provider/endpoint settings, workflow scheduling, MCP stdio connections, headless/server mode, and an HTTP API under `/api/v1/`.
-- NVIDIA NIM integration: source code supports a generic Custom/OpenAI-compatible provider. Its endpoint builder appends `/v1/chat/completions` when the configured base URL does not already end in a version segment. A real NIM model request and streaming test is still required.
-- License implication: the checked-in BSL text allows production use when the use is strictly internal and is not offered as a product or service to third parties. Any offering of Huginn or a derivative as a hosted service, SaaS, managed platform, API service, or commercial product/service requires a separate commercial license. Preserve the license and notices, and obtain legal review if the deployment model changes.
-- Assessment: useful as a replaceable orchestration service, but a young project (v0.5.0 at time of review). Keep VALENTINA's database and core pipeline independent of it.
+| Item | Observed value |
+|---|---|
+| Repository | `scrypster/huginn` |
+| Default branch | `develop` |
+| Latest published release | `v0.5.0`, 2026-08-30 |
+| Audited `develop` HEAD | `1e584648232118f06bce7d25f930850060fe698c` |
+| HEAD commit date | 2026-08-30 |
+| Last pushed timestamp shown by GitHub | 2026-08-30 |
+| Implementation language | Go |
+| Go toolchain in `go.mod` | Go 1.25+ |
+| License | Business Source License 1.1 (BSL 1.1) |
+| Upstream security policy | Latest release: full support; previous release: critical patches only; older releases: unsupported |
 
-**Decision:** install and configure separately; integrate with API/MCP. Fork only for a necessary upstream fix or UI modification that cannot be isolated in a bridge. Do not make Huginn the system of record.
+The GitHub repository metadata showed an update timestamp on 2026-11-03, but the code push timestamp and audited HEAD remained 2026-08-30. Do not mistake metadata activity for a new code release. The project is young and the release cadence/support capacity is a maintenance risk. Pin the tested release, monitor releases/advisories and validate upgrades before applying them.
 
-### 2. Microsoft UFO² — Windows desktop execution
+Useful upstream references:
+- [README and features](https://github.com/scrypster/huginn/blob/develop/README.md)
+- [Releases](https://github.com/scrypster/huginn/releases)
+- [Security policy](https://github.com/scrypster/huginn/blob/develop/SECURITY.md)
+- [License](https://github.com/scrypster/huginn/blob/develop/LICENSE)
+- [Workflows](https://github.com/scrypster/huginn/blob/develop/docs/features/workflows.md)
+- [Routines and scheduler](https://github.com/scrypster/huginn/blob/develop/docs/features/routines.md)
+- [MCP/local tools](https://github.com/scrypster/huginn/blob/develop/docs/features/local-tools.md)
+- [Web UI](https://github.com/scrypster/huginn/blob/develop/docs/features/web-ui.md)
+- [Configuration](https://github.com/scrypster/huginn/blob/develop/docs/reference/config.md)
+- [Storage design](https://github.com/scrypster/huginn/blob/develop/docs/subsystems/storage.md)
 
-- Upstream: https://github.com/microsoft/UFO
-- Current main repository includes the newer UFO³ project and the UFO² implementation/documentation under `ufo/`; the UFO² README identifies version 2.0.0.
-- License: MIT at the repository root; retain the copyright and license notice when reusing substantial source.
-- Platform: Windows desktop automation; combines Windows UI Automation / native Windows APIs with visual GUI actions.
-- Integration: UFO² has agent and MCP-related facilities, but a stable, general-purpose external API suitable for VALENTINA-to-UFO² orchestration has not yet been established by this repository review. Prototype a narrow local bridge (CLI or custom MCP server) before committing to an integration.
-- Assessment: useful as a secondary executor for cases where a site or desktop program requires UI interaction. It should not be the primary high-volume web crawler.
+## 4. What Huginn already gives VALENTINA
 
-**Decision:** install/run separately and test a small bridge. Fork only if we need a maintained patch to the UFO²-specific code. If forking, pin the intended UFO² version/path rather than casually adopting UFO³.
+| Capability | Audit result | Reuse decision |
+|---|---|---|
+| Local web UI | Existing UI for chat, agents, inbox, sessions, connections, workflows, models and settings | Use as the initial VALENTINA interface |
+| Agent system | Built-in and custom agents, tool allowlists, delegation | Configure dedicated discovery and analysis agents |
+| Workflow engine | Sequential multi-step pipelines, step outputs, failure handling and run history | Use for search/parse/analyze/review pipelines |
+| Routines | YAML-defined scheduled tasks | Reuse |
+| Scheduler | In-process Go cron scheduler | Reuse; keep process running for scheduled checks |
+| REST API | Authenticated API for sessions, agents, workflows and supporting resources; OpenAPI scaffold is incremental | Use documented routes only; verify each needed route |
+| MCP | MCP client supports configured stdio/SSE servers and per-server approval gate | Preferred extension boundary for VALENTINA-specific tools |
+| Model backends | Anthropic, OpenAI, Ollama, Google/Vertex and generic OpenAI-compatible `custom` backend in source | Configure NIM through `custom`, then test |
+| Credentials | Supports environment-variable references and OS keyring references; keyring can be unavailable on some headless Linux systems | Prefer OS keyring or protected environment variables; verify actual storage behavior |
+| Local state | Primarily local Pebble KV per workspace; some subsystems also use SQLite | Reuse for Huginn's own internal state only |
 
-### 3. NVIDIA NIM — model inference
+Huginn's web UI is a capable agent/workflow console, but it is not a ready-made commercial lead dashboard. Use it initially to avoid unnecessary interface development. A dedicated results screen is deferred until it proves necessary.
 
-- Documentation: https://docs.nvidia.com/nim/
-- Hosted API: https://integrate.api.nvidia.com
-- The hosted LLM interface exposes OpenAI-compatible chat completions. Huginn's generic Custom/OpenAI-compatible provider is a plausible connection path.
-- NIM is a model-serving/inference platform, not an application repository to fork.
-- Hosted API usage and downloadable/self-hosted NIM containers have different availability, hardware, and entitlement requirements. Validate the chosen model and endpoint before choosing a deployment mode.
+## 5. Important limitations for this use case
 
-**Decision:** configure as an external model provider; never place credentials in Git. Start with the hosted endpoint if the desired model is available there.
+### 5.1 Not a general-purpose crawler
 
-### 4. Crawling and extraction — choose one first
+The built-in `web_search` tool calls the Brave Search API and is registered only when a Brave API key is configured. It returns a bounded set of search results (default five, maximum ten).
 
-| Candidate | License | Strength | Best initial use |
-|---|---|---|---|
-| [Scrapy](https://github.com/scrapy/scrapy) | BSD-3-Clause | Mature Python crawler, structured extraction, queues and retry handling | Python-first crawling of known sites and structured pages |
-| [Crawlee](https://github.com/apify/crawlee) | Apache-2.0 | TypeScript crawler with HTTP and real-browser crawling abstractions, request queues and storage | TypeScript-first collection, particularly when JavaScript rendering is needed |
-| [Playwright](https://github.com/microsoft/playwright) | Apache-2.0 | Browser automation and page control | Browser engine/test dependency, not a separate business-data system |
+The built-in `fetch_url` tool performs an ordinary HTTP GET and converts HTML to Markdown. In the audited source it has a 10-second timeout and a 512 KB response cap, accepts HTTP/HTTPS and blocks private/internal destinations. It does not run JavaScript, operate a browser session or implement site-specific pagination/extraction.
 
-Start with permitted APIs, RSS/Atom feeds, sitemaps, and ordinary HTTP before browser automation. Choose Scrapy or Crawlee after inspecting the business's actual source sites. Do not adopt both for the MVP without a measured need.
+Consequences:
+- Configure a separate Brave Search credential if using built-in web search.
+- Use ordinary fetch for simple public pages.
+- Use a source-specific adapter for stable structured extraction.
+- Add browser automation only for sources that require JavaScript or an interactive session and permit automated access.
+- Do not describe Huginn alone as a universal web scraper.
 
-### 5. Classic huginn/huginn — event monitoring
+### 5.2 Scheduler lifecycle and workflow semantics
 
-- Upstream: https://github.com/huginn/huginn
-- License: MIT.
-- It creates agents to monitor feeds, websites, and events and pass events between agents.
-- It is not the Go AI agent platform described above.
+Routines and Workflows are scheduled inside the Huginn process. If Huginn is stopped, scheduled tasks do not run; documentation says missed jobs are not automatically replayed after restart. The machine must be awake and Huginn must be running for continuous monitoring.
 
-**Decision:** not selected for the initial VALENTINA architecture. Reconsider only if its event-monitoring features fill a concrete gap more simply than our chosen crawler/scheduler.
+Workflows execute steps sequentially. Routines are AI-agent tasks that write output to the inbox; they are not a general-purpose event ingestion system. An unattended routine can stall if it attempts a write/exec tool and waits for approval. Keep discovery routines read-only and use visible failure/run history.
 
-## What belongs in VALENTINA
+### 5.3 Storage is not a lead database
 
-Own and test these parts here:
+The primary Pebble KV store is designed for Huginn workspace state, code intelligence and internal records. It is local, single-machine and single-process. It is not a relational company/opportunity database with a normalized schema, source evidence and explicit review history.
 
-- Product requirements and target-business profile.
-- Canonical company, contact, and opportunity data model.
-- Source registry and source-specific collection adapters.
-- Evidence/provenance (source URL, capture time, publication time when known, extracted facts).
-- Validation, deduplication, relevance scoring, and explainable rejection reasons.
-- Human review, contact history, and opt-out/objection handling.
-- Branded VALENTINA UI and application API.
-- Observability, backups, security, and retention rules.
+When structured deduplication becomes necessary, create one compact local SQLite data store behind a VALENTINA MCP service. Do not add PostgreSQL, Redis or a database server for a single-user local tool.
 
-Keep AI orchestration, desktop automation, model serving, and crawler engines replaceable behind small interfaces.
+### 5.4 Security posture
 
-## Forking and reuse strategy
+The server defaults to loopback and validates the web bind setting as localhost/127.0.0.1. The REST API uses a bearer token; the token endpoint is local and must not be exposed. MCP servers default to an approval gate unless explicitly disabled. Local tools can be allowlisted per agent.
 
-A GitHub **fork is a separate repository**, not a directory that should be dumped inside VALENTINA. Use this order of preference:
+Important risks:
+- Never expose the local UI/API port to the LAN or Internet as part of the MVP.
+- Do not put the API bearer token in workflow files, URLs, logs or source code.
+- Avoid `--dangerously-skip-permissions` for normal or unattended discovery.
+- Use a least-privilege discovery agent without shell, file-write or external-mutation tools.
+- Treat website contents as untrusted input and validate custom connector networking to prevent SSRF.
+- The source has a separate Brave API key requirement for web search.
 
-1. **Package/dependency** — for a library such as Scrapy, Crawlee, or Playwright.
-2. **Separate service/container** — for whole applications such as Huginn or UFO².
-3. **MCP/HTTP adapter in VALENTINA** — to expose only the capabilities the product needs.
-4. **Git submodule or pinned upstream reference** — only when source pinning is useful and the team is comfortable maintaining that workflow.
-5. **Separate fork under MiguelDuval** — only when we need to patch/brand upstream code. Pin its upstream base, retain license notices, and document the divergence.
+## 6. NVIDIA NIM compatibility assessment
 
-Avoid copying entire upstream repositories into this project. It creates update, security, licensing, and testing burden and makes it difficult to tell which code is ours.
+The audited Huginn source includes a generic `custom` backend that uses an OpenAI-compatible `/v1/chat/completions` endpoint and Bearer API-key authentication. Its configuration supports environment-variable references and keyring references.
 
-## Integration spike before implementation
+NVIDIA NIM exposes an OpenAI-compatible hosted API. This makes the following configuration path plausible:
 
-Once the target business and first source sites are identified, run a small, measurable proof of concept:
+```json
+{
+  "backend": {
+    "type": "external",
+    "provider": "custom",
+    "endpoint": "https://integrate.api.nvidia.com/v1",
+    "api_key": "$NVIDIA_NIM_API_KEY"
+  },
+  "default_model": "<NIM_MODEL_ID>"
+}
+```
 
-1. Configure Huginn's Custom provider against a chosen NVIDIA NIM model and verify a real chat-completion response, tool-call behavior if needed, and streaming.
-2. Connect one read-only MCP tool that fetches a permitted public source and returns structured evidence.
-3. Pass the result through a minimal VALENTINA opportunity schema and persist it.
-4. Test UFO² separately with one specific desktop workflow; only build the bridge if it adds real value over API/HTTP crawling.
-5. Compare Scrapy and Crawlee against the same representative pages before selecting one.
+This is a proposed configuration example, not a verified live request. The NIM model ID must be selected from the user's available models. Before relying on NIM, run real tests for:
+1. Basic chat completion.
+2. Tool/function calling with the chosen model.
+3. Streaming responses.
+4. Vision input only if the chosen model and task require it.
 
-Do not begin large-scale scraping or contact collection until the target business, permitted sources, and data-handling rules are defined.
+If Huginn's current UI or config validation does not expose the `custom` provider correctly, prefer a documented configuration fix or a small adapter over changing the core backend. Keep the NIM key outside Git and never put it into prompts.
 
-## Security and visibility note
+NVIDIA API reference: [NIM OpenAI-compatible API](https://docs.nvidia.com/nim/).
 
-**MiguelDuval/VALENTINA intentionally remains public.** This is a deliberate development constraint; do not change repository visibility or require a paid GitHub plan without an explicit owner decision. All source code, documentation, workflows, and Git history committed here are public, so this repository must never contain material that is expected to remain confidential.
+## 7. UFO² assessment
 
-Never commit API keys, credentials, customer/contact personal data, real leads, private business records, production databases, exports, or backups. Keep GitHub Actions credentials in GitHub Actions repository secrets and local application credentials in the local configuration/OS credential store. During the initial development phase, NVIDIA NIM hosted inference is the preferred provider; the GitHub Actions secret name is `NVIDIA_NIM_API_KEY`. Do not assume it has been configured, expose it to untrusted pull requests, or print it in logs.
+[Microsoft UFO²](https://github.com/microsoft/UFO/tree/main/ufo) is a Windows desktop AgentOS with HostAgent/AppAgents and hybrid UI Automation, Win32/WinCOM and visual controls. The UFO² README identifies the v2.0.0 release and MIT license at the repository root.
 
-The binding rules for all coding agents and contributors are in [`AGENTS.md`](../AGENTS.md) and [`docs/SECURITY-AND-SECRETS.md`](SECURITY-AND-SECRETS.md). Read and follow them before changing code, workflows, or configuration.
+It is useful for difficult Windows GUI workflows, but:
+- It is not a general website crawler.
+- It is not needed for standard APIs, feeds or HTTP extraction.
+- This audit did not establish a stable, ready-made Huginn-to-UFO² control API.
+- A narrow local bridge would need a separate proof-of-concept and explicit permissions.
 
-## Audit trail
+**Decision:** defer UFO² integration until a real source or desktop workflow proves that normal API/HTTP/MCP/browser methods are inadequate. Do not make it a required component.
 
-The repository was initially empty. Read/write access was tested through the connected GitHub API by creating and reading back the initial README.
+## 8. License review
 
-- Initial bootstrap commit: `4965d56066d17d3778afe4999d53edea6efcb664`
-- The initial evaluation was committed on `docs/upstream-evaluation-20261104`; the current security-policy branch is based on that documentation branch. `main` remains unchanged until a reviewed pull request is merged.
+Huginn is under **Business Source License 1.1 (BSL 1.1)**. This is source-available, not an OSI-approved open-source license.
+
+The checked-in Additional Use Grant permits production use for, among other cases, an individual or use that is strictly internal and not offered as a product or service to third parties in any form. That matches the current VALENTINA scope.
+
+The license requires a separate commercial license for offering Huginn or a derivative as a hosted service, SaaS, managed platform, API service, commercial product, or paid/unpaid service to third parties. The stated change license is Apache 2.0 on 2026? No: the checked-in license states **March 7, 2030**. Preserve the original license and notices if source is copied or modified. Re-check the license before any change of distribution or audience.
+
+## 9. Recommended minimal VALENTINA topology
+
+```text
+                User (local browser)
+                        |
+                        v
+              HUGinn local web UI
+              (primary VALENTINA UI)
+                        |
+               Agents / Workflows
+                        |
+            +-----------+-----------+
+            |           |           |
+            v           v           v
+        Web search   HTTP fetch   NIM models
+        (Brave)      (simple)    (analysis)
+            |           |
+            +-----+-----+
+                  |
+          Source-specific MCP
+          adapter(s), only as needed
+                  |
+          Local SQLite registry
+          (when structured storage
+           and dedup are required)
+                  |
+             User review
+
+       Optional later: UFO² Windows worker
+       for a specific GUI-only workflow
+```
+
+The source adapter and SQLite registry should be one compact local MCP service, not a collection of independently deployed microservices. Initially defer that service until one representative source has been tested.
+
+## 10. Rejected alternatives and why
+
+| Alternative | Decision | Reason |
+|---|---|---|
+| Build a new React + FastAPI application first | Reject | Recreates UI, auth, workflows, model configuration and orchestration before proving a product-specific need |
+| Use classic Ruby `huginn/huginn` instead | Reject | Different product; it is not the AI-agent platform selected by the owner |
+| Put every responsibility into Huginn's Pebble store | Reject | Internal KV store does not provide the structured business-record model and provenance we need |
+| Deploy PostgreSQL + Redis + Kubernetes | Reject for MVP | Unjustified operational and maintenance overhead for one local operator |
+| Install several crawler frameworks together | Reject | Choose source-specific methods based on actual target sites |
+| Make UFO² the primary web parser | Reject | GUI automation is more fragile and expensive than APIs/HTTP and does not solve structured storage |
+| Fork Huginn immediately | Reject | Configuration and MCP integration should be tried first; a fork creates an ongoing upstream merge burden |
+
+## 11. Go/no-go checklist before implementation
+
+- [ ] Install the pinned upstream release on the intended local machine.
+- [ ] Verify the web UI starts, restarts and persists state.
+- [ ] Verify loopback binding and bearer-token behavior.
+- [ ] Verify the Huginn `custom` backend against the chosen NIM endpoint.
+- [ ] Run actual tool-call and streaming tests with the selected NIM model.
+- [ ] Test one permitted real source end-to-end, including failures and rate limits.
+- [ ] Confirm whether built-in web search is sufficient or a source connector is needed.
+- [ ] Only then implement the minimum MCP + SQLite extension if the test demonstrates a structured-storage gap.
+- [ ] Do not proceed to UFO² until one specific GUI-only workflow justifies it.
+
+## 12. Audit limits
+
+This was a source/documentation and GitHub metadata audit. It did not install or execute Huginn, did not send a live NVIDIA NIM request, did not test a real commercial source site, did not test UFO² orchestration, and did not verify runtime behavior on the owner's Windows machine. Those are explicit proof-of-concept tasks, not claimed accomplishments.
