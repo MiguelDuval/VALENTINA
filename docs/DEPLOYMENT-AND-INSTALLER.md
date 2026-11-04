@@ -48,7 +48,7 @@ The exact runtime dependency list must be verified against the pinned source and
 
 ### 3.2 Package structure
 
-Use two distinct layers:
+Use one installer package containing the two application components:
 
 1. **Huginn executable:** the pinned Huginn Go program, built with the frontend embedded. Keep upstream behavior and license notices intact.
 2. **VALENTINA companion executable:** a small Go application that owns the local domain HTTP UI/API, SQLite records, source-policy enforcement and MCP integration. It should use embedded server-rendered assets/templates unless a reviewed ADR justifies a frontend build framework.
@@ -93,7 +93,7 @@ The intended user flow is:
 1. Download and run `VALENTINA-Setup-x64.exe`.
 2. Complete a short installer wizard; install for the current Windows user by default and do not require elevation unless a later, justified feature needs it.
 3. Launch VALENTINA from the Start Menu.
-4. Start the local Huginn tray/web process and open the local web interface in the default browser.
+4. Start the VALENTINA companion and Huginn local process in the defined order; open the VALENTINA CRM interface in the default browser.
 5. Complete a first-run setup for NVIDIA NIM: endpoint, account-available model ID and API credential.
 6. Validate configuration with a clear connection/status result. Do not claim NIM is configured until an actual request succeeds.
 7. Keep the app bound to loopback only. The first installation must not expose the UI/API to the LAN or Internet.
@@ -156,8 +156,8 @@ When implementation begins:
 2. Build the Huginn web frontend, then compile it with `go build -tags embed_frontend`.
 3. Build the VALENTINA companion with its UI assets embedded; validate MCP and HTTP startup/shutdown behavior.
 4. Run upstream tests and the Windows build/smoke checks that are available.
-5. Package both application components and required notices using a pinned NSIS version.
-6. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
+7. Package both application components and required notices using a pinned NSIS version.
+8. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
 7. Record SHA-256 hashes and version metadata for the installer and both application executables.
 8. Never claim an installation test succeeded based solely on a successful compilation.
 
