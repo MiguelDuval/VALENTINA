@@ -203,7 +203,7 @@ The initial system is acceptable when:
 **Architecture rule:** choose the smallest implementation that meets these acceptance criteria. Any proposal adding a new runtime, database, framework, service or upstream fork must explain the concrete gap, maintenance cost and why an existing Huginn capability or one MCP adapter cannot solve it.
 
 
-## 7. Local installation and deployment
+## 11. Local installation and deployment
 
 The binding packaging decision is [ADR-002 — deployment and installer architecture](DEPLOYMENT-AND-INSTALLER.md).
 
@@ -217,3 +217,24 @@ The binding packaging decision is [ADR-002 — deployment and installer architec
 - Do not publish binaries publicly by default; observe the pinned Huginn BSL 1.1 license and its internal-use grant.
 
 The installer is not production-ready until clean-machine Windows 11 installation, first-run, loopback-only access, upgrade and data-preserving uninstall have been verified.
+
+## 12. Product workflow and data contracts
+
+The owner-defined business profile is a required local input. The public repository contains only a safe placeholder template; the completed profile is copied to the git-ignored `private/owner-profile.yaml`.
+
+Use the native Huginn features before adding a new framework:
+- Three narrow role templates (Scout, Verifier, Assessor) with least-privilege tools.
+- Prompt-only Skills for source integrity, structured extraction and profile-based assessment.
+- A disabled, manual-only workflow template for discovery → original-source verification → fit assessment.
+- Existing Huginn Inbox, workflow history and artifacts for interim human review.
+
+These are starter templates only. They do not create an active schedule, write to a domain database or perform outreach.
+
+The provisional logical data contracts are in `schemas/`: owner profile, source profile, company, opportunity, source evidence and workflow input. They are not a physical SQLite schema or a migration. Build the durable VALENTINA data service only after one approved real source demonstrates the need.
+
+Required design references:
+- [PRODUCT-AND-WORKFLOWS.md](PRODUCT-AND-WORKFLOWS.md)
+- [DATA-AND-EVIDENCE.md](DATA-AND-EVIDENCE.md)
+- [SOURCE-REGISTRY.md](SOURCE-REGISTRY.md)
+- [QUALITY-AND-OPERATIONS.md](QUALITY-AND-OPERATIONS.md)
+- [Huginn starter kit](../templates/huginn/README.md)
