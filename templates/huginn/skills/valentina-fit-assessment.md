@@ -16,6 +16,8 @@ Assess only source-verified facts against the owner profile supplied for this ru
 - Do not create a numeric score or threshold unless the profile explicitly defines its weighting and threshold.
 - Explain why a possible match is relevant in plain language.
 - Distinguish evidence confidence from commercial attractiveness.
+- Treat direct requests, public tenders and subcontracting requests as explicit demand; treat `early_demand_signal` only as indirect evidence of possible future demand. Do not give an indirect signal the same certainty label as an explicit request.
+- Apply location priorities from the local owner profile as soft ranking factors unless that profile explicitly marks an area as a hard gate. Do not invent public-transport travel times or assume a private vehicle is available.
 - Report contradictory facts and the exact evidence that conflicts.
 - Recommend strong_match, possible_match, insufficient_information or not_a_match; do not change record state or discard it.
 - Never recommend contacting a named individual unless the owner has explicitly approved that workflow.
