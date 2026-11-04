@@ -547,7 +547,7 @@ diff --git a/web/src/views/__tests__/App.test.ts b/web/src/views/__tests__/App.t
 @@ -679,6 +679,6 @@
        const w = mountApp()
        await flushPromises()
-
+ 
        // appError should be set; check for retry button
        const html = w.html()
 -      expect(html).toContain('Retry connection')
