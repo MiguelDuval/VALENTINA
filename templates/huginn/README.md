@@ -16,6 +16,12 @@ Copy the Markdown files from skills/ into the skills directory. Then open Huginn
 
 Copy valentina-research-manual.yaml from workflows/ into the workflows directory. It is disabled and manual-only by default. Review it and supply the workflow trigger inputs before running.
 
+## Important security limitation
+
+The current Huginn built-in `fetch_url` tool does not technically enforce the Source Registry's allowed host/path list. Its SSRF protections and response limits are not equivalent to a VALENTINA source allowlist. The starter prompts are not a security boundary.
+
+For this reason the workflow is disabled and manual-only. Do not enable unattended runs or treat the source registry as technically enforced until the dedicated VALENTINA fetch/search MCP adapter validates source IDs, hosts, paths, redirects and resolved IPs server-side.
+
 ## Agent safety defaults
 
 - VALENTINA-Scout: web_search and fetch_url only. Brave Search requires its own separately configured key.
