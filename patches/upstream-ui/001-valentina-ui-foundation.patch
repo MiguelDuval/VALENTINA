@@ -110,7 +110,7 @@ diff --git a/web/index.html b/web/index.html
 diff --git a/web/public/favicon.svg b/web/public/favicon.svg
 --- a/web/public/favicon.svg
 +++ b/web/public/favicon.svg
-@@ -1,5 +1,7 @@
+@@ -1,4 +1,6 @@
 -<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 -  <rect width="32" height="32" rx="6" fill="#4f46e5"/>
 -  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="#f59e0b">H</text>
@@ -121,7 +121,6 @@ diff --git a/web/public/favicon.svg b/web/public/favicon.svg
 +  <path d="M14 15h10l8 25 8-25h10L36 51H28z" fill="url(#v)"/>
 +  <circle cx="51" cy="13" r="3" fill="#65ead6"/>
 +</svg>
- 
 diff --git a/web/src/router/index.ts b/web/src/router/index.ts
 --- a/web/src/router/index.ts
 +++ b/web/src/router/index.ts
