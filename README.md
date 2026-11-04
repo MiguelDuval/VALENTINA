@@ -1,12 +1,14 @@
 # VALENTINA
 
-Private internal project for a Valencia-focused commercial opportunity discovery and lead-research system.
+Internal-use project for a Valencia-focused commercial opportunity discovery and lead-research system.
 
 ## Purpose
 
 VALENTINA is intended to collect and validate publicly available business opportunities relevant to a specific local business, reduce duplicates and irrelevant records, and present evidence-backed leads for human follow-up.
 
 The system is for internal use. It is not intended to automate conversations with prospective customers or to be sold as a product.
+
+**Repository visibility:** the GitHub repository is intentionally public. All committed code and Git history are public; credentials, real business/lead data, and private runtime configuration must remain outside Git. See the mandatory [coding-agent rules](AGENTS.md) and [security and secrets policy](docs/SECURITY-AND-SECRETS.md).
 
 ## Project status
 
@@ -30,4 +32,6 @@ No application stack or upstream project has been selected in this repository ye
 - Architecture decision records
 - Upstream component and license evaluation
 - Data model and source registry
-- Security, privacy, and operational policies
+- [Mandatory coding-agent rules](AGENTS.md)
+- [Security, secrets, and configuration policy](docs/SECURITY-AND-SECRETS.md)
+- Product privacy and operational policies
