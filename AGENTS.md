@@ -56,15 +56,15 @@ If a task conflicts with these rules, stop before making the conflicting change 
 
 Before making architecture, integration, deployment or application changes, read:
 
-1. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — binding Huginn-first architecture.
+1. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — binding reuse-first architecture.
 2. [`docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md`](docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md) — owner-approved single-runtime, white-label UI and licensing decision.
-2. [`docs/UPSTREAM-CANDIDATES.md`](docs/UPSTREAM-CANDIDATES.md) — upstream audit and licensing decision.
-3. [`docs/SECURITY-AND-SECRETS.md`](docs/SECURITY-AND-SECRETS.md) — security and credential policy.
+3. [`docs/UPSTREAM-CANDIDATES.md`](docs/UPSTREAM-CANDIDATES.md) — upstream audit and licensing decision.
+4. [`docs/SECURITY-AND-SECRETS.md`](docs/SECURITY-AND-SECRETS.md) — security and credential policy.
 
 The following are binding:
 
 - Build VALENTINA on `scrypster/huginn` (Go local AI-agent platform), not the unrelated Ruby `huginn/huginn`.
-- Reuse Huginn's existing UI, agents, routines, workflows, REST API, MCP client and model configuration as the initial application. Do not create a second React UI, FastAPI backend, scheduler, PostgreSQL/Redis/Kubernetes stack or microservice architecture without an owner-approved ADR proving a concrete need.
+- Reuse and white-label the existing Vue web UI, agents, routines, workflows, REST API, MCP client and model configuration as the VALENTINA application. Do not create a second frontend, FastAPI backend, scheduler, PostgreSQL/Redis/Kubernetes stack or microservice architecture without an owner-approved ADR proving a concrete need.
 - Do not copy or fork the entire Huginn source into VALENTINA. The upstream source must be present as the pinned Git submodule at `upstream/huginn`. Before inspecting or editing source, initialize it with `.\scripts\bootstrap.ps1` on Windows or `bash scripts/bootstrap.sh` on Unix-like systems, then verify its HEAD matches `docs/UPSTREAM-INTEGRATION.md`. Keep VALENTINA-specific code outside the submodule. Do not change the pin or edit upstream files without an owner-approved ADR and dedicated PR.
 - Prefer existing Huginn tools and integrations. Add one small source-adapter/SQLite MCP service only after a real source proof-of-concept demonstrates the need. Do not create one service per website.
 - NVIDIA NIM is the preferred initial model provider. Verify the generic `custom` OpenAI-compatible backend with a real request, tool-call and streaming test before claiming integration works. Store the key only in protected local configuration/keyring or trusted GitHub Actions secrets.
@@ -154,5 +154,5 @@ Read [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) before plann
 - Make Overview / Review Queue the default route. Remove upstream branding from normal UI surfaces, but never remove or conceal the required license text; expose it via About → Licenses.
 - Start UI work with synthetic fixtures, then connect it to real SQLite-backed records. Do not claim a mock UI is functional.
 - Keep the first workflow manual. One reliable source is enough for the first usable release; broad coverage is deferred.
-- The installer is one user-facing Setup package, even if it installs more than one executable. Do not promise a one-binary architecture until proven.
+- The target is one user-facing Setup package and one local Go application process with the VALENTINA frontend embedded. Do not add a second executable/process without a demonstrated blocker and a new ADR.
 - Defer Playwright, UFO², auto-scheduling, contact-person CRM, remote sync, multiple users, cross-platform installers, auto-updates and advanced analytics unless an explicit MVP blocker is demonstrated.
