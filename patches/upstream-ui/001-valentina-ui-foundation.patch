@@ -544,7 +544,10 @@ new file mode 100644
 diff --git a/web/src/views/__tests__/App.test.ts b/web/src/views/__tests__/App.test.ts
 --- a/web/src/views/__tests__/App.test.ts
 +++ b/web/src/views/__tests__/App.test.ts
-@@ -682,3 +682,3 @@
+@@ -679,6 +679,6 @@
+       const w = mountApp()
+       await flushPromises()
+
        // appError should be set; check for retry button
        const html = w.html()
 -      expect(html).toContain('Retry connection')
