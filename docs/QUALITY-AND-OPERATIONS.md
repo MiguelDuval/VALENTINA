@@ -16,6 +16,7 @@ Create a small golden dataset once the owner profile and first permitted source 
 The golden set should include:
 - A clearly relevant opportunity.
 - An irrelevant item from a similar sector.
+- An explicit published request and a separate early public demand signal; the pipeline must not label the early signal as a confirmed request or awarded job.
 - A duplicate page with tracking parameters or a repost.
 - Two different opportunities from the same company.
 - An expired opportunity.
