@@ -201,3 +201,19 @@ The initial system is acceptable when:
 - All live-provider tests are distinguished from mocked/offline tests.
 
 **Architecture rule:** choose the smallest implementation that meets these acceptance criteria. Any proposal adding a new runtime, database, framework, service or upstream fork must explain the concrete gap, maintenance cost and why an existing Huginn capability or one MCP adapter cannot solve it.
+
+
+## 7. Local installation and deployment
+
+The binding packaging decision is [ADR-002 — deployment and installer architecture](DEPLOYMENT-AND-INSTALLER.md).
+
+- Target Windows 11 x64 first, then add separate native packages for other operating systems only when justified.
+- Deliver a versioned `VALENTINA-Setup-x64.exe` installer containing the pinned Huginn Go executable with the frontend embedded. Use NSIS for the Windows installer; do not create a second runtime framework.
+- Go and Node.js are build-time tools, not prerequisites for a normal user installation. The base install must not require Python, Docker, WSL, Postgres, Redis, Kubernetes, a local LLM or a local GPU.
+- Use Huginn's existing tray/web UI as the initial application and system-admin interface. Do not create a second desktop shell or admin frontend.
+- Huginn does not itself provide the complete VALENTINA company/opportunity CRM screens. Add the smallest domain-specific review interface only when the VALENTINA data layer and workflow justify it.
+- Keep optional Playwright and UFO² environments outside the base installer. Install them only for approved, proven workflows.
+- Never place real credentials in the executable or installer. Preserve user data across upgrades and uninstall by default.
+- Do not publish binaries publicly by default; observe the pinned Huginn BSL 1.1 license and its internal-use grant.
+
+The installer is not production-ready until clean-machine Windows 11 installation, first-run, loopback-only access, upgrade and data-preserving uninstall have been verified.
