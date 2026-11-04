@@ -29,6 +29,15 @@ Minimum fields: stable opportunity ID, optional company ID, factual title and su
 
 Do not force unknown dates, values, eligibility or location into guessed defaults.
 
+Demand evidence is distinct from both the service/opportunity type and the review lifecycle. New records should set `demand_evidence_type` to one of:
+- `direct_request`: an explicit published request for a quote, contractor or renovation work.
+- `public_tender`: a public procurement notice or tender.
+- `subcontracting_request`: an explicit request from a contractor or other organisation for a subcontractor/trade package.
+- `early_demand_signal`: public, source-backed information that suggests possible future work but does not itself request or award the work.
+- `unknown`: the available evidence does not support a reliable classification.
+
+An early demand signal is a candidate for investigation, not a confirmed order, client request, tender award or guaranteed job. Preserve the exact public evidence and explain why it is only a signal. Never infer demand from a person's private information or from unsupported assumptions.
+
 ### SourceEvidence
 
 A record that explains where a factual claim came from.
