@@ -1,0 +1,40 @@
+name: VALENTINA UI verification
+on:
+  pull_request:
+    paths:
+      - "patches/upstream-ui/**"
+      - "scripts/build-valentina.ps1"
+      - "docs/UI-*.md"
+      - ".github/workflows/valentina-ui-build.yml"
+  push:
+    branches: [feature/valentina-ui-foundation-20261104]
+    paths:
+      - "patches/upstream-ui/**"
+      - "scripts/build-valentina.ps1"
+      - "docs/UI-*.md"
+      - ".github/workflows/valentina-ui-build.yml"
+permissions:
+  contents: read
+jobs:
+  windows-ui-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout VALENTINA and pinned submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: upstream/huginn/go.mod
+      - name: Patch, test and build
+        shell: pwsh
+        run: |
+          ./scripts/build-valentina.ps1 -OutputDirectory ./dist
+          if (-not (Test-Path ./dist/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
+          if ((Get-Item ./dist/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
+      # Do not upload the executable. It remains local.
