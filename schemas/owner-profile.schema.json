@@ -5,59 +5,251 @@
   "description": "Local-only business qualification profile. Real values must never be committed to the public repository.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["profile_version", "business", "geography", "opportunity_categories", "qualification_criteria", "languages", "source_policy", "privacy", "review"],
+  "required": [
+    "profile_version",
+    "business",
+    "geography",
+    "opportunity_categories",
+    "qualification_criteria",
+    "languages",
+    "source_policy",
+    "privacy",
+    "review"
+  ],
   "properties": {
-    "profile_version": { "type": "string", "minLength": 1 },
-    "updated_at": { "type": ["string", "null"], "format": "date-time" },
+    "profile_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
     "business": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["internal_label", "offerings"],
+      "required": [
+        "internal_label",
+        "offerings"
+      ],
       "properties": {
-        "internal_label": { "type": "string", "minLength": 1 },
+        "internal_label": {
+          "type": "string",
+          "minLength": 1
+        },
         "offerings": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "name", "keywords", "synonyms", "excluded_terms"],
+            "required": [
+              "id",
+              "name",
+              "keywords",
+              "synonyms",
+              "excluded_terms"
+            ],
             "properties": {
-              "id": { "type": "string", "minLength": 1 },
-              "name": { "type": "string", "minLength": 1 },
-              "description": { "type": ["string", "null"] },
-              "keywords": { "type": "array", "items": { "type": "string" } },
-              "synonyms": { "type": "array", "items": { "type": "string" } },
-              "excluded_terms": { "type": "array", "items": { "type": "string" } }
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "synonyms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "excluded_terms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           }
         },
-        "target_customer_types": { "type": "array", "items": { "type": "string" } },
-        "sector_tags": { "type": "array", "items": { "type": "string" } }
+        "target_customer_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sector_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "geography": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["country_code", "include_remote_or_national_opportunities"],
+      "required": [
+        "country_code",
+        "include_remote_or_national_opportunities"
+      ],
       "properties": {
-        "country_code": { "type": "string", "pattern": "^[A-Z]{2}$" },
-        "autonomous_community": { "type": ["string", "null"] },
-        "province": { "type": ["string", "null"] },
-        "municipalities": { "type": "array", "items": { "type": "string" } },
-        "radius_km": { "type": ["number", "null"], "minimum": 0 },
-        "include_remote_or_national_opportunities": { "type": "boolean" }
+        "country_code": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "autonomous_community": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "province": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "municipalities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "radius_km": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "include_remote_or_national_opportunities": {
+          "type": "boolean"
+        },
+        "priority_bands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "label",
+              "priority",
+              "scope"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "priority": {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "accessibility_preferences": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prefer_public_transport",
+            "consider_journey_time",
+            "consider_transfers",
+            "consider_walk_from_stop",
+            "private_vehicle_availability"
+          ],
+          "properties": {
+            "prefer_public_transport": {
+              "type": "boolean"
+            },
+            "consider_journey_time": {
+              "type": "boolean"
+            },
+            "consider_transfers": {
+              "type": "boolean"
+            },
+            "consider_walk_from_stop": {
+              "type": "boolean"
+            },
+            "private_vehicle_availability": {
+              "enum": [
+                "available",
+                "unavailable",
+                "unknown"
+              ]
+            }
+          }
+        }
       }
     },
-    "opportunity_categories": { "type": "array", "items": { "type": "string" } },
-    "excluded_categories": { "type": "array", "items": { "type": "string" } },
+    "opportunity_categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded_categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "minimum_value": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "required": ["amount", "currency"],
+      "required": [
+        "amount",
+        "currency"
+      ],
       "properties": {
-        "amount": { "type": ["number", "null"], "minimum": 0 },
-        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-        "basis": { "type": ["string", "null"] }
+        "amount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "basis": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "qualification_criteria": {
@@ -65,52 +257,122 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "description", "importance", "hard_gate", "evidence_required"],
+        "required": [
+          "id",
+          "description",
+          "importance",
+          "hard_gate",
+          "evidence_required"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "description": { "type": "string", "minLength": 1 },
-          "importance": { "enum": ["low", "medium", "high", "critical"] },
-          "hard_gate": { "type": "boolean" },
-          "evidence_required": { "type": "boolean" }
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "importance": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "hard_gate": {
+            "type": "boolean"
+          },
+          "evidence_required": {
+            "type": "boolean"
+          }
         }
       }
     },
     "languages": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["search", "summary"],
+      "required": [
+        "search",
+        "summary"
+      ],
       "properties": {
-        "search": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "summary": { "type": "string", "minLength": 2 }
+        "search": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 2
+        }
       }
     },
     "source_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["allow_only_approved_registry_sources", "excluded_domains", "require_original_publisher_evidence"],
+      "required": [
+        "allow_only_approved_registry_sources",
+        "excluded_domains",
+        "require_original_publisher_evidence"
+      ],
       "properties": {
-        "allow_only_approved_registry_sources": { "type": "boolean" },
-        "excluded_domains": { "type": "array", "items": { "type": "string" } },
-        "require_original_publisher_evidence": { "type": "boolean" }
+        "allow_only_approved_registry_sources": {
+          "type": "boolean"
+        },
+        "excluded_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "require_original_publisher_evidence": {
+          "type": "boolean"
+        }
       }
     },
     "privacy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["collect_personal_contact_data", "store_named_contacts"],
+      "required": [
+        "collect_personal_contact_data",
+        "store_named_contacts"
+      ],
       "properties": {
-        "collect_personal_contact_data": { "type": "boolean" },
-        "store_named_contacts": { "type": "boolean" },
-        "notes": { "type": ["string", "null"] }
+        "collect_personal_contact_data": {
+          "type": "boolean"
+        },
+        "store_named_contacts": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "review": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["default_status", "require_human_approval_before_outreach"],
+      "required": [
+        "default_status",
+        "require_human_approval_before_outreach"
+      ],
       "properties": {
-        "default_status": { "enum": ["candidate", "needs_review"] },
-        "require_human_approval_before_outreach": { "type": "boolean" }
+        "default_status": {
+          "enum": [
+            "candidate",
+            "needs_review"
+          ]
+        },
+        "require_human_approval_before_outreach": {
+          "type": "boolean"
+        }
       }
     }
   }
