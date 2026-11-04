@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MiguelDuval/VALENTINA/blob/main/schemas/owner-profile.schema.json",
+  "title": "VALENTINA Owner Business Profile v0.1",
+  "description": "Local-only business qualification profile. Real values must never be committed to the public repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profile_version", "business", "geography", "opportunity_categories", "qualification_criteria", "languages", "source_policy", "privacy", "review"],
+  "properties": {
+    "profile_version": { "type": "string", "minLength": 1 },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" },
+    "business": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["internal_label", "offerings"],
+      "properties": {
+        "internal_label": { "type": "string", "minLength": 1 },
+        "offerings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "name", "keywords", "synonyms", "excluded_terms"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "name": { "type": "string", "minLength": 1 },
+              "description": { "type": ["string", "null"] },
+              "keywords": { "type": "array", "items": { "type": "string" } },
+              "synonyms": { "type": "array", "items": { "type": "string" } },
+              "excluded_terms": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "target_customer_types": { "type": "array", "items": { "type": "string" } },
+        "sector_tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "geography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["country_code", "include_remote_or_national_opportunities"],
+      "properties": {
+        "country_code": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "autonomous_community": { "type": ["string", "null"] },
+        "province": { "type": ["string", "null"] },
+        "municipalities": { "type": "array", "items": { "type": "string" } },
+        "radius_km": { "type": ["number", "null"], "minimum": 0 },
+        "include_remote_or_national_opportunities": { "type": "boolean" }
+      }
+    },
+    "opportunity_categories": { "type": "array", "items": { "type": "string" } },
+    "excluded_categories": { "type": "array", "items": { "type": "string" } },
+    "minimum_value": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": ["number", "null"], "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "basis": { "type": ["string", "null"] }
+      }
+    },
+    "qualification_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "importance", "hard_gate", "evidence_required"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "importance": { "enum": ["low", "medium", "high", "critical"] },
+          "hard_gate": { "type": "boolean" },
+          "evidence_required": { "type": "boolean" }
+        }
+      }
+    },
+    "languages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["search", "summary"],
+      "properties": {
+        "search": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "summary": { "type": "string", "minLength": 2 }
+      }
+    },
+    "source_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allow_only_approved_registry_sources", "excluded_domains", "require_original_publisher_evidence"],
+      "properties": {
+        "allow_only_approved_registry_sources": { "type": "boolean" },
+        "excluded_domains": { "type": "array", "items": { "type": "string" } },
+        "require_original_publisher_evidence": { "type": "boolean" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collect_personal_contact_data", "store_named_contacts"],
+      "properties": {
+        "collect_personal_contact_data": { "type": "boolean" },
+        "store_named_contacts": { "type": "boolean" },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_status", "require_human_approval_before_outreach"],
+      "properties": {
+        "default_status": { "enum": ["candidate", "needs_review"] },
+        "require_human_approval_before_outreach": { "type": "boolean" }
+      }
+    }
+  }
+}
