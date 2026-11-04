@@ -10,8 +10,8 @@
 VALENTINA should have a simple, self-contained installer for the owner's Windows computer. The intended first deliverable is:
 
 - A versioned Windows x64 installer named like `VALENTINA-Setup-x64.exe`.
-- One primary Go application executable built from the pinned `scrypster/huginn` source, with the Huginn web frontend embedded.
-- A Start Menu shortcut named **VALENTINA** that starts the existing Huginn tray/web application and opens its local interface.
+- The pinned Huginn Go application with its web frontend embedded, plus one small VALENTINA-owned Go companion for the domain UI/data/source-policy boundary (exact process boundary subject to a dedicated implementation ADR).
+- A Start Menu shortcut named **VALENTINA** that starts the VALENTINA interface and the required local components. Huginn's advanced admin UI remains separately accessible.
 - A guided first-run configuration for the selected model provider and local application settings, without embedding credentials in the installer or executable.
 - An uninstall/upgrade lifecycle that preserves operational data unless the owner explicitly chooses to delete it.
 
@@ -27,7 +27,7 @@ Build-time tools are different from end-user runtime requirements:
 
 | Component | Build-time role | Required on the owner's PC for normal VALENTINA use? |
 |---|---|---|
-| Go 1.25+ | Compile the Huginn application | No |
+| Go 1.25+ | Compile Huginn and the VALENTINA Go companion | No |
 | Node.js 20 + npm | Build Huginn's web frontend assets | No; assets are embedded into the executable |
 | NSIS | Assemble the Windows installer | No |
 | Web browser | Display the local web UI | Use the browser already installed on Windows |
@@ -50,8 +50,9 @@ The exact runtime dependency list must be verified against the pinned source and
 
 Use two distinct layers:
 
-1. **Application executable:** the pinned Huginn Go program, built with the frontend embedded. Keep the upstream executable's internal behavior and license notices intact. The installer/shortcuts may present the product name VALENTINA without casually patching upstream identity strings.
-2. **Installer executable:** a compressed Windows Setup program that copies the application, creates shortcuts, provides install/uninstall behavior and optionally enables start-at-login.
+1. **Huginn executable:** the pinned Huginn Go program, built with the frontend embedded. Keep upstream behavior and license notices intact.
+2. **VALENTINA companion executable:** a small Go application that owns the local domain HTTP UI/API, SQLite records, source-policy enforcement and MCP integration. It should use embedded server-rendered assets/templates unless a reviewed ADR justifies a frontend build framework.
+3. **Installer executable:** one compressed Windows Setup program that installs both components, establishes predictable startup/shutdown behavior, creates the VALENTINA Start Menu entry and provides upgrade/uninstall behavior.
 
 **Preferred Windows installer technology: NSIS.** It is an established, scriptable, open-source installer system that can create self-contained Setup executables, shortcuts, uninstallers and optional installation components. Pin the exact NSIS version in the build process. Do not add an installer framework to the running application.
 
@@ -66,7 +67,8 @@ Inno Setup is a technically viable alternative, but NSIS is preferred for this p
 
 ### Include
 
-- The compiled Huginn application with the web frontend embedded.
+- The compiled Huginn application with its web frontend embedded.
+- The compiled VALENTINA companion executable and its embedded UI assets.
 - The minimum VALENTINA-owned defaults and templates required for first launch.
 - Required license texts and third-party notices, including the Huginn BSL 1.1 license.
 - Start Menu shortcut(s), uninstall entry and version metadata.
@@ -122,7 +124,7 @@ Huginn is an agent/workflow platform, not a complete domain-specific CRM. Its in
 - Evidence/source history per opportunity.
 - Domain-specific deduplication and merge review.
 
-When the VALENTINA structured data layer is justified and designed, add the smallest maintainable domain interface for those operations. Prefer an integrated extension or a very small local view that talks to the approved VALENTINA service. Do not start a standalone React/FastAPI application merely to make the installer look like a desktop CRM. Any substantial UI/backend deviation requires an owner-approved ADR.
+The VALENTINA CRM/domain UI is the main user-facing workspace, not a future cosmetic enhancement. The recommended implementation is a small Go companion that serves a local interface and reads/writes the approved SQLite domain store while exposing narrowly scoped MCP tools to Huginn. Prefer server-rendered HTML and minimal JavaScript/HTMX; do not introduce a separate React/FastAPI stack by default. The exact process boundary, startup lifecycle and API contract require a dedicated owner-reviewed ADR before coding.
 
 ## 7. Data, credentials and uninstall safety
 
@@ -142,7 +144,7 @@ Optional components remain optional and separate from the base installer:
 - **Playwright MCP:** install or provision only after an approved source demonstrably requires browser rendering. Its Node.js and browser dependencies are not prerequisites for normal VALENTINA operation.
 - **UFO²:** defer until a specific Windows GUI-only workflow has been justified. It may require a separate Python environment and must not enlarge the normal installer.
 - **Brave Search:** configure its own API key only when that provider is enabled; it is independent of NVIDIA NIM.
-- **VALENTINA MCP + SQLite:** introduce only when the source workflow demonstrates a need for structured persistence and deduplication. SQLite is embedded; do not install a database server.
+- **VALENTINA Go companion + SQLite + MCP + local UI:** this is now the recommended minimum domain component for the CRM interface and hard source-policy enforcement. It is one small local component, not a separate database server or per-source microservice. Its implementation is still gated by the dedicated process-boundary/API ADR.
 
 See [OPTIONAL-INTEGRATIONS.md](OPTIONAL-INTEGRATIONS.md).
 
@@ -151,10 +153,11 @@ See [OPTIONAL-INTEGRATIONS.md](OPTIONAL-INTEGRATIONS.md).
 When implementation begins:
 
 1. Build the pinned Huginn release in a controlled Windows build environment using the exact Go and Node toolchain versions required by that release.
-2. Build the web frontend, then compile with `go build -tags embed_frontend`.
+2. Build the Huginn web frontend, then compile it with `go build -tags embed_frontend`.
+3. Build the VALENTINA companion with its UI assets embedded; validate MCP and HTTP startup/shutdown behavior.
 3. Run upstream tests and the Windows build/smoke checks that are available.
 4. Package the executable and required notices using a pinned NSIS version.
-5. Verify installation, first launch, loopback binding, tray behavior, browser opening, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
+5. Verify installation, first launch, companion/Huginn startup and shutdown, loopback binding, browser opening, UI-to-SQLite persistence, upgrade, uninstall and user-data preservation on a real Windows 11 machine.
 6. Record SHA-256 hashes and version metadata for the installer and application executable.
 7. Never claim an installation test succeeded based solely on a successful compilation.
 
@@ -179,7 +182,7 @@ Implement the installer only after the pinned application starts correctly on th
 
 The first user-facing installer is acceptable only when:
 
-- A clean Windows 11 x64 machine/user profile can install and launch VALENTINA without Go, Node.js, Python, Git, Docker or administrator-level setup.
+- A clean Windows 11 x64 machine/user profile can install and launch the VALENTINA UI plus required local components without Go, Node.js, Python, Git, Docker or administrator-level setup.
 - The local web UI opens from the Start Menu entry and is reachable only through loopback.
 - The user can configure the NIM endpoint/model/key without exposing the key in files, logs or process arguments.
 - Restarting Windows or the app does not lose user configuration or data.
