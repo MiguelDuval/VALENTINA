@@ -9,7 +9,8 @@
 - Overview uses existing live APIs for health, agents, workflows and pending notifications.
 - Honest commercial-opportunity empty state; no invented leads or statistics.
 - Windows build script verifies upstream pin, applies first-party patch to a disposable copy, runs frontend tests and builds the embedded Go executable.
-- Windows Actions workflow validates the same build without uploading the executable.
+- A successful Windows Actions run uploads `VALENTINA.exe` as a SHA-labelled workflow artifact for 30 days; GitHub packages the download as a ZIP containing the executable.
+- No GitHub Releases, release tags or public installer releases are used; test binaries are obtained only from completed successful Actions runs.
 
 ## Not complete or not verified
 - No opportunity records, source connectors or CRM persistence.
@@ -23,4 +24,4 @@
 After initializing the submodule, run from repository root:
 powershell -ExecutionPolicy Bypass -File .\scripts\build-valentina.ps1
 
-The script fails closed on a pin mismatch or patch-apply failure. It never edits upstream/huginn. The generated dist/VALENTINA.exe is ignored by Git and must remain local.
+The script fails closed on a pin mismatch or patch-apply failure. It never edits upstream/huginn. The generated `dist/VALENTINA.exe` is ignored by Git. The CI workflow uploads only this executable after all build checks pass; failed runs produce no artifact. Download it from the successful run's **Artifacts** section and extract the ZIP.
