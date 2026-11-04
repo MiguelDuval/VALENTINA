@@ -541,3 +541,11 @@ new file mode 100644
 +  expect(wrapper.text()).toContain('0.5.0')
 + })
 +})
+diff --git a/web/src/views/__tests__/App.test.ts b/web/src/views/__tests__/App.test.ts
+--- a/web/src/views/__tests__/App.test.ts
++++ b/web/src/views/__tests__/App.test.ts
+@@ -816,2 +816,2 @@
+-      expect(rail.find('[data-testid="rail-chat"]').attributes('title')).toBe('Chat')
+-      expect(rail.find('[data-testid="rail-settings"]').attributes('title')).toBe('Settings')
++      expect(rail.find('[data-testid="rail-chat"]').attributes('title')).toBe('Ассистент')
++      expect(rail.find('[data-testid="rail-settings"]').attributes('title')).toBe('Настройки')
