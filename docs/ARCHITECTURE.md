@@ -1,11 +1,11 @@
 # VALENTINA — mandatory architecture baseline
 
-**Decision:** AD-001 — Huginn-first, reuse-first architecture  
+**Decision:** AD-001 + ADR-005 — reuse-first runtime with a VALENTINA-branded web UI  
 **Status:** Mandatory project architecture baseline  
 **Date:** 2026-11-04  
 **Applies to:** all contributors, coding agents, integrations, runtime configuration and future implementation work
 
-This document is binding. Every implementation must follow it unless the owner explicitly approves a documented Architecture Decision Record (ADR) changing it. Simplicity is a project requirement: VALENTINA is a private-use tool for one operator, not a commercial SaaS product.
+This document is binding. Every implementation must follow it unless the owner explicitly approves a documented Architecture Decision Record (ADR) changing it. Simplicity is a project requirement: VALENTINA is a private local application for one operator, not a hosted or distributed product. ADR-005 is the owner-approved decision for the white-label browser UI and supersedes earlier proposals for a separate CRM frontend/companion.
 
 ## 1. Executive decision
 
@@ -13,12 +13,14 @@ Build VALENTINA **on top of the existing `scrypster/huginn` application**. Use i
 
 Do not build a second application framework around it. Do not start by creating a custom React frontend, FastAPI backend, PostgreSQL cluster, Redis queue, Kubernetes deployment, or a second automation engine.
 
-VALENTINA-specific code must be small and justified by a concrete gap in the upstream product. Prefer, in order:
+VALENTINA-specific code must be small and justified by a concrete gap. The preferred order is:
 
-1. Configure an existing Huginn feature.
-2. Connect an existing MCP server or documented API.
-3. Add one small VALENTINA-specific MCP service for source adapters and structured opportunity storage, when the first real source integration proves it is needed.
-4. Patch or fork Huginn only when configuration or an external adapter cannot meet a demonstrated requirement.
+1. Configure and reuse an existing runtime feature.
+2. Extend the existing Vue web client with VALENTINA routes/components and task-first navigation.
+3. Add the smallest required API, MCP tools and validated domain persistence inside the existing Go application process.
+4. Use a separate process only if a reproducible technical blocker proves that in-process integration cannot meet the requirement and a new ADR approves it.
+
+The pinned upstream submodule remains an immutable source reference. Keep first-party UI patches and build scripts outside the submodule, apply them reproducibly to a clean temporary worktree/copy, and fail if the expected pin or patch context does not match. Do not maintain a separate fork or a second browser frontend by default.
 
 **Important identity rule:** the selected project is [`scrypster/huginn`](https://github.com/scrypster/huginn), the Go-based local AI-agent platform. It is not [`huginn/huginn`](https://github.com/huginn/huginn), the unrelated Ruby event-monitoring application. Do not substitute one for the other.
 
@@ -37,7 +39,7 @@ Huginn is the main user entry point and orchestration host. Reuse its:
 
 Do not reimplement these capabilities in VALENTINA unless an audited, reproducible gap makes that necessary.
 
-Huginn is an AI-agent/workflow platform, not a purpose-built lead-management application or a general-purpose crawler. Its UI is accepted as the initial VALENTINA UI. Branding or UI changes are deferred until actual daily use identifies a specific usability problem.
+The upstream browser client is a real Vue 3 / TypeScript / Vite application embedded into the Go server at build time. It already provides the application shell and working agent/model/connection/skill/workflow/settings views. It does not provide the renovation opportunity CRM. Under ADR-005, the existing client becomes the VALENTINA shell now: rebrand its ordinary product surfaces, add task-specific screens, and keep valuable engine views under AI & Automation / Advanced.
 
 ### 2.2 VALENTINA-specific source connectors
 
@@ -99,7 +101,7 @@ The intended initial flow is:
 4. VALENTINA-specific code validates and normalizes the extraction; AI output is not treated as verified fact.
 5. When structured persistence is introduced, a single local SQLite registry stores normalized companies, opportunities, source evidence and human-review state.
 6. Huginn/NIM may classify relevance, summarize evidence and explain why a result matches the search.
-7. The user reviews the source link and evidence in the Huginn UI/inbox or the later minimal results view. No external outreach is sent automatically.
+7. The user reviews the source link and evidence in the VALENTINA browser UI. Existing engine inbox/history may support this workflow, but the domain review state belongs to VALENTINA's structured records. No external outreach is sent automatically.
 
 Every displayed opportunity must retain its original source URL, source identity, observation timestamp, publication timestamp when available, and the evidence supporting extracted facts.
 
@@ -107,7 +109,7 @@ Every displayed opportunity must retain its original source URL, source identity
 
 Huginn's own Pebble-based storage is for Huginn's internal workspace state, agent/session memory, code intelligence and related application state. It is not the VALENTINA business-record system of record.
 
-When the first real source integration requires reliable structured persistence, use one local SQLite database managed only by the VALENTINA MCP service. Keep that database, its WAL files, backups, real lead records and personal/contact data outside this public Git repository.
+When the first real source integration requires reliable structured persistence, use one local SQLite database managed by a narrow VALENTINA domain module in the existing Go application process where practical. Expose only scoped APIs/MCP tools. Do not create a separate companion process solely to host the UI or database. Keep the database, WAL files, backups, real leads and personal/contact data outside this public Git repository.
 
 Minimum logical records:
 - **Company:** stable internal ID, normalized name, public website/domain when available.
@@ -162,7 +164,7 @@ Before each planned upgrade:
 - Back up Huginn and VALENTINA data before upgrading.
 - Do not assume a GitHub metadata update means code was released or a security fix was shipped.
 
-Huginn is licensed under **Business Source License 1.1 (BSL 1.1)**, not an OSI-approved open-source license. Its Additional Use Grant allows strictly internal use not offered as a product or service to third parties. That matches the current personal/internal purpose, but do not provide Huginn or a derivative as a hosted, paid or unpaid service to third parties without a separate license. Preserve upstream license and notices if source is ever copied or modified.
+Huginn is licensed under **Business Source License 1.1 (BSL 1.1)**, not an OSI-approved open-source license. The pinned Additional Use Grant permits individual use and also permits use that is strictly internal and not offered as a product or service to third parties. The owner's declared use is a private, local, single-operator tool. The license requires conspicuous display of the complete license on each original or modified copy: preserve the original LICENSE and provide a clearly reachable About → Licenses screen. No upstream logo or brand identity is needed in ordinary VALENTINA UI. Any third-party hosting, service offering or wider binary distribution requires a fresh license review and any required permission.
 
 ## 8. Explicitly out of scope for the initial build
 
@@ -175,7 +177,8 @@ Unless the owner approves an ADR backed by a demonstrated need, do not build or 
 - A general-purpose custom crawler framework before target sources are tested.
 - A mandatory UFO² dependency.
 - A commercial CRM, user-management or multi-tenant SaaS layer.
-- An upstream Huginn fork merely to change its name/logo or cosmetic details.
+- A second standalone VALENTINA frontend or companion process solely for UI rendering.
+- A permanent upstream fork solely for routine branding; use a tracked, reproducible patch set instead.
 
 ## 9. Delivery sequence
 
@@ -183,10 +186,10 @@ The prioritized user-facing objective is the installed CRM-style VALENTINA appli
 
 1. **Owner profile:** capture only the minimum business, opportunity, geography and exclusion criteria needed to define relevance.
 2. **Runtime baseline:** build and verify the pinned Huginn release on Windows 11 x64, its local web UI, data/config paths, safe startup/shutdown and credential handling.
-3. **VALENTINA domain foundation:** implement one small Go companion service combining the source-policy enforcement boundary, MCP integration, local HTTP API and SQLite-backed domain records. Confirm the exact process boundary in a dedicated ADR before implementation.
-4. **Own CRM UI:** build the VALENTINA overview, review queue, opportunity details/evidence, companies and source/settings views. Start with synthetic fixtures, then connect to the local service.
+3. **VALENTINA-branded web shell:** apply the tracked patch set to the existing Vue client, rebrand app chrome, set Overview as the landing page, group existing engine features and hide irrelevant cloud/collaboration surfaces.
+4. **Domain foundation and screens:** add the smallest in-process API/MCP/SQLite module required for Companies, Opportunities, evidence and human review; build real routes with synthetic fixtures, then connect persistence.
 5. **One real source:** implement one approved source adapter and a manual end-to-end research run. Broad source coverage and scheduling are not MVP blockers.
-6. **Windows installer:** package Huginn and VALENTINA components behind one per-user NSIS Setup executable, with safe first-run configuration, Start Menu entry and data-preserving upgrade/uninstall.
+6. **Windows installer:** package the single Go application with its VALENTINA frontend embedded in one per-user NSIS Setup executable, with safe first-run configuration, Start Menu entry and data-preserving upgrade/uninstall.
 7. **Release verification:** verify installation, source workflow, persistence, backup/restore, upgrade and uninstall on the target Windows machine.
 
 Playwright MCP, UFO², recurring unattended collection, broad source coverage, multi-user access and cross-platform packages are deferred unless a demonstrated need blocks the MVP.
@@ -194,7 +197,8 @@ Playwright MCP, UFO², recurring unattended collection, broad source coverage, m
 ## 10. Acceptance criteria
 
 The initial system is acceptable when:
-- Huginn launches reliably on the intended local machine and its UI is reachable only locally.
+- The local Go application launches reliably and its VALENTINA UI is reachable only through loopback.
+- The default browser route opens the VALENTINA Overview / Review Queue, not a generic chat screen.
 - A user can start and inspect a search and see the source URL and evidence for every result.
 - At least one real, permitted source can be searched and extracted repeatably.
 - Repeated copies can be recognized without merging distinct opportunities from the same company.
@@ -214,8 +218,8 @@ The binding packaging decision is [ADR-002 — deployment and installer architec
 - Target Windows 11 x64 first, then add separate native packages for other operating systems only when justified.
 - Deliver a versioned `VALENTINA-Setup-x64.exe` installer containing the pinned Huginn Go executable with the frontend embedded. Use NSIS for the Windows installer; do not create a second runtime framework.
 - Go and Node.js are build-time tools, not prerequisites for a normal user installation. The base install must not require Python, Docker, WSL, Postgres, Redis, Kubernetes, a local LLM or a local GPU.
-- Use Huginn's existing tray/web UI as the initial application and system-admin interface. Do not create a second desktop shell or admin frontend.
-- Huginn does not itself provide the complete VALENTINA company/opportunity CRM screens. The MVP's primary user-facing workspace is a small VALENTINA Go companion with local HTTP UI/API, SQLite domain records, server-enforced source policy and scoped MCP tools. Confirm its exact process boundary in a dedicated ADR before implementation.
+- Use the existing Go server and embedded Vue web client as the one VALENTINA browser application. Do not create a separate companion web UI or desktop shell.
+- Add VALENTINA company/opportunity/review routes to that existing Vue app. Add the smallest required domain handlers, source-policy enforcement, scoped MCP tools and SQLite persistence inside the existing Go process where practical.
 - Keep optional Playwright and UFO² environments outside the base installer. Install them only for approved, proven workflows.
 - Never place real credentials in the executable or installer. Preserve user data across upgrades and uninstall by default.
 - Do not publish binaries publicly by default; observe the pinned Huginn BSL 1.1 license and its internal-use grant.
