@@ -30,14 +30,24 @@
         "criterion_id": "synthetic-capability-match",
         "outcome": "unknown",
         "reason": "No real owner profile or capability evidence is present in a synthetic test.",
-        "evidence_ids": ["evidence_synthetic_001"]
+        "evidence_ids": [
+          "evidence_synthetic_001"
+        ]
       }
     ],
-    "missing_information": ["Real eligibility criteria", "Real deadline", "Real commercial value"]
+    "missing_information": [
+      "Real eligibility criteria",
+      "Real deadline",
+      "Real commercial value"
+    ]
   },
-  "source_evidence_ids": ["evidence_synthetic_001"],
+  "source_evidence_ids": [
+    "evidence_synthetic_001"
+  ],
   "first_seen_at": "2026-10-28T09:00:00Z",
   "last_seen_at": "2026-10-28T09:00:00Z",
   "duplicate_group_id": null,
-  "review_note": "Synthetic fixture only."
+  "review_note": "Synthetic fixture only.",
+  "demand_evidence_type": "unknown",
+  "demand_evidence_note": "This synthetic fixture intentionally contains no source facts that distinguish an explicit request from an indirect public signal."
 }
