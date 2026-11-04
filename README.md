@@ -31,6 +31,7 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 - [`docs/DATA-AND-EVIDENCE.md`](docs/DATA-AND-EVIDENCE.md) — provisional company/opportunity/evidence contracts and deduplication.
 - [`docs/SOURCE-REGISTRY.md`](docs/SOURCE-REGISTRY.md) — source approval, scope, collection limits and source onboarding.
 - [`docs/QUALITY-AND-OPERATIONS.md`](docs/QUALITY-AND-OPERATIONS.md) — evaluation, quality metrics, failure handling and recovery.
+- [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) — prioritized path to the own CRM interface and Windows installer.
 
 ## Starter kit and data contracts
 
