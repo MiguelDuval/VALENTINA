@@ -39,7 +39,7 @@ If a task conflicts with these rules, stop before making the conflicting change 
 
 ## Required Git workflow
 
-- Work on a task-specific branch created from the current intended base. Do not commit directly to `main) unless the owner explicitly instructs you.
+- Work on a task-specific branch created from the current intended base. Do not commit directly to `main` unless the owner explicitly instructs you.
 - Do not reset, rebase, force-push, rewrite history, or delete branches unless the owner explicitly authorizes the exact operation.
 - Before editing, verify the repository is `MiguelDuval/VALENTINA`, report/check the branch and HEAD, and inspect the current working tree.
 - Before committing, review the full diff for accidental credentials, personal data, generated files, and unrelated changes. Run relevant tests and report exactly what ran and what did not.
