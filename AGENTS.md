@@ -57,6 +57,7 @@ If a task conflicts with these rules, stop before making the conflicting change 
 Before making architecture, integration, deployment or application changes, read:
 
 1. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — binding Huginn-first architecture.
+2. [`docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md`](docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md) — owner-approved single-runtime, white-label UI and licensing decision.
 2. [`docs/UPSTREAM-CANDIDATES.md`](docs/UPSTREAM-CANDIDATES.md) — upstream audit and licensing decision.
 3. [`docs/SECURITY-AND-SECRETS.md`](docs/SECURITY-AND-SECRETS.md) — security and credential policy.
 
@@ -96,8 +97,11 @@ Before changing packaging, installation, startup, update or local administration
 The binding decision is Windows-first, single-user packaging:
 - The target deliverable is a versioned `VALENTINA-Setup-x64.exe` produced with pinned NSIS tooling. It installs the pinned Huginn Go executable with the web frontend embedded.
 - Go and Node.js are build-time only. Do not make them end-user prerequisites. Do not bundle Python, Playwright browsers, UFO², Docker, WSL, a local LLM or database servers into the base install.
-- Reuse Huginn's existing tray/web UI for application and system administration. Do not create a second desktop framework or generic admin frontend.
-- Do not claim Huginn already supplies a purpose-built CRM. Dedicated company/opportunity/review screens require a separate, minimal VALENTINA domain feature justified by the structured data model and approved architecture.
+- Use the pinned upstream Go application and its existing Vue 3 web client as the single VALENTINA browser application. Rebrand ordinary UI surfaces and add VALENTINA domain routes in that same frontend; do not create a second frontend or companion process solely for the UI.
+- Preserve working agents, models, connections, skills, workflows and settings. Place them under VALENTINA's AI & Automation / Advanced navigation.
+- The upstream client does not provide the renovation-opportunity CRM. Add the necessary Opportunities, Opportunity Detail, Companies, Sources and Research views to the existing Vue client, with the smallest required in-process Go API/SQLite/MCP integration.
+- Keep the complete upstream BSL license and required notices. No upstream name/logo is required in ordinary app chrome; the full license must be available from About → Licenses.
+- This is a private local single-operator app. Do not add remote/cloud, team, collaboration or public distribution features without a new owner-approved ADR.
 - Keep mutable state outside the application install directory. Do not delete user data during upgrade or uninstall by default.
 - Keep API keys out of executables, installer resources, config committed to Git, process arguments, logs and registry values. Use a protected OS credential mechanism.
 - Keep Huginn bound to loopback. Start-at-login must be explicit opt-in; do not add a privileged Windows service by default.
@@ -145,7 +149,9 @@ Read [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) before plann
 
 - The owner supplies only the minimum business profile inputs described in the roadmap. Do not invent the sector or opportunity scope.
 - Build only the minimum backend needed for one vertical slice: source-scope enforcement, validated domain records, evidence, persistence and a human review decision.
-- The proposed VALENTINA Go companion should consolidate SQLite, source-policy enforcement, MCP and the local HTTP API/UI boundary. Confirm the exact process boundary in an ADR before implementation; do not silently introduce multiple independent services.
+- Prefer implementing domain APIs, SQLite persistence, source-policy enforcement and scoped MCP tools inside the existing Go application process. Do not create a separate Go companion for the UI; a second process requires a demonstrated blocker and a new ADR.
+- Store VALENTINA UI patches/build scripts outside the upstream submodule, apply them to a clean temporary copy of the exact pinned SHA, and fail closed when the pin or patch context differs.
+- Make Overview / Review Queue the default route. Remove upstream branding from normal UI surfaces, but never remove or conceal the required license text; expose it via About → Licenses.
 - Start UI work with synthetic fixtures, then connect it to real SQLite-backed records. Do not claim a mock UI is functional.
 - Keep the first workflow manual. One reliable source is enough for the first usable release; broad coverage is deferred.
 - The installer is one user-facing Setup package, even if it installs more than one executable. Do not promise a one-binary architecture until proven.
