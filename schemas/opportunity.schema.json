@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MiguelDuval/VALENTINA/blob/main/schemas/opportunity.schema.json",
+  "title": "VALENTINA Opportunity v0.1",
+  "description": "Provisional opportunity extraction contract. This is not a database migration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["opportunity_id", "title", "summary", "opportunity_type", "status", "source_evidence_ids", "first_seen_at", "last_seen_at"],
+  "properties": {
+    "opportunity_id": { "type": "string", "minLength": 1 },
+    "company_id": { "type": ["string", "null"], "minLength": 1 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "opportunity_type": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "status": { "enum": ["candidate", "verified", "needs_review", "qualified", "rejected", "expired", "archived"] },
+    "geography": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "municipality": { "type": ["string", "null"] },
+        "province": { "type": ["string", "null"] },
+        "autonomous_community": { "type": ["string", "null"] },
+        "country_code": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+        "location_text": { "type": ["string", "null"], "maxLength": 500 }
+      }
+    },
+    "published_at": { "type": ["string", "null"], "format": "date-time" },
+    "deadline_at": { "type": ["string", "null"], "format": "date-time" },
+    "valid_from": { "type": ["string", "null"], "format": "date-time" },
+    "valid_until": { "type": ["string", "null"], "format": "date-time" },
+    "value": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "amount": { "type": ["number", "null"], "minimum": 0 },
+        "currency": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$" },
+        "basis": { "type": ["string", "null"], "maxLength": 200 }
+      }
+    },
+    "fit_assessment": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["profile_version", "fit_status", "evaluated_at", "criteria"],
+      "properties": {
+        "profile_version": { "type": "string", "minLength": 1 },
+        "fit_status": { "enum": ["strong_match", "possible_match", "insufficient_information", "not_a_match"] },
+        "evaluated_at": { "type": "string", "format": "date-time" },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["criterion_id", "outcome", "reason"],
+            "properties": {
+              "criterion_id": { "type": "string", "minLength": 1 },
+              "outcome": { "enum": ["matches", "does_not_match", "unknown"] },
+              "reason": { "type": "string", "maxLength": 1000 },
+              "evidence_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+            }
+          }
+        },
+        "missing_information": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "source_evidence_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "first_seen_at": { "type": "string", "format": "date-time" },
+    "last_seen_at": { "type": "string", "format": "date-time" },
+    "duplicate_group_id": { "type": ["string", "null"] },
+    "review_note": { "type": ["string", "null"], "maxLength": 2000 }
+  }
+}
