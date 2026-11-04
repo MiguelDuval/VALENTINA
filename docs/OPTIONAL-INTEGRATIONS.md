@@ -129,3 +129,21 @@ The normal VALENTINA installer must not install optional runtimes preemptively:
 - A future SQLite-backed VALENTINA service does not require a separate database server.
 
 See [DEPLOYMENT-AND-INSTALLER.md](DEPLOYMENT-AND-INSTALLER.md) for the installer and first-run requirements.
+
+## 8. Use Huginn-native extensibility before adding a framework
+
+The pinned Huginn release already provides the mechanisms VALENTINA needs for its first workflow:
+- Custom agents with individual system prompts, model selection, Skills, a local-tools allowlist and an external-connection toolbelt.
+- Prompt-only Skills loaded from Markdown with a small YAML frontmatter block.
+- Workflows with sequential steps, inter-step output, explicit inputs, conditional execution, retries and run replay/diff.
+- A local Inbox, run history and reviewable Artifacts.
+
+Use the checked-in templates under `templates/huginn/` rather than adding another prompt-management framework, task queue or agent orchestration service. The templates are not active until deliberately copied into the local Huginn profile; Skills must be enabled in the Huginn UI. The default workflow is disabled/manual-only.
+
+Official pinned upstream references:
+- https://github.com/scrypster/huginn/blob/v0.5.0/docs/features/custom-agents.md
+- https://github.com/scrypster/huginn/blob/v0.5.0/docs/features/skills.md
+- https://github.com/scrypster/huginn/blob/v0.5.0/docs/features/workflows.md
+- https://github.com/scrypster/huginn/blob/v0.5.0/docs/features/permissions.md
+
+Do not vendor additional source repositories for these features; they are already part of the pinned Huginn submodule.
