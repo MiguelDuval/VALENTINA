@@ -1,0 +1,31 @@
+{
+  "evidence_id": "evidence_synthetic_001",
+  "source_id": "synthetic-example-source",
+  "canonical_url": "https://example.com/opportunities/sample-001",
+  "publisher": "Example Publisher",
+  "page_title": "Synthetic opportunity announcement",
+  "observed_at": "2026-10-28T09:00:00Z",
+  "published_at": "2026-10-27T08:00:00Z",
+  "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "retrieval_status": "success",
+  "extractor_id": "synthetic-fixture",
+  "extractor_version": "0.1",
+  "facts": [
+    {
+      "field_path": "title",
+      "value": "Synthetic community-space maintenance opportunity",
+      "extraction_method": "manual",
+      "evidence_excerpt": "Fictional test text: an example maintenance opportunity.",
+      "evidence_locator": "synthetic-fixture://paragraph/1",
+      "confidence": 1.0
+    },
+    {
+      "field_path": "deadline_at",
+      "value": null,
+      "extraction_method": "manual",
+      "evidence_excerpt": null,
+      "evidence_locator": "synthetic-fixture://deadline/not-provided",
+      "confidence": 1.0
+    }
+  ]
+}
