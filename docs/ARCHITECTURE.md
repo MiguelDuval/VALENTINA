@@ -215,7 +215,7 @@ The binding packaging decision is [ADR-002 — deployment and installer architec
 - Deliver a versioned `VALENTINA-Setup-x64.exe` installer containing the pinned Huginn Go executable with the frontend embedded. Use NSIS for the Windows installer; do not create a second runtime framework.
 - Go and Node.js are build-time tools, not prerequisites for a normal user installation. The base install must not require Python, Docker, WSL, Postgres, Redis, Kubernetes, a local LLM or a local GPU.
 - Use Huginn's existing tray/web UI as the initial application and system-admin interface. Do not create a second desktop shell or admin frontend.
-- Huginn does not itself provide the complete VALENTINA company/opportunity CRM screens. Add the smallest domain-specific review interface only when the VALENTINA data layer and workflow justify it.
+- Huginn does not itself provide the complete VALENTINA company/opportunity CRM screens. The MVP's primary user-facing workspace is a small VALENTINA Go companion with local HTTP UI/API, SQLite domain records, server-enforced source policy and scoped MCP tools. Confirm its exact process boundary in a dedicated ADR before implementation.
 - Keep optional Playwright and UFO² environments outside the base installer. Install them only for approved, proven workflows.
 - Never place real credentials in the executable or installer. Preserve user data across upgrades and uninstall by default.
 - Do not publish binaries publicly by default; observe the pinned Huginn BSL 1.1 license and its internal-use grant.
