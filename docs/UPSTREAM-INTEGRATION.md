@@ -45,7 +45,7 @@ git submodule update --init --recursive
 git -C upstream/huginn rev-parse HEAD
 ```
 
-Or run `.`scripts`/bootstrap.ps1` from PowerShell.
+Or run `.\scripts\bootstrap.ps1` from PowerShell.
 
 On Linux/macOS, use:
 
@@ -93,7 +93,7 @@ Upstream references:
 
 Every coding agent must:
 1. Read `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/SECURITY-AND-SECRETS.md` and this document.
-2. Initialize the submodule with `.`scripts`/bootstrap.ps1` on Windows or `bash scripts/bootstrap.sh` on Unix-like systems before inspecting or changing Huginn code.
+2. Initialize the submodule with `.\scripts\bootstrap.ps1` on Windows or `bash scripts/bootstrap.sh` on Unix-like systems before inspecting or changing Huginn code.
 3. Verify `git -C upstream/huginn rev-parse HEAD` equals the pin above.
 4. Treat `upstream/huginn` as third-party upstream source, not as a directory for casual edits.
 5. Put VALENTINA-specific adapters, source definitions, configuration templates and glue code outside the submodule.
