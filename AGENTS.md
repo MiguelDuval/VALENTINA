@@ -125,3 +125,13 @@ Binding rules:
 - The starter Workflow must remain manual and disabled until the owner profile and source allowlist are complete.
 - Never grant shell, file-write, Git-mutation or outbound-action tools to unattended discovery/verification agents. Never use `--dangerously-skip-permissions` for unattended discovery.
 - Do not add extra crawler frameworks, data stores, MCP servers or source-code submodules unless a real source and evaluation demonstrate a concrete need.
+
+
+## Source allowlist enforcement — critical distinction
+
+The source registry is a policy contract, not yet a technical network boundary. The pinned Huginn `fetch_url` tool does not enforce the VALENTINA registry's allowed host/path values. Prompts and Skills cannot replace authorization checks.
+
+- Keep the starter workflow disabled/manual-only while agents use raw `fetch_url`.
+- Never claim domain/path allowlisting is enforced until a VALENTINA adapter applies it server-side to every request, redirect and resolved IP.
+- Before unattended source collection is enabled, implement and test a narrow, fail-closed Go MCP source adapter. It must accept an approved source ID rather than an arbitrary unrestricted URL, enforce host/path scope, block unsafe destinations, honor source request limits and preserve evidence.
+- Once that adapter exists, unattended agents must use only its scoped tools, not raw unrestricted `fetch_url`.
