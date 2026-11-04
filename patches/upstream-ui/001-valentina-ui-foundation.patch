@@ -438,7 +438,7 @@ diff --git a/web/src/App.vue b/web/src/App.vue
          <div v-else-if="appError" class="flex flex-col items-center justify-center h-full gap-3">
            <p class="text-huginn-red text-sm">{{ appError }}</p>
 -          <button @click="initApp" class="text-huginn-blue text-xs hover:underline">Retry connection</button>
-+          <button @click="initApp" class="text-valentina-accent text-xs hover:underline">Повторить подключение</button>
++          <button @click="initApp" class="text-valentina-accent text-xs hover:underline">Retry connection</button>
          </div>
  
          <RouterView v-else />
@@ -544,14 +544,6 @@ new file mode 100644
 diff --git a/web/src/views/__tests__/App.test.ts b/web/src/views/__tests__/App.test.ts
 --- a/web/src/views/__tests__/App.test.ts
 +++ b/web/src/views/__tests__/App.test.ts
-@@ -679,6 +679,6 @@
-       const w = mountApp()
-       await flushPromises()
- 
-       // appError should be set; check for retry button
-       const html = w.html()
--      expect(html).toContain('Retry connection')
-+      expect(html).toContain('Повторить подключение')
 @@ -812,7 +812,7 @@
        const rail = w.find('[data-testid="icon-rail"]')
        expect(rail.exists()).toBe(true)
