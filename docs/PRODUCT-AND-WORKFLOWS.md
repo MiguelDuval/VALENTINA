@@ -126,4 +126,4 @@ The initial product does not send email/WhatsApp/social messages or applications
 
 A result must have a stable opportunity ID, factual title/summary, publisher/company reference where identifiable, at least one original source evidence record, first-seen/last-observed times, publication/deadline values when available, an owner-profile fit explanation, an explicit review state and notes for uncertainty or conflicting facts.
 
-See DATA-AND-EVIDENCE.md, SOURCE-REGISTRY.md and QUALITY-AND-OPERATIONS.md.
+See DATA-AND-EVIDENCE.md, SOURCE-REGISTRY.md and QUALITY-AND-OPERATIONS.md. The manual workflow input shape is defined in schemas/workflow-input.schema.json and illustrated in templates/workflow-input.example.json.
