@@ -16,7 +16,7 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 
 ## Project status
 
-**Documentation and proof-of-concept stage.** The architecture baseline is selected, but Huginn has not yet been installed and validated on the target machine. NVIDIA NIM, one permitted source connector, and structured storage still require explicit runtime tests before implementation is considered complete.
+**Source-base stage.** The complete Huginn source is linked as a pinned Git submodule at `upstream/huginn` (release `v0.5.0`). Initialize it with `.\scripts\bootstrap.ps1` or `git submodule update --init --recursive`. The local runtime, NIM connection and source adapters are not yet configured.
 
 ## Mandatory rules
 
@@ -24,6 +24,8 @@ The binding architecture is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). T
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — binding architecture and delivery sequence.
 - [`docs/SECURITY-AND-SECRETS.md`](docs/SECURITY-AND-SECRETS.md) — mandatory credential, privacy, local-runtime and CI policy.
 - [`docs/UPSTREAM-CANDIDATES.md`](docs/UPSTREAM-CANDIDATES.md) — upstream audit, licensing and adoption decision.
+- [`docs/UPSTREAM-INTEGRATION.md`](docs/UPSTREAM-INTEGRATION.md) — Huginn source submodule, pin, bootstrap and build instructions.
+- [`docs/OPTIONAL-INTEGRATIONS.md`](docs/OPTIONAL-INTEGRATIONS.md) — NVIDIA NIM, Playwright MCP, UFO² and optional Brave Search.
 
 ## Working principles
 
@@ -42,10 +44,11 @@ This repository is intentionally **public**. All committed code, documentation, 
 
 ## Initial implementation sequence
 
-1. Install and validate a pinned Huginn release locally.
-2. Configure and test NVIDIA NIM through Huginn's generic OpenAI-compatible backend.
-3. Prove one real, permitted information source end-to-end.
-4. Add one small VALENTINA MCP + SQLite extension only if the proof-of-concept requires structured deduplication and review history.
-5. Add further sources one at a time. Evaluate UFO² only for a proven GUI-only Windows workflow.
+1. Initialize the pinned Huginn source submodule with the bootstrap script.
+2. Build or install the pinned Huginn release using the upstream instructions.
+3. Configure NVIDIA NIM through Huginn's generic OpenAI-compatible backend.
+4. Add Playwright MCP only if an approved dynamic source requires browser access.
+5. Add one small VALENTINA MCP + SQLite extension only if structured deduplication and review history require it.
+6. Evaluate UFO² only for a proven GUI-only Windows desktop workflow.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for mandatory details and acceptance criteria.

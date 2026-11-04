@@ -143,7 +143,16 @@ These requirements are mandatory and supplement [SECURITY-AND-SECRETS.md](SECURI
 - Respect each source's terms, robots/access rules, privacy requirements and applicable Spanish/EU law. No CAPTCHA bypass, authentication bypass, concealed scraping, or circumvention of rate limits.
 - Search and analysis may run unattended only within these boundaries. Sending messages, applying to jobs, contacting leads, submitting forms, purchases, posting, or other outward-facing actions require explicit human approval.
 
-## 7. Upstream, version and licensing policy
+## 7. Upstream source, version and licensing policy
+
+The complete `scrypster/huginn` source is connected as a Git submodule at `upstream/huginn`, pinned to release `v0.5.0` / commit `${pin}`. Use [`docs/UPSTREAM-INTEGRATION.md`](UPSTREAM-INTEGRATION.md) to initialize, verify and build it. Use [`docs/OPTIONAL-INTEGRATIONS.md`](OPTIONAL-INTEGRATIONS.md) for optional component setup and boundaries.
+
+- New clones must use `git clone --recurse-submodules` or run the provided bootstrap script.
+- Existing clones must run `git submodule update --init --recursive` before source-level work.
+- The submodule pins a single exact commit; do not track a floating upstream branch.
+- Do not copy the Huginn tree into VALENTINA root or casually modify files inside the submodule. Implement VALENTINA adapters separately.
+- Upstream updates require a dedicated branch/PR, release and license review, an exact new SHA, a build/test review and a corresponding documentation update.
+
 
 The selected upstream is [scrypster/huginn](https://github.com/scrypster/huginn). The audit on 2026-11-04 observed release `v0.5.0`; its `develop` head was `1e584648232118f06bce7d25f930850060fe698c`, last pushed on 2026-08-30. The project is young and its latest published release at audit time was not recent. Use a pinned release, not a floating branch or automatic latest upgrade.
 

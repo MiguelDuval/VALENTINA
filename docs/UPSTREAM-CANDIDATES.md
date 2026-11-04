@@ -15,7 +15,7 @@ This is a reuse-first decision, not a claim that upstream Huginn already provide
 - A small local SQLite-backed VALENTINA MCP service only when a real source proof-of-concept demonstrates the need for structured deduplication and review history.
 - An optional narrow UFO² bridge only for a proven GUI-only Windows workflow.
 
-Do not fork or vendor the full upstream source for the initial build. Install a pinned official release and keep VALENTINA-specific files/configuration separate.
+Do not copy or fork the full upstream source. The complete Huginn source is now linked as a pinned Git submodule at `upstream/huginn`, release `v0.5.0`, commit `${pin}`. This makes the complete local source tree available to coding agents while keeping the parent repository compact and preserving a clean upstream update boundary. See [UPSTREAM-INTEGRATION.md](UPSTREAM-INTEGRATION.md).
 
 ## 2. Resolve the name collision
 
@@ -224,3 +224,18 @@ The source adapter and SQLite registry should be one compact local MCP service, 
 ## 12. Audit limits
 
 This was a source/documentation and GitHub metadata audit. It did not install or execute Huginn, did not send a live NVIDIA NIM request, did not test a real commercial source site, did not test UFO² orchestration, and did not verify runtime behavior on the owner's Windows machine. Those are explicit proof-of-concept tasks, not claimed accomplishments.
+
+
+## 13. Source integration completed
+
+The source base is now linked in the VALENTINA repository as a Git submodule:
+
+- Path: `upstream/huginn`
+- Upstream tag: `v0.5.0`
+- Pinned commit: `f01c1d84c08b1de972d8cc268da25602598adff8`
+- Clone/init instructions: [`UPSTREAM-INTEGRATION.md`](UPSTREAM-INTEGRATION.md)
+- Optional component boundaries: [`OPTIONAL-INTEGRATIONS.md`](OPTIONAL-INTEGRATIONS.md)
+
+The source was not copied into the VALENTINA root. This avoids duplicating the sizeable vendored dependency tree and makes the upstream revision explicit. Local source initialization is performed by the PowerShell bootstrap script on Windows or the Bash bootstrap script on Unix-like systems.
+
+This repository change adds the source pointer and bootstrap/documentation only. It does not compile Huginn, install NIM, install Playwright MCP or UFO², or claim runtime integration.

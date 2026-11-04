@@ -64,7 +64,7 @@ The following are binding:
 
 - Build VALENTINA on `scrypster/huginn` (Go local AI-agent platform), not the unrelated Ruby `huginn/huginn`.
 - Reuse Huginn's existing UI, agents, routines, workflows, REST API, MCP client and model configuration as the initial application. Do not create a second React UI, FastAPI backend, scheduler, PostgreSQL/Redis/Kubernetes stack or microservice architecture without an owner-approved ADR proving a concrete need.
-- Do not fork or vendor the entire Huginn source for the MVP. Pin and validate an upstream release; keep VALENTINA-specific configuration and minimal MCP extensions separate.
+- Do not copy or fork the entire Huginn source into VALENTINA. The upstream source must be present as the pinned Git submodule at `upstream/huginn`. Before inspecting or editing source, initialize it with `.\scripts\bootstrap.ps1` on Windows or `bash scripts/bootstrap.sh` on Unix-like systems, then verify its HEAD matches `docs/UPSTREAM-INTEGRATION.md`. Keep VALENTINA-specific code outside the submodule. Do not change the pin or edit upstream files without an owner-approved ADR and dedicated PR.
 - Prefer existing Huginn tools and integrations. Add one small source-adapter/SQLite MCP service only after a real source proof-of-concept demonstrates the need. Do not create one service per website.
 - NVIDIA NIM is the preferred initial model provider. Verify the generic `custom` OpenAI-compatible backend with a real request, tool-call and streaming test before claiming integration works. Store the key only in protected local configuration/keyring or trusted GitHub Actions secrets.
 - UFO² is optional and deferred. Use it only for a proven GUI-only Windows task; it is not the default web scraper.
@@ -74,3 +74,16 @@ The following are binding:
 - Any deviation, new framework, database, service, upstream fork or change in license/distribution scope requires an explicit owner-approved ADR before implementation.
 
 Architecture is a project constraint, not a suggestion. Optimizing for the fewest maintained components is mandatory.
+
+
+## Required upstream source initialization
+
+Before any implementation task that depends on Huginn source code, every agent MUST:
+
+1. Read [`docs/UPSTREAM-INTEGRATION.md`](docs/UPSTREAM-INTEGRATION.md) and [`docs/OPTIONAL-INTEGRATIONS.md`](docs/OPTIONAL-INTEGRATIONS.md).
+2. On Windows, run `.`scripts`/bootstrap.ps1`; on Unix-like systems, run `bash scripts/bootstrap.sh`. Alternatively, use `git submodule update --init --recursive`.
+3. Verify `git -C upstream/huginn rev-parse HEAD` equals the exact pinned SHA documented in `docs/UPSTREAM-INTEGRATION.md`.
+4. Never report source review or build readiness if the submodule is missing or at another commit.
+5. Keep all VALENTINA-specific code outside `upstream/huginn`. A submodule pointer change or upstream patch requires a separate owner-approved change and review.
+
+The source submodule is mandatory. A clone without initialized submodules is an incomplete working copy for any source-level task.
