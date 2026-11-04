@@ -40,9 +40,9 @@ Do not modify the Huginn submodule directly or start a long-lived fork solely fo
 
 Build the first useful VALENTINA interface around five simple areas:
 
-1. **Overview / Review queue:** new candidates, items needing review, qualified, rejected and expired counts; last successful research run; visible source failures.
-2. **Opportunities:** searchable/sortable list with title, publisher/company, type, geography, deadline, fit status, evidence freshness and review state.
-3. **Opportunity detail:** factual summary, criteria-by-criteria fit assessment, missing/contradictory facts, original source links, evidence excerpts/locators, observation history and owner review controls.
+1. **Overview / Review queue:** new candidates, items needing review, qualified, rejected and expired counts; separate counts for explicit requests and early demand signals; last successful research run; visible source failures.
+2. **Opportunities:** searchable/sortable list with title, publisher/company, service type, demand-evidence type, geography, profile-based location priority/accessibility when reliable, deadline, fit status, evidence freshness and review state.
+3. **Opportunity detail:** factual summary, explicit-request vs early-signal classification and its evidence, criteria-by-criteria fit assessment, missing/contradictory facts, original source links, evidence excerpts/locators, observation history and owner review controls.
 4. **Companies:** organization records linked to their distinct opportunities and source evidence.
 5. **Sources and Settings:** approved/paused sources, last check and failures, local business-profile settings, model connection status and safe first-run configuration.
 
@@ -114,6 +114,7 @@ Keep a clear distinction between:
 - Verified source facts.
 - Model's assessment against owner criteria.
 - Owner's final review decision.
+- Explicit demand (direct request, tender or subcontracting request) versus an early public signal that may indicate future demand but is not itself a request or award.
 
 ### Stage 4 — One real source and one complete workflow
 
