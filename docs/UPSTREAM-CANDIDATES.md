@@ -239,3 +239,13 @@ The source base is now linked in the VALENTINA repository as a Git submodule:
 The source was not copied into the VALENTINA root. This avoids duplicating the sizeable vendored dependency tree and makes the upstream revision explicit. Local source initialization is performed by the PowerShell bootstrap script on Windows or the Bash bootstrap script on Unix-like systems.
 
 This repository change adds the source pointer and bootstrap/documentation only. It does not compile Huginn, install NIM, install Playwright MCP or UFO², or claim runtime integration.
+
+## 14. Owner-approved UI decision after source audit
+
+The statements above describing the upstream web UI as merely an initial administration console and deferring a dedicated VALENTINA screen are the historical 2026-11-04 audit recommendation. They are superseded for implementation by [ADR-005 — VALENTINA personal white-label web application](ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md).
+
+The pinned frontend was subsequently inspected directly: it is a Vue 3 / TypeScript / Vite / Tailwind application under `web/`, built into `internal/server/dist` and embedded into the Go executable using `-tags embed_frontend`. The approved plan is to rebrand that shell as VALENTINA, make the Overview / Review Queue the landing page, retain useful native engine views, hide/disable irrelevant cloud and collaboration surfaces, and add renovation opportunity/review routes to the same app.
+
+Do not implement the earlier separate Go companion UI topology from the historical diagram above. Keep VALENTINA patches/build scripts outside the submodule and apply them reproducibly to a clean temporary copy of the exact pinned source. A second process requires a demonstrated blocker and a new ADR.
+
+The pinned LICENSE's Additional Use Grant includes strictly internal use not offered as a product or service to third parties. It also requires conspicuous display of the complete BSL 1.1 license on every original or modified copy. Preserve the original license and provide a clearly reachable About → Licenses screen. This permits a VALENTINA visual identity on ordinary screens; it does not permit removing or hiding the required license text.
