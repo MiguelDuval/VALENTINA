@@ -54,17 +54,18 @@ This repository is intentionally **public**. All committed code, documentation, 
 
 ## Installation direction
 
-The intended first user-facing package is a Windows x64 `VALENTINA-Setup.exe` installer. It will install the Go application with its web interface embedded; normal users should not need to install Go, Node.js, Python, Docker or a database server. Huginn supplies the initial local application/admin UI. Dedicated VALENTINA CRM screens are a separate domain feature and are not claimed to exist yet.
+The intended first user-facing package is a Windows x64 `VALENTINA-Setup.exe` installer. It is expected to install the pinned Huginn application plus one small VALENTINA Go companion for the dedicated local CRM interface, SQLite-backed business records and enforced source policy. The exact process boundary remains an implementation ADR gate. Normal users should not need to install Go, Node.js, Python, Docker or a database server. Huginn remains the advanced agent/workflow administration console; VALENTINA supplies the company/opportunity review workspace.
 
 See [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) for the binding packaging decision.
 
 ## Initial implementation sequence
 
-1. Initialize the pinned Huginn source submodule with the bootstrap script.
-2. Build or install the pinned Huginn release using the upstream instructions.
-3. Configure NVIDIA NIM through Huginn's generic OpenAI-compatible backend.
-4. Add Playwright MCP only if an approved dynamic source requires browser access.
-5. Add one small VALENTINA MCP + SQLite extension only if structured deduplication and review history require it.
-6. Evaluate UFO² only for a proven GUI-only Windows desktop workflow.
+1. Capture the minimum local owner business profile.
+2. Build and verify the pinned Huginn runtime on Windows 11 x64.
+3. Implement one compact VALENTINA Go companion for source-policy enforcement, MCP, SQLite and the local HTTP UI/API after a dedicated process-boundary ADR.
+4. Build the five core CRM views using synthetic fixtures, then connect them to the local service.
+5. Implement one approved real source and one manual end-to-end research workflow.
+6. Package Huginn and VALENTINA behind one per-user Windows NSIS installer.
+7. Verify install, first-run, source workflow, persistence, backup/restore, upgrade and data-preserving uninstall.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for mandatory details and acceptance criteria.
+See [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md), which supersedes older UI-last/UFO²-first planning.
