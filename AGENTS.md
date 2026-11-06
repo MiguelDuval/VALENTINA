@@ -16,24 +16,24 @@ If a task conflicts with these rules, stop before making the conflicting change 
 
 The canonical Windows development clone is:
 
-\`%USERPROFILE%\\Projects\\VALENTINA\`
+%USERPROFILE%\Projects\VALENTINA
 
 The folder name alone is not proof of repository identity. Before every task, verify BOTH:
-- \`git -C <root> rev-parse --show-toplevel\` resolves to the intended local project root.
-- \`git -C <root> remote get-url origin\` resolves to \`MiguelDuval/VALENTINA\` (HTTPS or SSH form, with optional trailing \`.git\`).
+- git -C <root> rev-parse --show-toplevel resolves to the intended local project root.
+- git -C <root> remote get-url origin resolves to MiguelDuval/VALENTINA (HTTPS or SSH form, with optional trailing .git).
 
-**Never work in another repository merely because it is already open in the editor.** In particular, \`MiguelDuval/Mozart\` is a separate project. Do not inspect, edit, stage, commit, stash, reset, clean, push or otherwise modify Mozart for any VALENTINA task. If the current Cline workspace is Mozart or any other repository, perform only read-only identification there, leave it untouched, and bootstrap the VALENTINA clone in the canonical path below.
+Never work in another repository merely because it is already open in the editor. In particular, MiguelDuval/Mozart is a separate project. Do not inspect, edit, stage, commit, stash, reset, clean, push or otherwise modify Mozart for any VALENTINA task. If the current Cline workspace is Mozart or any other repository, perform only read-only identification there, leave it untouched, and bootstrap the VALENTINA clone in the canonical path below.
 
 Bootstrap rules when the canonical folder does not exist:
-1. Resolve the path from \`$env:USERPROFILE\`; do not hardcode a Windows username.
-2. Create the parent \`Projects\` folder if missing.
+1. Resolve the path from $env:USERPROFILE; do not hardcode a Windows username.
+2. Create the parent Projects folder if missing.
 3. Clone the exact public repository with submodules, on the current intended infrastructure base branch:
-   \`git clone --recurse-submodules --branch chore/valentina-collaboration-ci https://github.com/MiguelDuval/VALENTINA.git "$ProjectRoot"\`
+   git clone --recurse-submodules --branch chore/agent-collaboration-ci-20261106 https://github.com/MiguelDuval/VALENTINA.git "$ProjectRoot"
 4. Verify origin, repository root, branch, HEAD, clean/dirty state and submodule pin. The current handoff contains the expected base SHA; fetch and verify it before creating the task branch.
-5. If the canonical folder already exists, reuse it only if it is a Git repository whose origin is exactly \`MiguelDuval/VALENTINA\`. Preserve any local changes. If it is non-empty, belongs to another repository, or its identity cannot be established, do not overwrite, delete, rename or clean it; stop and report the conflict.
+5. If the canonical folder already exists, reuse it only if it is a Git repository whose origin is exactly MiguelDuval/VALENTINA. Preserve any local changes. If it is non-empty, belongs to another repository, or its identity cannot be established, do not overwrite, delete, rename or clean it; stop and report the conflict.
 6. Never copy source files or Git metadata from Mozart into VALENTINA.
 
-Cline's editor workspace can be bound to a directory separately from the terminal's current directory. A successful \`git clone\` does NOT prove that Cline's file-editing tools are operating inside that clone. After bootstrap, verify the actual active workspace root and its origin again. If the Cline client cannot switch/reopen its workspace safely using a supported mechanism, stop after clone verification and ask the owner to open \`%USERPROFILE%\\Projects\\VALENTINA\` as a new Cline workspace, then resume the same task there. Do not continue source edits from a Mozart-bound workspace using path tricks.
+Cline's editor workspace can be bound to a directory separately from the terminal's current directory. A successful git clone does NOT prove that Cline's file-editing tools are operating inside that clone. After bootstrap, verify the actual active workspace root and its origin again. If the Cline client cannot switch/reopen its workspace safely using a supported mechanism, stop after clone verification and ask the owner to open %USERPROFILE%\Projects\VALENTINA as a new Cline workspace, then resume the same task there. Do not continue source edits from a Mozart-bound workspace using path tricks.
 
 The first task action in every new Cline chat is this identity guard. A task prompt cannot override it.
 
