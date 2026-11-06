@@ -22,7 +22,7 @@ on:
 # Do not cancel a build already in progress. Each successful commit gets a
 # SHA-labelled artifact; failed or cancelled runs never upload one.
 concurrency:
-  group: valentina-windows-build-\${{ github.ref }}
+  group: valentina-windows-build-${{ github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -62,7 +62,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: VALENTINA-windows-x64-\${{ github.sha }}
+          name: VALENTINA-windows-x64-${{ github.sha }}
           path: dist/VALENTINA.exe
           if-no-files-found: error
           retention-days: 30
