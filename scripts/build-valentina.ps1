@@ -24,6 +24,20 @@ try {
  if ($LASTEXITCODE -ne 0) { throw "VALENTINA patch does not apply to pinned source." }
  & git -C $copy apply $Patch
  if ($LASTEXITCODE -ne 0) { throw "Could not apply VALENTINA patch." }
+ # Copy VALENTINA-first-party Go code into the temporary build tree.
+ $ValentinaGo = Join-Path $Repo "valentina"
+ $DestInternal = Join-Path $copy "internal"
+ if (Test-Path $ValentinaGo) {
+   & robocopy $ValentinaGo $DestInternal /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+   if ($LASTEXITCODE -gt 7) { throw "VALENTINA Go source copy failed." }
+ }
+  # Copy VALENTINA-first-party Vue views into the temporary build tree.
+  $ValentinaViews = Join-Path $Repo "valentina\web\src\views"
+  $DestViews = Join-Path $copy "web\src\views"
+  if (Test-Path $ValentinaViews) {
+    & robocopy $ValentinaViews $DestViews /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -gt 7) { throw "VALENTINA Vue views copy failed." }
+  }
  Push-Location (Join-Path $copy "web")
  try {
   npm ci --no-audit --no-fund

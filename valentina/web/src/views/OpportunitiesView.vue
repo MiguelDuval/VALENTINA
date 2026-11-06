@@ -1,0 +1,107 @@
+<template>
+  <div class="valentina-page">
+    <div class="valentina-page-header">
+      <h1 class="valentina-page-title">Холодные возможности</h1>
+      <p class="valentina-page-subtitle">Общедоступные коммерческие возможности с проверенными источниками</p>
+    </div>
+    <div class="valentina-opportunities-content">
+      <div v-if="loading" class="valentina-loading">Загрузка...</div>
+      <div v-else-if="opps.length === 0" class="valentina-empty">Нет возможностей. Запустите исследование.</div>
+      <div v-else class="valentina-list">
+        <div v-for="o in filtered" :key="o.opportunity_id" class="valentina-opportunity-card">
+          <div class="valentina-card-title">{{ o.title }}</td>
+          <div class="valentina-card-meta">
+            <span class="valentina-badge">{{ demandLabel(o.demand_evidence_type) }}</td>
+            <span class="valentina-badge">{{ statusLabel(o.status) }}</td>
+            <span class="valentina-cell-location">{{ o.geography?.municipality || '—' }}</td>
+          </div>
+          <div class="valentina-card-summary">{{ o.summary }}</td>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+
+const filterStatus = ref('')
+const loading = ref(false)
+const opps = ref([])
+
+const demandLabels = {
+  'direct_request': 'Прямой запрос',
+  'public_tender': 'Публичный тендер',
+  'subcontracting_request': 'Субподряд',
+  'early_demand_signal': 'Ранний сигнал',
+  'unknown': 'Неизвестно'
+}
+
+const statusLabels = {
+  'candidate': 'Кандидат',
+  'verified': 'Проверено',
+  'needs_review': 'Требует проверки',
+  'qualified': 'Квалифицировано',
+  'rejected': 'Отклонено',
+  'expired': 'Истекло',
+  'archived': 'В архиве'
+}
+
+const filtered = computed(() => {
+  return opps.value.filter(o => !filterStatus.value || o.status === filterStatus.value)
+})
+
+const demandLabel = (t) => demandLabels[t] || t
+const statusLabel = (s) => statusLabels[s] || s
+
+const load = async () => {
+  loading.value = true
+  try {
+    const res = await fetch('/api/v1/valentina/opportunities')
+    const data = await res.json()
+    opps.value = data.opportunities || []
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+</script>
+
+<style scoped>
+.valentina-page { padding: 24px; max-width: 1000px; margin: 0 auto; }
+.valentina-page-header { margin-bottom: 24px; }
+.valentina-page-title { font-size: 24px; font-weight: 600; margin: 0 0 8px 0; color: var(--valentina-text); }
+.valentina-page-subtitle { font-size: 14px; color: var(--valentina-muted); margin: 0; }
+.valentina-opportunities-content { display: flex; flex-direction: column; gap: 16px; }
+.valentina-loading { display: flex; align-items: center; justify-content: center; padding: 48px; color: var(--valentina-muted); }
+.valentina-empty { display: flex; align-items: center; justify-content: center; padding: 48px; color: var(--valentina-muted); }
+.valentina-list { display: flex; flex-direction: column; gap: 12px; }
+.valentina-opportunity-card {
+  padding: 16px;
+  border: 1px solid var(--valentina-border);
+  border-radius: 8px;
+  background: var(--valentina-surface);
+}
+.valentina-card-title { font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: var(--valentina-text); }
+.valentina-card-meta { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.valentina-card-summary { font-size: 13px; color: var(--valentina-text); line-height: 1.5; }
+.valentina-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.valentina-badge.early_demand_signal { background: var(--valentina-amber); color: #001a14; }
+.valentina-badge.direct_request { background: var(--valentina-green); color: #001a14; }
+.valentina-badge.public_tender { background: var(--valentina-blue); color: #ffffff; }
+.valentina-badge.subcontracting_request { background: var(--valentina-violet); color: #ffffff; }
+.valentina-badge.unknown { background: var(--valentina-muted); color: #ffffff; }
+.valentino-status-badge.qualified { background: var(--valentina-green); color: #001a14; }
+.valentino-status-badge.rejected { background: var(--valentina-red); color: #ffffff; }
+.valentino-status-badge.candidate { background: var(--valentina-muted); color: #ffffff; }
+.valentino-status-badge.needs_review { background: var(--valentina-amber); color: #001a14; }
+</style>
+</script>

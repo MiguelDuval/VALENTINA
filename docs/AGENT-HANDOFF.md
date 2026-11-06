@@ -34,9 +34,17 @@ The following values were verified on the local clone **before** this correction
 
 The working-tree state after committing the correction has not been re-checked in this snapshot.
 
-## 2. Active assignment — VAL-P0-001
+## 2. Active assignment — VAL-P2-001
 
-Complete the full Phase 0 Product Simplification Audit from the owner-provided task.
+Complete the dual-pipeline CRM domain foundation (cold discovery + hot inbound intake).
+
+### Scope
+
+Implement first-party Go domain package, SQLite persistence with migrations, domain validation, cold opportunity and hot inbound lead operations, evidence records, review decisions, company relationships, deterministic duplicate/idempotency logic, minimal API layer, and Vue CRM UI (Overview, Opportunities, Incoming Leads, Companies, Sources, Research).
+
+### Status
+
+IN_PROGRESS — VAL-P0-001 (Phase 0 audit) complete and READY_FOR_REVIEW. VAL-P2-001 in progress.
 
 ### Scope
 
