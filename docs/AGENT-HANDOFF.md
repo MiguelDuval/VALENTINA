@@ -1,6 +1,6 @@
 # VALENTINA — active agent handoff
 
-**Current status:** READY_FOR_CLINE  
+**Current status:** READY_FOR_REVIEW
 **Active task:** VAL-P0-001 — complete Phase 0 application feature inventory and cleanup audit  
 **Updated:** 2026-11-06
 
@@ -84,23 +84,22 @@ If the local repository is not MiguelDuval/VALENTINA, stop. If the working tree 
 
 Read AGENTS.md, docs/AGENT-COLLABORATION.md, docs/ARCHITECTURE.md, docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md, docs/UPSTREAM-CANDIDATES.md, docs/SECURITY-AND-SECRETS.md, docs/PRODUCT-AND-WORKFLOWS.md, docs/DATA-AND-EVIDENCE.md, docs/SOURCE-REGISTRY.md, docs/QUALITY-AND-OPERATIONS.md, docs/MVP-DELIVERY-ROADMAP.md, docs/UPSTREAM-INTEGRATION.md and docs/OPTIONAL-INTEGRATIONS.md.
 
-## 4. Expected handoff when ready for review
+## 4. Task completion summary — VAL-P0-001
 
-Replace this section with verified values:
-- Task status:
-- Local repository:
-- Branch:
-- Base branch / SHA:
-- HEAD SHA:
-- Huginn submodule SHA:
-- PR URL / number:
-- Files changed:
-- Audit summary:
-- Tests/checks run:
-- Checks not run and why:
-- CI run URL / result:
-- Known risks / unresolved questions:
-- Next requested ChatGPT action:
+- **Task status:** READY_FOR_REVIEW
+- **Local repository:** C:\Users\migue\Projects\VALENTINA
+- **Branch:** audit/valentina-phase0-feature-inventory-20261106
+- **Base branch / SHA:** chore/agent-collaboration-ci-20261106 / a2d67f8901c949f4d1012634b573c1e08044817c
+- **HEAD SHA:** (set after commit)
+- **Huginn submodule SHA:** f01c1d84c08b1de972d8cc268da25602598adff8
+- **PR URL / number:** (pending creation)
+- **Files changed:** docs/FEATURE-INVENTORY.md, docs/CLEANUP-PLAN.md, docs/SECURITY-PERMISSION-MATRIX.md, docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md
+- **Audit summary:** Complete source-level inventory of VALENTINA + Huginn upstream. 10 verified AI provider backends (ALL KEEP), 13 frontend routes, 13 views, ~48 backend packages, MCP/skills/workflows/scheduler inventoried. 6 VALENTINA domain entities in JSON schemas only (not implemented). Source registry enforcement gap identified.
+- **Tests/checks run:** Workspace identity verification, remote ancestry check, submodule pin verification. No test execution (documentation-only task).
+- **Checks not run and why:** go test, npm test, go build, Windows build, live NIM test — not run because no application code was changed and no credentials are available.
+- **CI run URL / result:** NOT AVAILABLE (CI not triggered yet; will run on push/PR)
+- **Known risks / unresolved questions:** Source adapter not implemented (gap identified); VALENTINA domain entities not implemented (schemas only); no runtime verification of any feature.
+- **Next requested ChatGPT action:** Review the PR and all three deliverable documents. Confirm provider preservation (all KEEP), security matrix accuracy (current vs desired), cleanup plan scoping. Do not begin Stage 1 or any application-code modifications.
 
 Do not include secrets, private owner-profile values, actual leads, contact details or local database contents.
 
