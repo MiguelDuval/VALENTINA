@@ -22,13 +22,17 @@ This is a remote GitHub snapshot, not a claim about the owner's local working tr
 
 PR #1 and PR #2 were both open and unmerged at the time of this snapshot. PR #2 is stacked on the PR #1 branch. Do not retarget, merge, close or rewrite either PR autonomously.
 
-## Local development workspace — required before task execution
+## Local development workspace — verified state
 
-The owner does not yet have a confirmed local VALENTINA clone. The canonical Windows location to create/reuse is:
+The VALENTINA clone is verified at `C:\Users\migue\Projects\VALENTINA`:
+- Git root: `C:/Users/migue/Projects/VALENTINA`
+- Origin: `https://github.com/MiguelDuval/VALENTINA.git`
+- Branch: `audit/valentina-phase0-feature-inventory-20261106`
+- HEAD: `78977db0414a69618db9912e92963b663de8eae7`
+- Working tree: clean
+- Huginn submodule: `f01c1d84c08b1de972d8cc268da25602598adff8`
 
-%USERPROFILE%\Projects\VALENTINA
-
-Cline must derive the actual user profile path at runtime. Do not assume the current editor workspace is this repository. If Cline opens in Mozart or any other repository, leave it untouched and prepare the VALENTINA clone separately. Clone the chore/agent-collaboration-ci-20261106 branch with recursive submodules, verify the exact origin and upstream pin, and verify the actual Cline editor workspace root. If the client cannot safely switch workspaces, stop after clone preparation and ask the owner to reopen this folder as a new Cline workspace.
+The initial clone-setup instructions previously in this section are superseded by this verified state.
 
 ## 2. Active assignment — VAL-P0-001
 
@@ -90,14 +94,16 @@ Read AGENTS.md, docs/AGENT-COLLABORATION.md, docs/ARCHITECTURE.md, docs/ADR-005-
 - **Local repository:** C:\Users\migue\Projects\VALENTINA
 - **Branch:** audit/valentina-phase0-feature-inventory-20261106
 - **Base branch / SHA:** chore/agent-collaboration-ci-20261106 / a2d67f8901c949f4d1012634b573c1e08044817c
-- **HEAD SHA:** 692427fdfce8a8394f5251cd2ad3685949630784
+- **HEAD SHA:** Previous handoff commit: `692427fdfce8a8394f5251cd2ad3685949630784`. Current PR head: `78977db0414a69618db9912e92963b663de8eae7`.
 - **Huginn submodule SHA:** f01c1d84c08b1de972d8cc268da25602598adff8
-- **PR URL / number:** Pending — GitHub CLI (`gh`) not available in this environment. Suggested PR URL: https://github.com/MiguelDuval/VALENTINA/pull/new/audit/valentina-phase0-feature-inventory-20261106
+- **PR URL / number:** https://github.com/MiguelDuval/VALENTINA/pull/4 (PR #4, created on push of audit/valentina-phase0-feature-inventory-20261106)
 - **Files changed:** docs/FEATURE-INVENTORY.md, docs/CLEANUP-PLAN.md, docs/SECURITY-PERMISSION-MATRIX.md, docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md
-- **Audit summary:** Complete source-level inventory of VALENTINA + Huginn upstream. 10 verified AI provider backends (ALL KEEP), 13 frontend routes, 13 views, ~48 backend packages, MCP/skills/workflows/scheduler inventoried. 6 VALENTINA domain entities in JSON schemas only (not implemented). Source registry enforcement gap identified.
-- **Tests/checks run:** Workspace identity verification, remote ancestry check, submodule pin verification. No test execution (documentation-only task).
-- **Checks not run and why:** go test, npm test, go build, Windows build, live NIM test — not run because no application code was changed and no credentials are available.
-- **CI run URL / result:** NOT AVAILABLE (CI not triggered yet; will run on push/PR)
+- **Audit summary:** Complete source-level inventory of VALENTINA + Huginn upstream. 10 provider IDs + 1 Managed local-runtime mode (ALL KEEP), 13 frontend routes, 13 top-level Vue views, ~48 backend packages, MCP/skills/workflows/scheduler inventoried. 6 provisional JSON schema files; 0 implemented VALENTINA domain entities. Source registry enforcement gap identified.
+- **Tests/checks run:** Workspace identity verification, remote ancestry check, submodule pin verification. `git diff --check` passed. No test execution (documentation-only task).
+- **Checks not run and why:** go test, npm test, go build, live NIM test — not run because no application code was changed and no credentials are available.
+- **CI run URL / result:**
+  - Push run #33: https://github.com/MiguelDuval/VALENTINA/actions/runs/42212544254 — event: push, head SHA: 78977db0414a69618db9912e92963b663de8eae7, status: **Success**, artifact: `VALENTINA-windows-x64-78977db0414a69618db9912e92963b663de8eae7` (91.1 MB).
+  - PR run #34: https://github.com/MiguelDuval/VALENTINA/actions/runs/42213016012 — event: pull_request (PR #4), head SHA: 78977db0414a69618db9912e92963b663de8eae7, status: **In progress** at last check, artifact: none.
 - **Known risks / unresolved questions:** Source adapter not implemented (gap identified); VALENTINA domain entities not implemented (schemas only); no runtime verification of any feature.
 - **Next requested ChatGPT action:** Review the PR and all three deliverable documents. Confirm provider preservation (all KEEP), security matrix accuracy (current vs desired), cleanup plan scoping. Do not begin Stage 1 or any application-code modifications.
 

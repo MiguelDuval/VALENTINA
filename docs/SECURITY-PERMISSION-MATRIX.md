@@ -21,7 +21,7 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | Unattended fetch_url | Available to agents | Restricted to source-scoped adapter | POLICY GAP |
 | `--dangerously-skip-permissions` | CLI flag exists | Not available in production builds | CONFIGURATION GAP |
 | MCP approval gate | Default true (fail-closed) | Keep default true | None — already correct |
-| Secret storage | OS keychain + secrets.json fallback | Keep both; no plaintext in config | None — already correct |
+| Secret storage | OS keychain (primary) + `~/.huginn/secrets.json` plaintext JSON map with 0600 file permissions (fallback; not application-encrypted) | Keep both; no plaintext literal keys in config.json | None — already correct |
 | Loopback binding | `127.0.0.1` default | Keep loopback-only | None — already correct |
 | SSRF protection | `fetch_url` blocks private/internal IPs | Keep and extend to source adapter | None — already correct |
 
@@ -42,7 +42,7 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | Data access | All local data | Same |
 | Human approval requirements | Permission prompt per tool call (TUI/WS) | Same |
 | Risks | Owner can inadvertently grant broad permissions | Mitigated by permission prompts and session allow-lists |
-| Mitigations | Permission gate, audit log, credential redaction | Same |
+| Mitigations | Permission gate, audit log; `ResolveAPIKey` avoids including resolved secret values in its own error messages (application-wide log redaction NOT VERIFIED) | Same |
 
 
 
@@ -51,7 +51,7 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | Attribute | Current Observed | Desired Target |
 |-----------|-----------------|----------------|
 | Read access | All data accessible via agent tools | Same |
-| Search/fetch access | web_search, fetch_url tools | Same (but fetch_url should eventually be behind source adapter) |
+| Search/fetch access | web_search, fetch_url tools | Same (fetch_url is NOT technically limited to approved sources — prompt-level instruction only; source registry is policy-only, not technically enforced) |
 | File-system access | Sandbox root only | Same |
 | Shell access | bash tool (requires permission prompt per call) | Same |
 | Git operations | git tools (requires permission prompt) | Same |
@@ -154,17 +154,17 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | Attribute | Current Observed | Desired Target |
 |-----------|-----------------|----------------|
 | Read access | Repository source code (public) | Same |
-| Search/fetch access | NONE (no network in build) | NONE |
+| Search/fetch access | `npm ci` and Go module setup access package registries (dependency-fetch network only) | Same — not web research, scraping or external business actions |
 | File-system access | Read repository; write to dist/ | Same |
 | Shell access | Build commands only (go build, npm ci, npm test) | Same |
-| Git operations | Checkout submodule; push task branch | Same (guarded by publish-branch.ps1) |
-| API credentials | NVIDIA_NIM_API_KEY as GitHub secret (not used in build) | Same |
+| Git operations | Checkout submodule with `persist-credentials: false`; no branch push or PR merge by CI | Same |
+| API credentials | No `NVIDIA_NIM_API_KEY` or any `secrets.*` referenced — no AI provider API credential is used by CI | Same |
 | MCP capabilities | NONE | NONE |
-| External mutations | Git push to task branch only | Same |
+| External mutations | None — CI does not push branches or merge PRs | Same |
 | Data access | No customer/lead data | No customer/lead data |
 | Human approval requirements | Owner reviews PR | Same |
-| Risks | Secret exfiltration via CI workflow | Secret only exposed to trusted jobs; no echo/logging |
-| Mitigations | Least-privilege GITHUB_TOKEN; pinned actions; no secret in artifacts | Same |
+| Risks | Dependency-fetch network access to package registries | Mitigated by pinned action versions (tags, not commit SHAs) |
+| Mitigations | `permissions: contents: read`; `persist-credentials: false`; actions use version tags (not commit-SHA pins); no secret in artifacts | Same |
 
 ## Capability Boundaries by Role
 
@@ -208,7 +208,7 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | Source registry | Local protected storage | Yes | Source URLs, terms | Indefinite |
 | SQLite database (future) | Local protected storage | Yes | Business records | Indefinite |
 | Huginn config | `~/.huginn/config.json` | Yes | API key references | Indefinite |
-| Huginn secrets | OS keychain / secrets.json | Yes | Actual API keys/tokens | Indefinite |
+| Huginn secrets | OS keychain (primary); `~/.huginn/secrets.json` plaintext JSON map with 0600 file permissions (fallback, not application-encrypted) | Yes | Actual API keys/tokens | Indefinite |
 | Sessions | SQLite (`~/.huginn/store/`) | Yes | Chat content | Indefinite |
 | Logs | Local file | Yes | Operational metadata (no secrets) | Configurable |
 | Notifications | Pebble/SQLite | Yes | Activity data | Configurable with pruning |
@@ -249,7 +249,7 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | fetch_url limits | 10s timeout, 512KB max | SOURCE VERIFIED |
 | MCP approval gate | Default `true` in config.go | SOURCE VERIFIED |
 | Permission gate | `permissions.go` Gate struct | SOURCE VERIFIED |
-| Credential redaction | `keyring.go` documentation | SOURCE VERIFIED |
+| Credential redaction | `ResolveAPIKey` avoids resolved values in its own error messages | NOT VERIFIED for application-wide log redaction |
 | Source registry enforcement | NOT IMPLEMENTED | IMPLEMENTATION GAP |
 | Unattended fetch restriction | NOT IMPLEMENTED | POLICY GAP |
 | Live NIM test | No credentials available | NOT RUN |

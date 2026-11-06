@@ -25,14 +25,14 @@ This document is a **source-level feature inventory**. Every entry identifies ex
 |----------|-------|--------|
 | Backend Go packages (internal/) | ~48 | SOURCE VERIFIED |
 | Frontend routes (Vue router) | 13 top-level routes | SOURCE VERIFIED |
-| Frontend views | 14 top-level views + subdirectories | SOURCE VERIFIED |
-| AI provider backends | 9 implemented provider types | SOURCE VERIFIED, all KEEP |
+| Frontend views | 13 top-level views + subdirectories | SOURCE VERIFIED |
+| AI provider backends | 10 provider IDs + 1 Managed local-runtime mode | SOURCE VERIFIED, all KEEP |
 | Secret credential slots | 11 slots | SOURCE VERIFIED |
 | Built-in local tools | ~16 builtins + web + git + MCP | SOURCE VERIFIED |
 | MCP transport types | stdio, http | SOURCE VERIFIED |
 | OAuth integration providers | 5 (Google, GitHub, Slack, Jira, Bitbucket) | SOURCE VERIFIED |
 | Connection tool integrations | ~22 third-party services | SOURCE VERIFIED |
-| VALENTINA domain entities | 0 implemented, 6 in JSON schemas | DOCUMENTED ONLY |
+| VALENTINA domain entities | 0 implemented; 6 provisional JSON schema files | DOCUMENTED ONLY |
 | Tests executed | NOT RUN (no test execution performed) | NOT RUN |
 
 ---
@@ -287,11 +287,13 @@ type Backend interface {
 | Literal value | Raw API key string (not recommended, flagged by `IsLiteralAPIKey`) | Returned as-is | **KEEP** (but flagged) |
 | Empty | No key configured | Returns empty string | — |
 
-### 5.5 Known secret slots (SOURCE VERIFIED — `internal/secrets/provider.go`)
+### 5.5 Known secret slots (SOURCE VERIFIED — `internal/secrets/manager.go`)
+
+`KnownSlots` is declared in `internal/secrets/manager.go` (not `provider.go`, which only defines the `KeyringProvider` interface):
 
 `KnownSlots` = `["anthropic", "openai", "openrouter", "deepseek", "zai", "brave", "google", "github", "slack", "jira", "bitbucket"]`
 
-**11 credential slots**, each independently configurable. Storage priority: OS keychain → `~/.huginn/secrets.json` fallback.
+**11 credential slots**, each independently configurable. Storage priority: OS keychain → `~/.huginn/secrets.json` plaintext JSON fallback with 0600 file permissions.
 
 
 ### 5.6 Model discovery and catalogs
@@ -454,6 +456,17 @@ huginn:
 |----------|------|---------|--------|
 | valentina-research-manual | `templates/huginn/workflows/valentina-research-manual.yaml` | Manual (disabled) | Template only (DOCUMENTED ONLY) — 3 steps: discover (Scout), verify (Verifier), assess (Assessor). `enabled: false`, `mode: manual`. Does NOT write to a business database. |
 
+#### Scout/Verifier tool enforcement distinction (SOURCE VERIFIED)
+
+The VALENTINA-Scout agent template (`templates/huginn/agents/valentina-scout.json`) declares `local_tools: ["web_search", "fetch_url"]`. Its system prompt instructs the agent to operate within "explicit owner-approved scope and source policy." However:
+
+- **Prompt-level instruction:** The Scout's system prompt requests approved-source behavior — this is guidance to the LLM, not a technical authorization boundary.
+- **Template-defined tool configuration:** The template configures `web_search` and `fetch_url` as available local tools.
+- **Actually provisioned/active agent:** The agent template is not automatically installed or activated — it must be copied to `~/.huginn/agents/` and enabled in the Huginn UI.
+- **Server-side technical enforcement:** The pinned Huginn `fetch_url` (`internal/tools/fetch_url.go`) provides SSRF protection (blocks private/internal IPs), a 10-second timeout, and a 512 KB response limit. It does **not** receive a VALENTINA source-profile ID and does **not** enforce the source registry's `allowed_hosts` or `allowed_path_prefixes` fields.
+
+**Conclusion:** The source registry (`docs/SOURCE-REGISTRY.md`, `schemas/source-profile.schema.json`) is a policy document only. It is **not** a technical authorization boundary in the pinned Huginn release. Unattended collection must remain blocked until a VALENTINA source-policy MCP adapter is implemented and tested.
+
 ### 8.6 Scheduler behavior on restart
 
 Per `QUALITY-AND-OPERATIONS.md`: "Huginn's scheduler runs inside the Huginn process. Scheduled routines/workflows run only while it is running; missed schedules are not automatically replayed."
@@ -480,7 +493,7 @@ Per `QUALITY-AND-OPERATIONS.md`: "Huginn's scheduler runs inside the Huginn proc
 | Location | Purpose | Git-ignored? | Contains secrets? | Decision |
 |----------|---------|-------------|-------------------|----------|
 | `~/.huginn/config.json` | Application configuration | Yes (local) | API key references (not values) | **KEEP** |
-| `~/.huginn/secrets.json` | Secret fallback store | Yes | Encrypted/referenced values | **KEEP** |
+| `~/.huginn/secrets.json` | Secret fallback store | Yes | Plaintext JSON map of slot→value, written with 0600 file permissions (not application-encrypted) | **KEEP** |
 | OS keychain | Primary secret storage | N/A | Actual API keys, tokens | **KEEP** |
 | `~/.huginn/models/` | Local model files (GGUF) | Yes | No | **KEEP** |
 | `~/.huginn/models.lock.json` | Model install lock | Yes | No | **KEEP** |
@@ -499,6 +512,16 @@ Per `QUALITY-AND-OPERATIONS.md`: "Huginn's scheduler runs inside the Huginn proc
 | SourceProfile | `schemas/source-profile.schema.json` | Provisional JSON contract only | approval_status: pending_review/approved/blocked/paused |
 | OwnerProfile | `schemas/owner-profile.schema.json` | Provisional JSON contract only | Local-only, never committed |
 | WorkflowInput | `schemas/workflow-input.schema.json` | Provisional JSON contract only | Manual research trigger |
+
+**Domain entity implementation status: 0 implemented.** Six provisional JSON schema files exist, but no VALENTINA domain entity is implemented in database, API, or UI persistence:
+
+- **Company, Opportunity, SourceEvidence** — have corresponding record-oriented schemas (with required fields, enums, and validation rules).
+- **SourceProfile** — a source-policy/profile contract, not automatically proof of a complete Source domain implementation.
+- **OwnerProfile** — a supporting business-profile contract (local-only, never committed).
+- **WorkflowInput** — a supporting manual-research trigger contract.
+- **ResearchRun** and **ReviewDecision** — dedicated schema contracts are **missing** unless new source evidence proves otherwise.
+
+No SQLite tables, API handlers, or UI routes exist for any VALENTINA domain entity.
 
 ### 10.3 Synthetic test fixtures
 
@@ -534,7 +557,7 @@ Read tools (fetch_url, read_file, list_dir, grep, search_files, web_search) vs w
 | Circuit breaker | MCP server failure threshold | SOURCE VERIFIED |
 | Approval gate | MCP `ApprovalGate` defaults to true | SOURCE VERIFIED |
 | Permission prompts | TUI/WS permission request flow | SOURCE VERIFIED |
-| Credential redaction | Secrets never in error messages (`ResolveAPIKey` doc) | SOURCE VERIFIED |
+| Credential redaction | `ResolveAPIKey` avoids including resolved secret values in its own error messages | NOT VERIFIED for application-wide log redaction |
 | Audit log | `internal/server/audit.go`, `audit_entity_log.go` | SOURCE VERIFIED |
 
 ### 11.4 Source registry enforcement gap
@@ -564,7 +587,20 @@ Read tools (fetch_url, read_file, list_dir, grep, search_files, web_search) vs w
 |----------|------|----------|----------|-----------|
 | VALENTINA Windows test build | `.github/workflows/valentina-ui-build.yml` | push/PR on main/feature/fix/chore/docs/audit | `VALENTINA-windows-x64-${{ github.sha }}` | 30 days |
 
-**CI status:** NOT RUN in this task. No artifact URL available.
+**CI workflow security description (SOURCE VERIFIED — `.github/workflows/valentina-ui-build.yml`):**
+
+- `permissions: contents: read` — least-privilege, no token write access.
+- Checkout uses `persist-credentials: false` — no credential persistence.
+- Does **not** reference `NVIDIA_NIM_API_KEY` or any `secrets.*` — no AI provider API credential is used by CI.
+- Does **not** push branches or merge PRs — CI is read-only with respect to Git.
+- Actions references use version tags (`actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-go@v5`, `actions/upload-artifact@v4`) — **not** full commit-SHA pins.
+- `npm ci` and Go module/dependency setup can access package registries — this is dependency-fetch network access, distinct from web research, scraping or external business actions.
+- No artifact is uploaded on failed or cancelled runs.
+
+**CI status:** Verified via GitHub Actions:
+
+- Push run #33: https://github.com/MiguelDuval/VALENTINA/actions/runs/42212544254 — event: push, head SHA: 78977db0414a69618db9912e92963b663de8eae7, branch: audit/valentina-phase0-feature-inventory-20261106, status: **Success**, artifact: `VALENTINA-windows-x64-78977db0414a69618db9912e92963b663de8eae7` (91.1 MB, retained 30 days).
+- PR run #34: https://github.com/MiguelDuval/VALENTINA/actions/runs/42213016012 — event: pull_request (PR #4), head SHA: 78977db0414a69618db9912e92963b663de8eae7, branch: audit/valentina-phase0-feature-inventory-20261106, status: **In progress** at last check, artifact: none.
 
 ### 12.3 Test suites
 
@@ -594,7 +630,11 @@ Read tools (fetch_url, read_file, list_dir, grep, search_files, web_search) vs w
 
 ### Verified providers — ALL KEEP
 
-Every verified existing provider/backend is classified **KEEP**: Ollama, External, Custom (NIM), OpenAI, DeepSeek, Z.AI, Anthropic, OpenRouter, Google AI, Vertex AI, Managed (llama.cpp). No provider is removed, restricted, hidden, or made NIM-exclusive.
+**10 provider IDs** (all classified **KEEP**): Ollama (`"ollama"`/`""`), External (`"external"`), Custom (`"custom"` — the OpenAI-compatible backend used for NVIDIA NIM), OpenAI (`"openai"`), DeepSeek (`"deepseek"`), Z.AI (`"zai"`), Anthropic (`"anthropic"`), OpenRouter (`"openrouter"`), Google AI (`"google"`), Vertex AI (`"vertex"`).
+
+**1 separate Managed local-runtime mode** (also **KEEP**): `BackendConfig.Type = "managed"`, implemented via `internal/backend/managed.go`, manages a local `llama-server` subprocess lifecycle. This is a distinct backend runtime mode, not an additional case in the provider factory switch in `internal/backend/factory.go`.
+
+No provider ID or Managed mode is removed, restricted, hidden, or made NIM-exclusive.
 
 ## 14. Missing Evidence / Unresolved Issues
 
@@ -608,7 +648,7 @@ Every verified existing provider/backend is classified **KEEP**: Ollama, Externa
 | Source adapter enforcement | NOT IMPLEMENTED | Gap identified in SOURCE-REGISTRY.md |
 | SQLite domain persistence | NOT IMPLEMENTED | Schemas exist, no physical database |
 | VALENTINA CRM UI routes | NOT IMPLEMENTED | No Opportunities/Companies/Sources/Research views |
-| CI artifact URL | NOT AVAILABLE | CI not triggered in this task |
+| CI artifact URL | Available | Push run #33 artifact: `VALENTINA-windows-x64-78977db0414a69618db9912e92963b663de8eae7` |
 
 ## 15. Confidence Levels
 

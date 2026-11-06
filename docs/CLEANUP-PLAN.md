@@ -124,7 +124,7 @@ Improve the discoverability and organization of settings, including all existing
 | Area | Current state | Recommended organization | Decision |
 |------|--------------|-------------------------|----------|
 | AI providers | All in Settings → Models | Group under "AI & Automation / Advanced" | KEEP_BUT_MOVE |
-| API credentials | Keychain + secrets.json | Preserve all 11 slots; no consolidation | KEEP |
+| API credentials | OS keychain (primary) + `~/.huginn/secrets.json` plaintext JSON with 0600 permissions (fallback, not application-encrypted) | Preserve all 11 slots; no consolidation | KEEP |
 | Custom endpoints | Provider-specific | Keep per-provider endpoint configuration | KEEP |
 | Model selection | Per-agent model ID | Preserve per-agent provider/model choice | KEEP |
 | Local inference | Ollama/managed backends | Keep accessible, not hidden | KEEP |
