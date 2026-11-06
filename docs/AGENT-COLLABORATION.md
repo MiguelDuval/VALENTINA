@@ -148,3 +148,21 @@ Use these exact task states:
 - DONE — owner accepted/merged or explicitly closed the task.
 
 Never use DONE for work that is merely committed or pushed.
+
+## 7. Local workspace bootstrap and repository isolation
+
+The canonical Windows development clone is \`%USERPROFILE%\\Projects\\VALENTINA\`. This is a real Git clone, not Cline's internal workspace/cache directory.
+
+Before any task, the implementation agent must verify the active editor workspace's Git root and origin. The only accepted repository is \`MiguelDuval/VALENTINA\`. A folder label or prior conversation context is not sufficient proof.
+
+If the owner has no local clone:
+- Resolve \`$env:USERPROFILE\` dynamically; do not hardcode the Windows account name.
+- Create \`Projects\` if missing.
+- Clone \`https://github.com/MiguelDuval/VALENTINA.git\` with \`--recurse-submodules\` and the intended task base branch.
+- Verify origin, root, branch, exact base SHA, clean/dirty state and pinned upstream SHA.
+- Never overwrite an existing non-empty directory or reuse a folder belonging to another repository.
+
+If the current Cline workspace is another repository (especially \`MiguelDuval/Mozart\`), do not edit, stage, commit, stash, reset, clean, push or otherwise mutate it. Only read enough metadata to identify the wrong workspace. Prepare the VALENTINA clone separately. Because a terminal directory change may not change Cline's editor/file-tool workspace, verify the actual workspace root. If the client cannot switch safely, stop and require the owner to reopen the canonical VALENTINA folder as a new Cline workspace before source inspection or edits.
+
+Never copy Mozart files, Git metadata, credentials or configuration into VALENTINA. Each repository has its own task branches, history, remotes and handoff.
+

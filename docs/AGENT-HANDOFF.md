@@ -22,6 +22,14 @@ This is a remote GitHub snapshot, not a claim about the owner's local working tr
 
 PR #1 and PR #2 were both open and unmerged at the time of this snapshot. PR #2 is stacked on the PR #1 branch. Do not retarget, merge, close or rewrite either PR autonomously.
 
+## Local development workspace — required before task execution
+
+The owner does not yet have a confirmed local VALENTINA clone. The canonical Windows location to create/reuse is:
+
+\`%USERPROFILE%\\Projects\\VALENTINA\`
+
+Cline must derive the actual user profile path at runtime. Do not assume the current editor workspace is this repository. If Cline opens in Mozart or any other repository, leave it untouched and prepare the VALENTINA clone separately. Clone the \`chore/agent-collaboration-ci-20261106\` branch with recursive submodules, verify the exact origin and upstream pin, and verify the actual Cline editor workspace root. If the client cannot safely switch workspaces, stop after clone preparation and ask the owner to reopen this folder as a new Cline workspace.
+
 ## 2. Active assignment — VAL-P0-001
 
 Complete the full Phase 0 Product Simplification Audit from the owner-provided task.
