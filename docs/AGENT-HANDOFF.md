@@ -34,7 +34,7 @@ Inspect and inventory:
 - Built-in tools and permission tiers.
 - Agent tool allowlists and templates.
 - MCP client/server configuration and connections.
-- Models, provider settings and credential storage.
+- All model providers/backends, model discovery and selection, provider-specific endpoints, independent API-key/credential settings, local/hosted inference options, per-agent provider/model assignment, and provider-specific capabilities (streaming, tool/function calling, vision, etc. where supported). Treat all currently implemented options as KEEP; do not hide, disable or remove any provider path.
 - Skills, Skills Registry and workflow templates.
 - Workflows, routines and scheduler.
 - Chat, sessions, spaces, channels and collaboration features.

@@ -19,6 +19,8 @@ It is not a coding agent product, generic developer workspace, team chat or host
 
 Preserve the pinned scrypster/huginn Go runtime and Vue 3 client. Keep useful agents, models, MCP, Skills, Workflows, scheduling, local APIs, logs and diagnostics. Do not add a second frontend/backend or new infrastructure without an owner-approved ADR.
 
+**Non-negotiable provider/compute invariant:** Preserve every provider/backend, model/endpoint setting, credential configuration path, and hosted or local inference option already supported by the pinned runtime. NVIDIA NIM is only the preferred initial provider, never the exclusive one. Keep per-agent provider/model choice and provider-specific capabilities where implemented. You may reorganize provider controls under AI & Automation / Advanced or add new providers, but never remove, hard-disable, gate behind NIM, or silently reduce existing choices. Inventory exact provider/model/credential/capability paths and mark all verified existing choices KEEP. Any removal or breaking restriction requires explicit owner approval and an ADR.
+
 ## Scope discipline
 
 - Implement only the assigned task and its acceptance criteria.

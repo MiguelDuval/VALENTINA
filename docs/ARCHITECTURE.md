@@ -246,3 +246,20 @@ Required design references:
 - [SOURCE-REGISTRY.md](SOURCE-REGISTRY.md)
 - [QUALITY-AND-OPERATIONS.md](QUALITY-AND-OPERATIONS.md)
 - [Huginn starter kit](../templates/huginn/README.md)
+
+## 13. Provider, model and compute extensibility — binding product invariant
+
+VALENTINA must retain the complete provider/model/compute flexibility already implemented by the pinned Huginn runtime and any VALENTINA-owned integration. NVIDIA NIM is a preferred initial configuration, not an exclusive platform choice and not a reason to simplify away other providers.
+
+The application must preserve:
+- Every existing provider/backend and authentication or API-key configuration path that is supported by the audited source.
+- Hosted and local/offline inference backends where already implemented; custom/OpenAI-compatible endpoints and configurable model IDs where supported.
+- Independent credentials and endpoint settings for separate providers/services. Never assume one provider's key authorizes another service.
+- Agent-level provider/model selection and provider-specific parameters wherever the runtime supports them.
+- Model/provider capabilities such as streaming, tool/function calling, vision/image inputs, structured output, embeddings or other features only where the selected provider/model actually supports them. Maintain capability-aware validation; do not imply universal parity.
+
+The VALENTINA interface may reorganize provider settings, group them under AI & Automation / Advanced, improve labels, or add integrations. It must not delete, hard-disable, hide so completely that they become unusable, or silently narrow any existing provider/backend/credential/capability path. Do not make NIM the only selectable provider or route every agent through one global model if the underlying runtime supports per-agent choices.
+
+The Phase 0 inventory must enumerate provider implementations, model discovery/selection, endpoint configuration, credential storage, agent-level model assignment and capability-specific behavior with exact source paths and tests. Treat all verified existing provider options as **KEEP**. Do not classify them as developer-only cleanup candidates.
+
+Any removal, hard-disablement, breaking restriction or migration of an existing provider/backend/configuration/capability requires explicit owner approval, a dedicated ADR, a compatibility/migration plan and tests. Additions are preferred over removals. This requirement does not make every optional provider/runtime a mandatory installer dependency; optional components remain separately configured and installed.
