@@ -176,13 +176,15 @@ This matrix distinguishes **current observed permissions** (what the code actual
 | fetch arbitrary URL | YES | YES | YES (raw fetch_url tool; NOT technically limited to approved sources) | YES (raw fetch_url tool) | NO | NO | NO | NO |
 | fetch approved source | NO (via source-scoped adapter only — NOT IMPLEMENTED) | NO (via source-scoped adapter only — NOT IMPLEMENTED) | NO (source-scoped adapter capability NONE / NOT IMPLEMENTED) | NO (source-scoped adapter capability NONE / NOT IMPLEMENTED) | NO | NO (source-scoped adapter capability NONE / NOT IMPLEMENTED) | NO | NO |
 | Shell (bash) | YES (with prompt) | YES (with prompt) | NO | NO | NO | NO | NO | Build only |
-| File write | YES (with prompt) | YES (with prompt) | NO | NO | NO | Evidence cache only | NO | Build only |
+| File write | YES (with prompt) | YES (with prompt) | NO | NO | NO | NOT IMPLEMENTED (a future target may use a narrowly scoped evidence cache) | NO | Build only |
 | Git operations | YES (with prompt) | YES (with prompt) | NO | NO | NO | NO | NO | Repository checkout; pinned submodule checkout; no branch push; no PR merge |
-| API credentials | YES (configure) | NO | NO | NO | NO | NO | NO | CI secret only |
-| MCP servers | YES (configure) | YES (with approval) | NO | NO | NO | YES (scoped) | NO | NO |
+| API credentials | YES (configure) | NO | NO | NO | NO | NO | NO | GitHub-provided GITHUB_TOKEN (contents: read); no provider/API secrets |
+| MCP servers | YES (configure) | YES (with approval) | NO | NO | NO | NOT IMPLEMENTED (future target: source-scoped, read-only adapter tools) | NO | NO |
 | External mutations | YES (with approval) | YES (with approval) | NO | NO | NO | NO | NO | NO |
 | Workflow execution | YES (manual) | YES (manual) | NO (disabled) | NO | NO | NO | NO | NO |
 | Scheduler | YES (configure) | YES (view) | NO | NO | NO | NO | NO | NO |
+
+> **Source Adapter column — desired future role, not current implementation.** The Source Adapter column describes capabilities that a future VALENTINA source-policy MCP adapter *might* provide. No VALENTINA source-policy adapter currently exists; its target capabilities must not be interpreted as active runtime permissions. Current state: no adapter, no adapter-specific file write, no adapter-specific MCP tools. Desired future state: source-scoped read-only access, server-side host/path/redirect/DNS/IP enforcement, and narrowly scoped evidence storage.
 
 ### Scout / Verifier Tool Enforcement — Current vs Desired
 

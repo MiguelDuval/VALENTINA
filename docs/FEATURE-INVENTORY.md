@@ -599,10 +599,12 @@ Read tools (fetch_url, read_file, list_dir, grep, search_files, web_search) vs w
 
 **CI status:** Verified via GitHub Actions:
 
-- Push run #35: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214548633 — event: push, head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, branch: audit/valentina-phase0-feature-inventory-20261106, status: **Success**, artifact: `VALENTINA-windows-x64-c00aea224f91db09cfeaaf6ad1b18584b63ef46c`.
-- Pull request run #36: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214558815 — event: pull_request (PR #4), head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, branch: audit/valentina-phase0-feature-inventory-20261106, status: **Success**, artifact: `VALENTINA-windows-x64-d0e85a0bc3eb320dd56b63efc67124d9ea436194`.
+Latest verified CI evidence before this final correction pass, for HEAD `dac1de6dbd3b16f9e8960ea4856398d487d7e799`:
 
-Older runs #33/#34 remain as historical evidence only (previous HEAD 78977db).
+- Push run #37: https://github.com/MiguelDuval/VALENTINA/actions/runs/42217587072 — event: push, branch: audit/valentina-phase0-feature-inventory-20261106, head SHA: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`, status: completed, conclusion: **success**, artifact: `VALENTINA-windows-x64-dac1de6dbd3b16f9e8960ea4856398d487d7e799`, artifact size: 95,542,273 bytes, verified present and not expired.
+- Pull request run #38: https://github.com/MiguelDuval/VALENTINA/actions/runs/42217592902 — event: pull_request, PR: #4, head SHA: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`, status: completed, conclusion: **success**, artifact: `VALENTINA-windows-x64-5e4a407c749a110c68ea094d0c43c5d3f1025483`, artifact size: 95,542,273 bytes, verified present and not expired. The PR artifact name suffix (`5e4a407...`) is the PR merge-ref SHA, not the PR head SHA; the workflow run's head SHA remains `dac1de6...`.
+
+Older runs #33/#34/#35/#36 remain as historical evidence only.
 
 ### 12.3 Test suites
 
@@ -650,7 +652,7 @@ No provider ID or Managed mode is removed, restricted, hidden, or made NIM-exclu
 | Source adapter enforcement | NOT IMPLEMENTED | Gap identified in SOURCE-REGISTRY.md |
 | SQLite domain persistence | NOT IMPLEMENTED | Schemas exist, no physical database |
 | VALENTINA CRM UI routes | NOT IMPLEMENTED | No Opportunities/Companies/Sources/Research views |
-| CI artifact URL | Available | Push run #35 artifact: `VALENTINA-windows-x64-c00aea224f91db09cfeaaf6ad1b18584b63ef46c` |
+| CI artifact URL | Available | Push run #37 artifact: `VALENTINA-windows-x64-dac1de6dbd3b16f9e8960ea4856398d487d7e799` (evidence for HEAD `dac1de6...` before this correction pass); PR run #38 artifact: `VALENTINA-windows-x64-5e4a407c749a110c68ea094d0c43c5d3f1025483` |
 
 ## 15. Confidence Levels
 

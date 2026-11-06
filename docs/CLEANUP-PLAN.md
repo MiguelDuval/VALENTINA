@@ -177,7 +177,7 @@ Describe future security improvements and the technical controls required.
 | Control | Current state | Target state | Decision |
 |---------|--------------|--------------|----------|
 | Source registry enforcement | Policy only, not technically enforced | Server-side VALENTINA MCP adapter enforcing allowed_hosts/allowed_path_prefixes | OWNER_DECISION (new component) |
-| Unattended fetch_url | Available to agents | Restricted to source-scoped adapter only | DISABLE_RECOMMENDED |
+| Unattended fetch_url | Scout template declares `local_tools: ["web_search", "fetch_url"]`; Verifier template declares `local_tools: ["fetch_url"]`. Templates only — not installed or activated by default. Tools become available to those agents only if templates are provisioned and agents explicitly enabled. Even when provisioned, raw `fetch_url` is not technically restricted by the VALENTINA source registry allowlist. | Restricted to source-scoped adapter only | DISABLE_RECOMMENDED |
 | `--dangerously-skip-permissions` | CLI flag available | Not available in production builds | DISABLE_RECOMMENDED |
 | MCP approval gate | Default true (fail-closed) | Keep default true | KEEP |
 | Secret storage | OS keychain + secrets.json fallback | Keep both; no plaintext in config | KEEP |

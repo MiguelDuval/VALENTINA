@@ -22,17 +22,17 @@ This is a remote GitHub snapshot, not a claim about the owner's local working tr
 
 PR #1 and PR #2 were both open and unmerged at the time of this snapshot. PR #2 is stacked on the PR #1 branch. Do not retarget, merge, close or rewrite either PR autonomously.
 
-## Local development workspace — verified state
+## Local development workspace — last verified pre-correction snapshot
 
-The VALENTINA clone is verified at `C:\Users\migue\Projects\VALENTINA`:
+The following values were verified on the local clone **before** this correction commit. They are a historical snapshot and do not claim to represent the working tree or HEAD after the correction commit is applied. The next agent must independently verify the live HEAD from GitHub and locally before acting.
+
 - Git root: `C:/Users/migue/Projects/VALENTINA`
 - Origin: `https://github.com/MiguelDuval/VALENTINA.git`
 - Branch: `audit/valentina-phase0-feature-inventory-20261106`
-- HEAD: `78977db0414a69618db9912e92963b663de8eae7`
-- Working tree: clean
+- HEAD (pre-correction): `dac1de6dbd3b16f9e8960ea4856398d487d7e799`
 - Huginn submodule: `f01c1d84c08b1de972d8cc268da25602598adff8`
 
-The initial clone-setup instructions previously in this section are superseded by this verified state.
+The working-tree state after committing the correction has not been re-checked in this snapshot.
 
 ## 2. Active assignment — VAL-P0-001
 
@@ -94,17 +94,17 @@ Read AGENTS.md, docs/AGENT-COLLABORATION.md, docs/ARCHITECTURE.md, docs/ADR-005-
 - **Local repository:** C:\Users\migue\Projects\VALENTINA
 - **Branch:** audit/valentina-phase0-feature-inventory-20261106
 - **Base branch / SHA:** chore/agent-collaboration-ci-20261106 / a2d67f8901c949f4d1012634b573c1e08044817c
-- **HEAD SHA:** Previous PR head: `78977db0414a69618db9912e92963b663de8eae7`. Current PR head: see PR #4 (`c00aea224f91db09cfeaaf6ad1b18584b63ef46c`).
+- **HEAD SHA:** Previous PR head: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`. Current PR head: refer to PR #4 (https://github.com/MiguelDuval/VALENTINA/pull/4) as the live source of truth. Do not hardcode the new commit SHA inside this handoff; verify it locally and from GitHub before acting.
 - **Huginn submodule SHA:** f01c1d84c08b1de972d8cc268da25602598adff8
 - **PR URL / number:** https://github.com/MiguelDuval/VALENTINA/pull/4 (PR #4, created on push of audit/valentina-phase0-feature-inventory-20261106)
 - **Files changed:** docs/FEATURE-INVENTORY.md, docs/CLEANUP-PLAN.md, docs/SECURITY-PERMISSION-MATRIX.md, docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md
 - **Audit summary:** Complete source-level inventory of VALENTINA + Huginn upstream. 10 provider IDs + 1 Managed local-runtime mode (ALL KEEP), 13 frontend routes, 13 top-level Vue views, ~48 backend packages, MCP/skills/workflows/scheduler inventoried. 6 provisional JSON schema files; 0 implemented VALENTINA domain entities. Source registry enforcement gap identified.
 - **Tests/checks run:** Workspace identity verification, remote ancestry check, submodule pin verification. `git diff --check` passed. No test execution (documentation-only task).
 - **Checks not run and why:** go test, npm test, go build, live NIM test — not run because no application code was changed and no credentials are available.
-- **CI run URL / result:**
-  - Push run #35: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214548633 — event: push, head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, status: **Success**, artifact: `VALENTINA-windows-x64-c00aea224f91db09cfeaaf6ad1b18584b63ef46c`.
-  - Pull request run #36: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214558815 — event: pull_request (PR #4), head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, status: **Success**, artifact: `VALENTINA-windows-x64-d0e85a0bc3eb320dd56b63efc67124d9ea436194`.
-  - Older runs #33/#34 remain as historical evidence only (previous HEAD 78977db).
+- **CI run URL / result (latest verified evidence before this final correction pass, for HEAD `dac1de6dbd3b16f9e8960ea4856398d487d7e799`):**
+  - Push run #37: https://github.com/MiguelDuval/VALENTINA/actions/runs/42217587072 — event: push, branch: audit/valentina-phase0-feature-inventory-20261106, head SHA: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`, status: completed, conclusion: **success**, artifact: `VALENTINA-windows-x64-dac1de6dbd3b16f9e8960ea4856398d487d7e799`, artifact size: 95,542,273 bytes, verified present and not expired.
+  - Pull request run #38: https://github.com/MiguelDuval/VALENTINA/actions/runs/42217592902 — event: pull_request, PR: #4, head SHA: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`, status: completed, conclusion: **success**, artifact: `VALENTINA-windows-x64-5e4a407c749a110c68ea094d0c43c5d3f1025483`, artifact size: 95,542,273 bytes, verified present and not expired. The PR artifact name suffix (`5e4a407...`) is the PR merge-ref SHA, not the PR head SHA; the workflow run's head SHA remains `dac1de6...`.
+  - Runs #35/#36 and earlier remain as historical evidence only (previous HEAD c00aea2).
 - **Known risks / unresolved questions:** Source adapter not implemented (gap identified); VALENTINA domain entities not implemented (schemas only); no runtime verification of any feature.
 - **Next requested ChatGPT action:** Review the PR and all three deliverable documents. Confirm provider preservation (all KEEP), security matrix accuracy (current vs desired), cleanup plan scoping. Do not begin Stage 1 or any application-code modifications.
 
