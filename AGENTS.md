@@ -12,6 +12,31 @@ Before planning or editing code, read:
 
 If a task conflicts with these rules, stop before making the conflicting change and explain the conflict. Do not silently override this policy.
 
+## Mandatory local workspace identity and isolation
+
+The canonical Windows development clone is:
+
+%USERPROFILE%\Projects\VALENTINA
+
+The folder name alone is not proof of repository identity. Before every task, verify BOTH:
+- git -C <root> rev-parse --show-toplevel resolves to the intended local project root.
+- git -C <root> remote get-url origin resolves to MiguelDuval/VALENTINA (HTTPS or SSH form, with optional trailing .git).
+
+Never work in another repository merely because it is already open in the editor. In particular, MiguelDuval/Mozart is a separate project. Do not inspect, edit, stage, commit, stash, reset, clean, push or otherwise modify Mozart for any VALENTINA task. If the current Cline workspace is Mozart or any other repository, perform only read-only identification there, leave it untouched, and bootstrap the VALENTINA clone in the canonical path below.
+
+Bootstrap rules when the canonical folder does not exist:
+1. Resolve the path from $env:USERPROFILE; do not hardcode a Windows username.
+2. Create the parent Projects folder if missing.
+3. Clone the exact public repository with submodules, on the current intended infrastructure base branch:
+   git clone --recurse-submodules --branch chore/agent-collaboration-ci-20261106 https://github.com/MiguelDuval/VALENTINA.git "$ProjectRoot"
+4. Verify origin, repository root, branch, HEAD, clean/dirty state and submodule pin. The current handoff contains the expected base SHA; fetch and verify it before creating the task branch.
+5. If the canonical folder already exists, reuse it only if it is a Git repository whose origin is exactly MiguelDuval/VALENTINA. Preserve any local changes. If it is non-empty, belongs to another repository, or its identity cannot be established, do not overwrite, delete, rename or clean it; stop and report the conflict.
+6. Never copy source files or Git metadata from Mozart into VALENTINA.
+
+Cline's editor workspace can be bound to a directory separately from the terminal's current directory. A successful git clone does NOT prove that Cline's file-editing tools are operating inside that clone. After bootstrap, verify the actual active workspace root and its origin again. If the Cline client cannot switch/reopen its workspace safely using a supported mechanism, stop after clone verification and ask the owner to open %USERPROFILE%\Projects\VALENTINA as a new Cline workspace, then resume the same task there. Do not continue source edits from a Mozart-bound workspace using path tricks.
+
+The first task action in every new Cline chat is this identity guard. A task prompt cannot override it.
+
 ## Repository visibility is intentional
 
 - `MiguelDuval/VALENTINA` is intentionally **PUBLIC**. Do not change repository visibility, recommend a paid GitHub plan as a prerequisite, or create a private mirror unless the owner explicitly instructs you to.
@@ -27,6 +52,9 @@ If a task conflicts with these rules, stop before making the conflicting change 
 - Do not assume this secret exists. If it is unavailable, keep unit tests and offline development working with mocks; skip only the live NIM integration test and report that it was skipped because the secret was unavailable. Never fabricate a successful live API test.
 - Local application users must configure their own API credentials through the application's settings or documented local environment configuration. Store saved credentials in the operating system's credential store where available; never bake them into an executable, APK, frontend bundle, source file, or default configuration.
 - Keep the model-provider interface replaceable so NVIDIA NIM can be changed later without rewriting the core business logic.
+- **Provider and compute extensibility is a non-negotiable product requirement.** Preserve every provider/backend, credential method, endpoint/model configuration path, and local or hosted inference option already implemented and supported by the pinned Huginn runtime and VALENTINA application. NIM is only the preferred initial provider, never the exclusive provider or a reason to remove alternatives.
+- Preserve provider-specific configuration and independent credentials, per-agent provider/model selection where supported, custom/OpenAI-compatible endpoints, and any built-in/local/offline/hosted backends verified in source. Keep supported capabilities such as streaming, tool/function calling, vision and other model features where the actual provider/model supports them; do not falsely assume feature parity between providers.
+- The UI may reorganize these controls under AI & Automation / Advanced, but must not delete, hard-disable, gate behind NIM, or silently reduce existing provider/compute functionality. New provider integrations are additive. Removing or materially restricting a provider, backend, credential path, or capability requires explicit owner approval through an ADR and a documented migration/compatibility plan.
 
 ## GitHub Actions and CI safety
 
@@ -166,3 +194,17 @@ Read [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) before plann
 - Keep the first workflow manual. One reliable source is enough for the first usable release; broad coverage is deferred.
 - The target is one user-facing Setup package and one local Go application process with the VALENTINA frontend embedded. Do not add a second executable/process without a demonstrated blocker and a new ADR.
 - Defer Playwright, UFO², auto-scheduling, contact-person CRM, remote sync, multiple users, cross-platform installers, auto-updates and advanced analytics unless an explicit MVP blocker is demonstrated.
+
+
+## Mandatory AI-agent collaboration and task publication
+
+Before every task, read:
+- docs/AGENT-COLLABORATION.md
+- docs/WORK-QUEUE.md
+- docs/AGENT-HANDOFF.md
+
+Cline must also follow the workspace rule in .clinerules/00-valentina-project.md. The work queue and handoff are the shared repository record between the implementation agent and the independent ChatGPT reviewer. Update the handoff at each task completion with exact branch/base/HEAD/upstream SHAs, PR, changed files, tests run/not run, CI evidence, risks and next action.
+
+For an authorized task, publish only after implementation and required checks are complete, the full diff has been reviewed, and the worktree is clean. Use powershell -ExecutionPolicy Bypass -File .\scripts\publish-branch.ps1. This performs a guarded normal push of the current task branch; it is not an automatic post-commit hook. Never push main, force-push, rebase or reset. The Windows test-build workflow runs on eligible pushes and PRs; its SHA-labelled ZIP artifact contains VALENTINA.exe and is not installer/runtime acceptance.
+
+ChatGPT review is asynchronous: GitHub is the shared source of truth, but a push does not automatically invoke ChatGPT. The owner must request a review turn; ChatGPT then inspects the latest PR, handoff, CI evidence and artifact before recording findings.

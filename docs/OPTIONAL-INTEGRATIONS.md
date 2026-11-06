@@ -2,6 +2,8 @@
 
 **Purpose:** Keep the optional stack small. This document records the approved options and the conditions for introducing them. A tool listed here is not automatically installed, enabled, or authorized to act.
 
+**Provider preservation rule:** This list is not an exhaustive allowlist of inference providers and must never be used to limit the application's provider choices. Preserve every model provider, backend, endpoint/credential configuration path and local or hosted compute option already supported by the pinned Huginn runtime. NVIDIA NIM is the preferred initial configuration only. Existing alternatives remain available; future integrations may be added without removing them. Optional does not mean removable from the provider architecture or required in the base installer.
+
 ## 1. NVIDIA NIM — initial model API
 
 **Role:** Hosted inference for agent reasoning, classification, extraction assistance and (with a supported model) vision.

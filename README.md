@@ -70,3 +70,14 @@ See [`docs/DEPLOYMENT-AND-INSTALLER.md`](docs/DEPLOYMENT-AND-INSTALLER.md) for t
 7. Verify install, first-run, source workflow, persistence, backup/restore, upgrade and data-preserving uninstall.
 
 See [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md), which supersedes older UI-last/UFO²-first planning.
+
+
+## Agent collaboration and delivery
+
+- docs/AGENT-COLLABORATION.md — shared execution/review protocol for Cline and ChatGPT.
+- docs/AGENT-HANDOFF.md — current task handoff and evidence record.
+- docs/WORK-QUEUE.md — prioritized task queue and dependencies.
+- .clinerules/00-valentina-project.md — persistent Cline workspace rules.
+- scripts/publish-branch.ps1 — guarded task-completion push; never force-pushes or publishes main.
+
+Eligible pushes automatically run the Windows test build. A successful run exposes a 30-day SHA-labelled artifact ZIP containing VALENTINA.exe. This workflow does not create GitHub Releases, build the NSIS installer, or automatically invoke ChatGPT; independent review is requested through the shared handoff and PR review process.
