@@ -1,41 +1,68 @@
 name: VALENTINA Windows test build
+
 on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
+      - "audit/**"
   pull_request:
-    paths:
-      - "patches/upstream-ui/**"
-      - "scripts/build-valentina.ps1"
-      - "docs/UI-*.md"
-      - ".github/workflows/valentina-ui-build.yml"
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
+      - "audit/**"
+  workflow_dispatch:
+
+# Do not cancel a build already in progress. Each successful commit gets a
+# SHA-labelled artifact; failed or cancelled runs never upload one.
+concurrency:
+  group: valentina-windows-build-\${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
+
 jobs:
   windows-ui-build:
+    name: Build VALENTINA.exe (Windows x64)
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout VALENTINA and pinned submodule
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: upstream/huginn/go.mod
           cache: false
+
       - name: Patch, test and build
         shell: pwsh
         run: |
           ./scripts/build-valentina.ps1 -OutputDirectory ./dist
           if (-not (Test-Path ./dist/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
+
       - name: Upload VALENTINA Windows executable
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: VALENTINA-windows-x64-${{ github.sha }}
+          name: VALENTINA-windows-x64-\${{ github.sha }}
           path: dist/VALENTINA.exe
           if-no-files-found: error
           retention-days: 30

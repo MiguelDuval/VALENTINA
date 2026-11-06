@@ -166,3 +166,17 @@ Read [`docs/MVP-DELIVERY-ROADMAP.md`](docs/MVP-DELIVERY-ROADMAP.md) before plann
 - Keep the first workflow manual. One reliable source is enough for the first usable release; broad coverage is deferred.
 - The target is one user-facing Setup package and one local Go application process with the VALENTINA frontend embedded. Do not add a second executable/process without a demonstrated blocker and a new ADR.
 - Defer Playwright, UFO², auto-scheduling, contact-person CRM, remote sync, multiple users, cross-platform installers, auto-updates and advanced analytics unless an explicit MVP blocker is demonstrated.
+
+
+## Mandatory AI-agent collaboration and task publication
+
+Before every task, read:
+- docs/AGENT-COLLABORATION.md
+- docs/WORK-QUEUE.md
+- docs/AGENT-HANDOFF.md
+
+Cline must also follow the workspace rule in .clinerules/00-valentina-project.md. The work queue and handoff are the shared repository record between the implementation agent and the independent ChatGPT reviewer. Update the handoff at each task completion with exact branch/base/HEAD/upstream SHAs, PR, changed files, tests run/not run, CI evidence, risks and next action.
+
+For an authorized task, publish only after implementation and required checks are complete, the full diff has been reviewed, and the worktree is clean. Use powershell -ExecutionPolicy Bypass -File .\scripts\publish-branch.ps1. This performs a guarded normal push of the current task branch; it is not an automatic post-commit hook. Never push main, force-push, rebase or reset. The Windows test-build workflow runs on eligible pushes and PRs; its SHA-labelled ZIP artifact contains VALENTINA.exe and is not installer/runtime acceptance.
+
+ChatGPT review is asynchronous: GitHub is the shared source of truth, but a push does not automatically invoke ChatGPT. The owner must request a review turn; ChatGPT then inspects the latest PR, handoff, CI evidence and artifact before recording findings.
