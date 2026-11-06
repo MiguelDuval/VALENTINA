@@ -94,7 +94,7 @@ Read AGENTS.md, docs/AGENT-COLLABORATION.md, docs/ARCHITECTURE.md, docs/ADR-005-
 - **Local repository:** C:\Users\migue\Projects\VALENTINA
 - **Branch:** audit/valentina-phase0-feature-inventory-20261106
 - **Base branch / SHA:** chore/agent-collaboration-ci-20261106 / a2d67f8901c949f4d1012634b573c1e08044817c
-- **HEAD SHA:** Previous handoff commit: `692427fdfce8a8394f5251cd2ad3685949630784`. Current PR head: `78977db0414a69618db9912e92963b663de8eae7`.
+- **HEAD SHA:** Previous PR head: `78977db0414a69618db9912e92963b663de8eae7`. Current PR head: see PR #4 (`c00aea224f91db09cfeaaf6ad1b18584b63ef46c`).
 - **Huginn submodule SHA:** f01c1d84c08b1de972d8cc268da25602598adff8
 - **PR URL / number:** https://github.com/MiguelDuval/VALENTINA/pull/4 (PR #4, created on push of audit/valentina-phase0-feature-inventory-20261106)
 - **Files changed:** docs/FEATURE-INVENTORY.md, docs/CLEANUP-PLAN.md, docs/SECURITY-PERMISSION-MATRIX.md, docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md
@@ -102,8 +102,9 @@ Read AGENTS.md, docs/AGENT-COLLABORATION.md, docs/ARCHITECTURE.md, docs/ADR-005-
 - **Tests/checks run:** Workspace identity verification, remote ancestry check, submodule pin verification. `git diff --check` passed. No test execution (documentation-only task).
 - **Checks not run and why:** go test, npm test, go build, live NIM test — not run because no application code was changed and no credentials are available.
 - **CI run URL / result:**
-  - Push run #33: https://github.com/MiguelDuval/VALENTINA/actions/runs/42212544254 — event: push, head SHA: 78977db0414a69618db9912e92963b663de8eae7, status: **Success**, artifact: `VALENTINA-windows-x64-78977db0414a69618db9912e92963b663de8eae7` (91.1 MB).
-  - PR run #34: https://github.com/MiguelDuval/VALENTINA/actions/runs/42213016012 — event: pull_request (PR #4), head SHA: 78977db0414a69618db9912e92963b663de8eae7, status: **In progress** at last check, artifact: none.
+  - Push run #35: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214548633 — event: push, head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, status: **Success**, artifact: `VALENTINA-windows-x64-c00aea224f91db09cfeaaf6ad1b18584b63ef46c`.
+  - Pull request run #36: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214558815 — event: pull_request (PR #4), head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, status: **Success**, artifact: `VALENTINA-windows-x64-d0e85a0bc3eb320dd56b63efc67124d9ea436194`.
+  - Older runs #33/#34 remain as historical evidence only (previous HEAD 78977db).
 - **Known risks / unresolved questions:** Source adapter not implemented (gap identified); VALENTINA domain entities not implemented (schemas only); no runtime verification of any feature.
 - **Next requested ChatGPT action:** Review the PR and all three deliverable documents. Confirm provider preservation (all KEEP), security matrix accuracy (current vs desired), cleanup plan scoping. Do not begin Stage 1 or any application-code modifications.
 

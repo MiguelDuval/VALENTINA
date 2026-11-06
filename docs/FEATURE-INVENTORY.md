@@ -276,7 +276,7 @@ type Backend interface {
 
 | Provider | Config value | Implementation | Notes | Decision |
 |----------|-------------|----------------|-------|----------|
-| Managed (built-in llama.cpp) | `"managed"` | `internal/backend/managed.go` (referenced in factory) | Phase 3 — local model subprocess management | **KEEP** (implemented, configurable) |
+| Managed (built-in llama.cpp) | `"managed"` | `internal/backend/managed.go` (selected and initialized by `main.go`; separate runtime mode, NOT a case in `internal/backend/factory.go`) | Phase 3 — local model subprocess management; `main.go` selects and initializes managed mode | **KEEP** (implemented, configurable) |
 
 ### 5.4 Key resolution (SOURCE VERIFIED — `internal/backend/keyring.go`, `internal/secrets/manager.go`)
 
@@ -342,7 +342,7 @@ type Backend interface {
 | OpenRouter | `internal/backend/openrouter.go` | `https://openrouter.ai/api/v1` | API key | Model ID string | Yes | Streaming, tools, provider routing | `openrouter_test.go` | Settings → Models | **KEEP** |
 | Google AI Studio | `internal/backend/google_ai.go` | `https://generativelanguage.googleapis.com` | API key (query param) | gemini-* models | Yes | Streaming, tools | `google_ai_test.go` | Settings → Models | **KEEP** |
 | Vertex AI | `internal/backend/vertex.go` | GCP regional | GCP OAuth / service account | gemini-* / claude-* | Yes | Streaming, tools, vision | `vertex_test.go` | Settings → Models | **KEEP** |
-| Managed (llama.cpp) | `internal/backend/managed.go` | Local subprocess | None | Model filename | Yes | Local inference | Referenced in factory | Settings → Models | **KEEP** |
+| Managed (llama.cpp) | `internal/backend/managed.go` | Local subprocess | None | Model filename | Yes | Local inference | Selected by `main.go` (separate runtime mode; not a case in `internal/backend/factory.go`) | Settings → Models | **KEEP** |
 
 **All 10 verified provider backends are classified KEEP.** No provider is removed, restricted, hidden, or made NIM-exclusive.
 
@@ -599,8 +599,10 @@ Read tools (fetch_url, read_file, list_dir, grep, search_files, web_search) vs w
 
 **CI status:** Verified via GitHub Actions:
 
-- Push run #33: https://github.com/MiguelDuval/VALENTINA/actions/runs/42212544254 — event: push, head SHA: 78977db0414a69618db9912e92963b663de8eae7, branch: audit/valentina-phase0-feature-inventory-20261106, status: **Success**, artifact: `VALENTINA-windows-x64-78977db0414a69618db9912e92963b663de8eae7` (91.1 MB, retained 30 days).
-- PR run #34: https://github.com/MiguelDuval/VALENTINA/actions/runs/42213016012 — event: pull_request (PR #4), head SHA: 78977db0414a69618db9912e92963b663de8eae7, branch: audit/valentina-phase0-feature-inventory-20261106, status: **In progress** at last check, artifact: none.
+- Push run #35: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214548633 — event: push, head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, branch: audit/valentina-phase0-feature-inventory-20261106, status: **Success**, artifact: `VALENTINA-windows-x64-c00aea224f91db09cfeaaf6ad1b18584b63ef46c`.
+- Pull request run #36: https://github.com/MiguelDuval/VALENTINA/actions/runs/42214558815 — event: pull_request (PR #4), head SHA: c00aea224f91db09cfeaaf6ad1b18584b63ef46c, branch: audit/valentina-phase0-feature-inventory-20261106, status: **Success**, artifact: `VALENTINA-windows-x64-d0e85a0bc3eb320dd56b63efc67124d9ea436194`.
+
+Older runs #33/#34 remain as historical evidence only (previous HEAD 78977db).
 
 ### 12.3 Test suites
 
@@ -648,7 +650,7 @@ No provider ID or Managed mode is removed, restricted, hidden, or made NIM-exclu
 | Source adapter enforcement | NOT IMPLEMENTED | Gap identified in SOURCE-REGISTRY.md |
 | SQLite domain persistence | NOT IMPLEMENTED | Schemas exist, no physical database |
 | VALENTINA CRM UI routes | NOT IMPLEMENTED | No Opportunities/Companies/Sources/Research views |
-| CI artifact URL | Available | Push run #33 artifact: `VALENTINA-windows-x64-78977db0414a69618db9912e92963b663de8eae7` |
+| CI artifact URL | Available | Push run #35 artifact: `VALENTINA-windows-x64-c00aea224f91db09cfeaaf6ad1b18584b63ef46c` |
 
 ## 15. Confidence Levels
 
@@ -669,8 +671,8 @@ All path and symbol references in this document are **SOURCE VERIFIED** (read di
 - `upstream/huginn/internal/backend/capabilities.go` — ModelCapabilities, DetectVision, FetchCapabilities
 
 **Secrets:**
-- `upstream/huginn/internal/secrets/manager.go` — Secret Manager (keychain + file)
-- `upstream/huginn/internal/secrets/provider.go` — KeyringProvider, OSKeyring, KnownSlots (11 slots)
+- `upstream/huginn/internal/secrets/provider.go` — KeyringProvider, OSKeyring
+- `upstream/huginn/internal/secrets/manager.go` — Secret Manager (keychain + file), KnownSlots (11 slots)
 - `upstream/huginn/internal/secrets/file_store.go` — FileStore fallback
 
 **Configuration:**

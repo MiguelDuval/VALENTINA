@@ -172,17 +172,34 @@ This matrix distinguishes **current observed permissions** (what the code actual
 |------------|-------|----------------------|------------------|----------|----------|----------------|-------------|-----|
 | Read local config | YES | YES | NO | NO | NO | NO | YES | NO |
 | Read secrets | YES (via UI) | NO | NO | NO | NO | NO | NO | NO |
-| Web search | YES | YES | YES (approved sources) | NO | NO | NO | NO | NO |
-| fetch arbitrary URL | YES | YES | NO | NO | NO | NO | NO | NO |
-| fetch approved source | YES | YES | YES (via adapter) | YES (via adapter) | NO | YES (via adapter) | NO | NO |
+| Web search | YES | YES | YES (raw web_search tool; NOT technically limited to approved sources) | NO | NO | NO | NO | NO |
+| fetch arbitrary URL | YES | YES | YES (raw fetch_url tool; NOT technically limited to approved sources) | YES (raw fetch_url tool) | NO | NO | NO | NO |
+| fetch approved source | NO (via source-scoped adapter only — NOT IMPLEMENTED) | NO (via source-scoped adapter only — NOT IMPLEMENTED) | NO (source-scoped adapter capability NONE / NOT IMPLEMENTED) | NO (source-scoped adapter capability NONE / NOT IMPLEMENTED) | NO | NO (source-scoped adapter capability NONE / NOT IMPLEMENTED) | NO | NO |
 | Shell (bash) | YES (with prompt) | YES (with prompt) | NO | NO | NO | NO | NO | Build only |
 | File write | YES (with prompt) | YES (with prompt) | NO | NO | NO | Evidence cache only | NO | Build only |
-| Git operations | YES (with prompt) | YES (with prompt) | NO | NO | NO | NO | NO | Checkout/push |
+| Git operations | YES (with prompt) | YES (with prompt) | NO | NO | NO | NO | NO | Repository checkout; pinned submodule checkout; no branch push; no PR merge |
 | API credentials | YES (configure) | NO | NO | NO | NO | NO | NO | CI secret only |
 | MCP servers | YES (configure) | YES (with approval) | NO | NO | NO | YES (scoped) | NO | NO |
 | External mutations | YES (with approval) | YES (with approval) | NO | NO | NO | NO | NO | NO |
 | Workflow execution | YES (manual) | YES (manual) | NO (disabled) | NO | NO | NO | NO | NO |
 | Scheduler | YES (configure) | YES (view) | NO | NO | NO | NO | NO | NO |
+
+### Scout / Verifier Tool Enforcement — Current vs Desired
+
+**Current observed state (SOURCE VERIFIED):**
+
+The VALENTINA-Scout agent template (`templates/huginn/agents/valentina-scout.json`) declares `local_tools: ["web_search", "fetch_url"]`. The VALENTINA-Verifier template (`templates/huginn/agents/valentina-verifier.json`) declares `local_tools: ["fetch_url"]`. These are **templates only** — they are not installed or activated by default. They must be copied to `~/.huginn/agents/` and enabled in the Huginn UI.
+
+If provisioned with their current templates, Scout/Verifier would have the raw `web_search` and `fetch_url` tools. However:
+- `fetch_url` can fetch arbitrary public HTTP(S) URLs subject only to upstream SSRF protections and bounded-fetch limits (10s timeout, 512KB max, HTML-to-Markdown conversion). It does **not** enforce the VALENTINA source registry's `allowed_hosts` or `allowed_path_prefixes`.
+- `web_search` calls the Brave Search API and does **not** technically filter results to approved source registry entries.
+- The approved-source scope in the Scout's system prompt is **prompt-level guidance only**, not a technical authorization boundary.
+
+**Source allowlist enforcement is NOT IMPLEMENTED.** No VALENTINA source-policy MCP adapter exists yet.
+
+**Desired future state (NOT IMPLEMENTED):**
+
+Unattended agents receive only source-scoped adapter tools. The adapter enforces host/path/redirect/DNS/IP restrictions. This requires a separate implementation task and tested approval gates.
 
 ## Credential Boundaries
 
