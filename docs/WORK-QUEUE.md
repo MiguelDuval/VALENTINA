@@ -6,7 +6,7 @@ This queue is the product-level source of task priority. Update status only when
 
 | ID | Task | Status | Owner / executor | Exit condition |
 |---|---|---|---|---|
-| VAL-P0-001 | Complete full Phase 0 feature inventory and safe cleanup audit | READY_FOR_CLINE | ChatGPT directs; Cline audits | Inventory, cleanup plan and permission matrix committed; no application code changed; reviewed by ChatGPT |
+| VAL-P0-001 | Complete full Phase 0 feature inventory and safe cleanup audit | READY_FOR_REVIEW | ChatGPT directs; Cline audits | Inventory, cleanup plan and permission matrix committed; no application code changed; reviewed by ChatGPT |
 | VAL-P0-002 | Reconcile existing PR #1 and PR #2 dependency/merge sequence | BLOCKED | Owner + ChatGPT | Owner decides merge sequence; neither PR is retargeted or merged by an agent without authorization |
 | VAL-P0-003 | Verify Cline's local workspace, Git authentication and project-rule loading | READY_FOR_CLINE | Cline | Correct repository/branch/submodule verified; project rules visible in Cline |
 

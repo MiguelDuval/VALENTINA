@@ -1,6 +1,6 @@
 # VALENTINA — active agent handoff
 
-**Current status:** READY_FOR_CLINE  
+**Current status:** READY_FOR_REVIEW
 **Active task:** VAL-P0-001 — complete Phase 0 application feature inventory and cleanup audit  
 **Updated:** 2026-11-06
 
@@ -22,13 +22,17 @@ This is a remote GitHub snapshot, not a claim about the owner's local working tr
 
 PR #1 and PR #2 were both open and unmerged at the time of this snapshot. PR #2 is stacked on the PR #1 branch. Do not retarget, merge, close or rewrite either PR autonomously.
 
-## Local development workspace — required before task execution
+## Local development workspace — last verified pre-correction snapshot
 
-The owner does not yet have a confirmed local VALENTINA clone. The canonical Windows location to create/reuse is:
+The following values were verified on the local clone **before** this correction commit. They are a historical snapshot and do not claim to represent the working tree or HEAD after the correction commit is applied. The next agent must independently verify the live HEAD from GitHub and locally before acting.
 
-%USERPROFILE%\Projects\VALENTINA
+- Git root: `C:/Users/migue/Projects/VALENTINA`
+- Origin: `https://github.com/MiguelDuval/VALENTINA.git`
+- Branch: `audit/valentina-phase0-feature-inventory-20261106`
+- HEAD (pre-correction): `dac1de6dbd3b16f9e8960ea4856398d487d7e799`
+- Huginn submodule: `f01c1d84c08b1de972d8cc268da25602598adff8`
 
-Cline must derive the actual user profile path at runtime. Do not assume the current editor workspace is this repository. If Cline opens in Mozart or any other repository, leave it untouched and prepare the VALENTINA clone separately. Clone the chore/agent-collaboration-ci-20261106 branch with recursive submodules, verify the exact origin and upstream pin, and verify the actual Cline editor workspace root. If the client cannot safely switch workspaces, stop after clone preparation and ask the owner to reopen this folder as a new Cline workspace.
+The working-tree state after committing the correction has not been re-checked in this snapshot.
 
 ## 2. Active assignment — VAL-P0-001
 
@@ -84,23 +88,25 @@ If the local repository is not MiguelDuval/VALENTINA, stop. If the working tree 
 
 Read AGENTS.md, docs/AGENT-COLLABORATION.md, docs/ARCHITECTURE.md, docs/ADR-005-VALENTINA-PERSONAL-WHITE-LABEL-UI.md, docs/UPSTREAM-CANDIDATES.md, docs/SECURITY-AND-SECRETS.md, docs/PRODUCT-AND-WORKFLOWS.md, docs/DATA-AND-EVIDENCE.md, docs/SOURCE-REGISTRY.md, docs/QUALITY-AND-OPERATIONS.md, docs/MVP-DELIVERY-ROADMAP.md, docs/UPSTREAM-INTEGRATION.md and docs/OPTIONAL-INTEGRATIONS.md.
 
-## 4. Expected handoff when ready for review
+## 4. Task completion summary — VAL-P0-001
 
-Replace this section with verified values:
-- Task status:
-- Local repository:
-- Branch:
-- Base branch / SHA:
-- HEAD SHA:
-- Huginn submodule SHA:
-- PR URL / number:
-- Files changed:
-- Audit summary:
-- Tests/checks run:
-- Checks not run and why:
-- CI run URL / result:
-- Known risks / unresolved questions:
-- Next requested ChatGPT action:
+- **Task status:** READY_FOR_REVIEW
+- **Local repository:** C:\Users\migue\Projects\VALENTINA
+- **Branch:** audit/valentina-phase0-feature-inventory-20261106
+- **Base branch / SHA:** chore/agent-collaboration-ci-20261106 / a2d67f8901c949f4d1012634b573c1e08044817c
+- **HEAD SHA:** Previous PR head: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`. Current PR head: refer to PR #4 (https://github.com/MiguelDuval/VALENTINA/pull/4) as the live source of truth. Do not hardcode the new commit SHA inside this handoff; verify it locally and from GitHub before acting.
+- **Huginn submodule SHA:** f01c1d84c08b1de972d8cc268da25602598adff8
+- **PR URL / number:** https://github.com/MiguelDuval/VALENTINA/pull/4 (PR #4, created on push of audit/valentina-phase0-feature-inventory-20261106)
+- **Files changed:** docs/FEATURE-INVENTORY.md, docs/CLEANUP-PLAN.md, docs/SECURITY-PERMISSION-MATRIX.md, docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md
+- **Audit summary:** Complete source-level inventory of VALENTINA + Huginn upstream. 10 provider IDs + 1 Managed local-runtime mode (ALL KEEP), 13 frontend routes, 13 top-level Vue views, ~48 backend packages, MCP/skills/workflows/scheduler inventoried. 6 provisional JSON schema files; 0 implemented VALENTINA domain entities. Source registry enforcement gap identified.
+- **Tests/checks run:** Workspace identity verification, remote ancestry check, submodule pin verification. `git diff --check` passed. No test execution (documentation-only task).
+- **Checks not run and why:** go test, npm test, go build, live NIM test — not run because no application code was changed and no credentials are available.
+- **CI run URL / result (latest verified evidence before this final correction pass, for HEAD `dac1de6dbd3b16f9e8960ea4856398d487d7e799`):**
+  - Push run #37: https://github.com/MiguelDuval/VALENTINA/actions/runs/42217587072 — event: push, branch: audit/valentina-phase0-feature-inventory-20261106, head SHA: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`, status: completed, conclusion: **success**, artifact: `VALENTINA-windows-x64-dac1de6dbd3b16f9e8960ea4856398d487d7e799`, artifact size: 95,542,273 bytes, verified present and not expired.
+  - Pull request run #38: https://github.com/MiguelDuval/VALENTINA/actions/runs/42217592902 — event: pull_request, PR: #4, head SHA: `dac1de6dbd3b16f9e8960ea4856398d487d7e799`, status: completed, conclusion: **success**, artifact: `VALENTINA-windows-x64-5e4a407c749a110c68ea094d0c43c5d3f1025483`, artifact size: 95,542,273 bytes, verified present and not expired. The PR artifact name suffix (`5e4a407...`) is the PR merge-ref SHA, not the PR head SHA; the workflow run's head SHA remains `dac1de6...`.
+  - Runs #35/#36 and earlier remain as historical evidence only (previous HEAD c00aea2).
+- **Known risks / unresolved questions:** Source adapter not implemented (gap identified); VALENTINA domain entities not implemented (schemas only); no runtime verification of any feature.
+- **Next requested ChatGPT action:** Review the PR and all three deliverable documents. Confirm provider preservation (all KEEP), security matrix accuracy (current vs desired), cleanup plan scoping. Do not begin Stage 1 or any application-code modifications.
 
 Do not include secrets, private owner-profile values, actual leads, contact details or local database contents.
 
