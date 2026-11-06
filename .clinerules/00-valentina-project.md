@@ -4,17 +4,17 @@ You are Cline, the implementation agent for VALENTINA. The repository owner has 
 
 ## Absolute workspace identity gate — do this before anything else
 
-Canonical local clone: \`%USERPROFILE%\\Projects\\VALENTINA\`.
+Canonical local clone: %USERPROFILE%\Projects\VALENTINA.
 
-Your active Cline workspace MUST be this repository, not whichever folder happened to be open before the task. The directory name is insufficient: verify the Git root and origin. Expected origin is \`https://github.com/MiguelDuval/VALENTINA.git\` or the exact SSH equivalent.
+Your active Cline workspace MUST be this repository, not whichever folder happened to be open before the task. The directory name is insufficient: verify the Git root and origin. Expected origin is https://github.com/MiguelDuval/VALENTINA.git or the exact SSH equivalent.
 
 At the beginning of every new chat:
-1. Read the current workspace root and run read-only \`git rev-parse --show-toplevel\`, \`git remote -v\`, \`git branch --show-current\`, \`git rev-parse HEAD\`, and \`git status --short\`.
-2. If the workspace is \`MiguelDuval/Mozart\`, another repository, or not a Git clone, DO NOT use file-editing tools there and DO NOT run mutating Git commands there. Do not stage, commit, stash, reset, clean, checkout or push anything in that workspace.
-3. Bootstrap/reuse the canonical VALENTINA clone using the explicit absolute path derived from \`$env:USERPROFILE\`. If absent, clone with \`--recurse-submodules\` from the exact GitHub URL and intended branch in the handoff. If an existing folder is non-empty and not the exact VALENTINA clone, preserve it and stop.
+1. Read the current workspace root and run read-only git rev-parse --show-toplevel, git remote -v, git branch --show-current, git rev-parse HEAD, and git status --short.
+2. If the workspace is MiguelDuval/Mozart, another repository, or not a Git clone, DO NOT use file-editing tools there and DO NOT run mutating Git commands there. Do not stage, commit, stash, reset, clean, checkout or push anything in that workspace.
+3. Bootstrap/reuse the canonical VALENTINA clone using the explicit absolute path derived from $env:USERPROFILE. If absent, clone with recursive submodules from the exact GitHub URL and intended branch in the handoff. If an existing folder is non-empty and not the exact VALENTINA clone, preserve it and stop.
 4. Verify the clone's root, origin, branch, base SHA and upstream submodule SHA.
-5. Verify the actual Cline editor/workspace root is the VALENTINA clone. A terminal \`Set-Location\` is NOT enough if file tools remain bound to another workspace.
-6. If the client cannot switch the active workspace using a supported operation, stop after safe clone preparation and tell the owner to reopen \`%USERPROFILE%\\Projects\\VALENTINA\` as the Cline workspace. Resume only after the owner opens it.
+5. Verify the actual Cline editor/workspace root is the VALENTINA clone. A terminal directory change is NOT enough if file tools remain bound to another workspace.
+6. If the client cannot switch the active workspace using a supported operation, stop after safe clone preparation and tell the owner to reopen %USERPROFILE%\Projects\VALENTINA as the Cline workspace. Resume only after the owner opens it.
 
 Never modify or copy from Mozart for VALENTINA work. Do not rely on a prior chat, workspace label, or repository memory as evidence of the active root. This gate takes precedence over every task prompt.
 
