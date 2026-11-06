@@ -9,13 +9,13 @@
       <div v-else-if="opps.length === 0" class="valentina-empty">Нет возможностей. Запустите исследование.</div>
       <div v-else class="valentina-list">
         <div v-for="o in filtered" :key="o.opportunity_id" class="valentina-opportunity-card">
-          <div class="valentina-card-title">{{ o.title }}</td>
+          <div class="valentina-card-title">{{ o.title }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ demandLabel(o.demand_evidence_type) }}</td>
-            <span class="valentina-badge">{{ statusLabel(o.status) }}</td>
-            <span class="valentina-cell-location">{{ o.geography?.municipality || '—' }}</td>
+            <span class="valentina-badge">{{ demandLabel(o.demand_evidence_type) }}</div>
+            <span class="valentina-badge">{{ statusLabel(o.status) }}</div>
+            <span class="valentina-cell-location">{{ o.geography?.municipality || '—' }}</div>
           </div>
-          <div class="valentina-card-summary">{{ o.summary }}</td>
+          <div class="valentina-card-summary">{{ o.summary }}</div>
         </div>
       </div>
     </div>
@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const filterStatus = ref('')
 const loading = ref(false)
@@ -105,3 +105,4 @@ onMounted(load)
 .valentino-status-badge.needs_review { background: var(--valentina-amber); color: #001a14; }
 </style>
 </script>
+

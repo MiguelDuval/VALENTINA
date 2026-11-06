@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MiguelDuval/valentina/valentina/internal/domain"
+	"github.com/scrypster/huginn/internal/valentina/internal/domain"
 )
 
 // Server wraps a domain.Store and provides HTTP handlers for VALENTINA API.
@@ -103,7 +103,7 @@ func (s *Server) handleCreateOpportunity(w http.ResponseWriter, r *http.Request)
 // handleGetOpportunity returns a single opportunity by ID.
 func (s *Server) handleGetOpportunity(w http.ResponseWriter, r *http.Request) {
 	id := pathValue(r, "id")
-	_ = id
+	if id == "" {`n`t\twriteError(w, http.StatusBadRequest, "missing opportunity id")`n`t\treturn`n\t}`n\topp, err := s.store.GetOpportunity(r.Context(), id)`n\tif err != nil {`n`t\twriteError(w, http.StatusNotFound, err.Error())`n`t\treturn`n\t}`n\twriteJSON(w, http.StatusOK, opp)`n}
 	writeError(w, http.StatusNotImplemented, "not implemented")
 }
 
@@ -137,7 +137,7 @@ func (s *Server) handleCreateLead(w http.ResponseWriter, r *http.Request) {
 // handleGetLead returns a single lead by ID.
 func (s *Server) handleGetLead(w http.ResponseWriter, r *http.Request) {
 	id := pathValue(r, "id")
-	_ = id
+	if id == "" {`n`t\twriteError(w, http.StatusBadRequest, "missing opportunity id")`n`t\treturn`n\t}`n\topp, err := s.store.GetOpportunity(r.Context(), id)`n\tif err != nil {`n`t\twriteError(w, http.StatusNotFound, err.Error())`n`t\treturn`n\t}`n\twriteJSON(w, http.StatusOK, opp)`n}
 	writeError(w, http.StatusNotImplemented, "not implemented")
 }
 
@@ -241,3 +241,6 @@ func pathValue(r *http.Request, key string) string {
 }
 
 var _ = fmt.Sprintf
+
+
+

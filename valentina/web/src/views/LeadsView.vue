@@ -9,13 +9,13 @@
       <div v-else-if="leads.length === 0" class="valentina-empty">Нет входящих заявок. Добавьте заявку вручную.</div>
       <div v-else class="valentina-list">
         <div v-for="l in filtered" :key="l.lead_id" class="valentina-lead-card">
-          <div class="valentina-card-title">{{ l.request_summary }}</td>
+          <div class="valentina-card-title">{{ l.request_summary }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ l.inbound_channel }}</td>
-            <span class="valentina-badge">{{ statusLabel(l.status) }}</td>
-            <span class="valentina-cell-date">{{ formatDate(l.received_at) }}</td>
+            <span class="valentina-badge">{{ l.inbound_channel }}</div>
+            <span class="valentina-badge">{{ statusLabel(l.status) }}</div>
+            <span class="valentina-cell-date">{{ formatDate(l.received_at) }}</div>
           </div>
-          <div class="valentina-card-summary">{{ l.request_summary }}</td>
+          <div class="valentina-card-summary">{{ l.request_summary }}</div>
         </div>
       </div>
     </div>
@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const filterStatus = ref('')
 const loading = ref(false)
@@ -94,3 +94,4 @@ onMounted(load)
 .valentina-badge.spam { background: var(--valentina-muted); color: #ffffff; }
 .valentina-badge.converted { background: var(--valentina-violet); color: #ffffff; }
 </style>
+

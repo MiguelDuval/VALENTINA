@@ -9,13 +9,13 @@
       <div v-else-if="sources.length === 0" class="valentina-empty">Нет утвержденных источников. Источники добавляются вручную через реестр источников.</div>
       <div v-else class="valentina-list">
         <div v-for="s in sources" :key="s.source_id" class="valentina-source-card">
-          <div class="valentina-card-title">{{ s.name }}</td>
+          <div class="valentina-card-title">{{ s.name }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ s.source_type }}</td>
-            <span class="valentina-badge" :class="`valentina-approval-${s.approval_status}`">{{ s.approval_status }}</td>
-            <span class="valentina-cell-url">{{ s.base_url }}</td>
+            <span class="valentina-badge">{{ s.source_type }}</div>
+            <span class="valentina-badge" :class="`valentina-approval-${s.approval_status}`">{{ s.approval_status }}</div>
+            <span class="valentina-cell-url">{{ s.base_url }}</div>
           </div>
-          <div class="valentina-card-publisher">{{ s.publisher }}</td>
+          <div class="valentina-card-publisher">{{ s.publisher }}</div>
         </div>
       </div>
     </div>

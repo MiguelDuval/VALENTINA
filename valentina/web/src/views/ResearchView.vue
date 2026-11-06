@@ -9,19 +9,19 @@
       <div v-else-if="runs.length === 0" class="valentina-empty">Нет запусков исследований. Запустите ручное исследование.</div>
       <div v-else class="valentina-list">
         <div v-for="r in runs" :key="r.run_id" class="valentina-run-card">
-          <div class="valentina-card-title">Исследование {{ r.run_id.slice(-8) }}</td>
+          <div class="valentina-card-title">Исследование {{ r.run_id.slice(-8) }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge" :class="`valentina-run-status-${r.status}`">{{ r.status }}</td>
-            <span class="valentina-cell-date">{{ formatDate(r.started_at) }}</td>
+            <span class="valentina-badge" :class="`valentina-run-status-${r.status}`">{{ r.status }}</div>
+            <span class="valentina-cell-date">{{ formatDate(r.started_at) }}</div>
           </div>
           <div class="valentina-run-stats">
-            <span class="valentina-stat"><strong>{{ r.candidate_count }}</td> кандидатов</td>
-            <span class="valentina-stat"><strong>{{ r.verified_count }}</td> проверено</td>
-            <span class="valentina-stat"><strong>{{ r.duplicate_count }}</td> дубликатов</td>
-            <span class="valentina-stat"><strong>{{ r.accepted_count }}</td> принято</td>
-            <span class="valentina-stat"><strong>{{ r.rejected_count }}</td> отклонено</td>
+            <span class="valentina-stat"><strong>{{ r.candidate_count }}</div> кандидатов</div>
+            <span class="valentina-stat"><strong>{{ r.verified_count }}</div> проверено</div>
+            <span class="valentina-stat"><strong>{{ r.duplicate_count }}</div> дубликатов</div>
+            <span class="valentina-stat"><strong>{{ r.accepted_count }}</div> принято</div>
+            <span class="valentina-stat"><strong>{{ r.rejected_count }}</div> отклонено</div>
           </div>
-          <div v-if="r.notes" class="valentina-card-notes">{{ r.notes }}</td>
+          <div v-if="r.notes" class="valentina-card-notes">{{ r.notes }}</div>
         </div>
       </div>
     </div>

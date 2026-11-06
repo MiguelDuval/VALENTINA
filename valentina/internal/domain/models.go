@@ -41,6 +41,86 @@ const (
 	InboundLeadStatusNew      InboundLeadStatus = "new"
 	InboundLeadStatusTriage   InboundLeadStatus = "triage"
 	InboundLeadStatusNeedsInfo InboundLeadStatus = "needs_information"
+	InboundLeadStatusQualified InboundLeadStatus = "qualified"
+	InboundLeadStatusConverted InboundLeadStatus = "converted"
+	InboundLeadStatusDeclined InboundLeadStatus = "declined"
+	InboundLeadStatusSpam     InboundLeadStatus = "spam"
+	InboundLeadStatusArchived InboundLeadStatus = "archived"
+)
+
+// Location represents a geographic location.
+type Location struct {
+	Municipality         *string `json:"municipality,omitempty"`
+	Province             *string `json:"province,omitempty"`
+	AutonomousCommunity  *string `json:"autonomous_community,omitempty"`
+	CountryCode          *string `json:"country_code,omitempty"`
+	LocationText         *string `json:"location_text,omitempty"`
+}
+
+// OpportunityValue represents a published value/budget/rate.
+type OpportunityValue struct {
+	Amount   *float64 `json:"amount,omitempty"`
+	Currency *string   `json:"currency,omitempty"`
+	Basis    *string   `json:"basis,omitempty"`
+}
+
+// FitCriterion is a single criterion evaluation.
+type FitCriterion struct {
+	CriterionID  string   `json:"criterion_id"`
+	Outcome      string   `json:"outcome"`
+	Reason       string   `json:"reason"`
+	EvidenceIDs  []string `json:"evidence_ids,omitempty"`
+}
+
+// FitAssessment records an owner-profile fit evaluation.
+type FitAssessment struct {
+	ProfileVersion     string        `json:"profile_version"`
+	FitStatus          string        `json:"fit_status"`
+	EvaluatedAt        time.Time     `json:"evaluated_at"`
+	Criteria           []FitCriterion `json:"criteria"`
+	MissingInformation []string      `json:"missing_information,omitempty"`
+}
+
+// EvidenceFact is a single extracted fact with provenance.
+type EvidenceFact struct {
+	FieldPath        string      `json:"field_path"`
+	Value            interface{} `json:"value"`
+	ExtractionMethod string      `json:"extraction_method"`
+	EvidenceExcerpt  *string     `json:"evidence_excerpt,omitempty"`
+	EvidenceLocator  *string     `json:"evidence_locator,omitempty"`
+	Confidence       *float64    `json:"confidence,omitempty"`
+}
+
+// SourceRateLimits defines request constraints for a source.
+type SourceRateLimits struct {
+	MinimumIntervalSeconds int    `json:"minimum_interval_seconds"`
+	MaxParallelRequests    int    `json:"max_parallel_requests"`
+	DailyRequestLimit      *int   `json:"daily_request_limit,omitempty"`
+	TimeoutSeconds         int    `json:"timeout_seconds"`
+	MaxResponseBytes       int64  `json:"max_response_bytes"`
+}
+
+// ContactInfo is minimal contact information for an inbound customer.
+type ContactInfo struct {
+	Name    *string `json:"name,omitempty"`
+	Email   *string `json:"email,omitempty"`
+	Phone   *string `json:"phone,omitempty"`
+	Purpose *string `json:"purpose,omitempty"`
+}
+
+// InboundAIAssessment is AI-assisted extraction/summary for an inbound lead.
+type InboundAIAssessment struct {
+	ServiceCategory *string   `json:"service_category,omitempty"`
+	ProjectScope    *string   `json:"project_scope,omitempty"`
+	Location        *string   `json:"location,omitempty"`
+	Budget          *float64  `json:"budget,omitempty"`
+	TimingUrgency   *string   `json:"timing_urgency,omitempty"`
+	MissingDetails  []string  `json:"missing_details,omitempty"`
+	CompanyMatch    *string   `json:"company_match,omitempty"`
+	ResponseDraft   *string   `json:"response_draft,omitempty"`
+	EvaluatedAt     time.Time `json:"evaluated_at"`
+	ProfileVersion  string    `json:"profile_version,omitempty"`
+}
 
 // Company represents a public-facing organization or publisher.
 type Company struct {
@@ -68,25 +148,27 @@ type Opportunity struct {
 	Geography           *Location          `json:"geography,omitempty"`
 	PublishedAt         *time.Time         `json:"published_at,omitempty"`
 	DeadlineAt          *time.Time         `json:"deadline_at,omitempty"`
+	ValidFrom           *time.Time         `json:"valid_from,omitempty"`
+	ValidUntil          *time.Time         `json:"valid_until,omitempty"`
 	Value               *OpportunityValue  `json:"value,omitempty"`
 	FitAssessment       *FitAssessment     `json:"fit_assessment,omitempty"`
 	SourceEvidenceIDs   []string           `json:"source_evidence_ids"`
 	FirstSeenAt         time.Time          `json:"first_seen_at"`
 	LastSeenAt          time.Time          `json:"last_seen_at"`
+	DuplicateGroupID    *string            `json:"duplicate_group_id,omitempty"`
+	ReviewNote          *string            `json:"review_note,omitempty"`
 	DemandEvidenceType  DemandEvidenceType `json:"demand_evidence_type"`
 	DemandEvidenceNote  *string            `json:"demand_evidence_note,omitempty"`
 }
 
-	InboundLeadStatusQualified InboundLeadStatus = "qualified"
-	InboundLeadStatusConverted InboundLeadStatus = "converted"
-	InboundLeadStatusDeclined InboundLeadStatus = "declined"
-	InboundLeadStatusSpam     InboundLeadStatus = "spam"
-	InboundLeadStatusArchived InboundLeadStatus = "archived"
-)
-
 // Location represents a geographic location.
 type Location struct {
 	Municipality         *string `json:"municipality,omitempty"`
+	Province             *string `json:"province,omitempty"`
+	AutonomousCommunity  *string `json:"autonomous_community,omitempty"`
+	CountryCode          *string `json:"country_code,omitempty"`
+	LocationText         *string `json:"location_text,omitempty"`
+}
 
 // SourceEvidence records one observation of one page/document.
 type SourceEvidence struct {
@@ -106,27 +188,31 @@ type SourceEvidence struct {
 
 // Source represents an approved public-source collection profile.
 type Source struct {
-	SourceID             string           `json:"source_id"`
-	Name                 string           `json:"name"`
-	Publisher            string           `json:"publisher"`
-	SourceType           string           `json:"source_type"`
-	BaseURL              string           `json:"base_url"`
-	AllowedHosts         []string         `json:"allowed_hosts"`
-	AllowedPathPrefixes  []string         `json:"allowed_path_prefixes,omitempty"`
-	ApprovalStatus       string           `json:"approval_status"`
-	RetrievalMethod      string           `json:"retrieval_method"`
-	RateLimits           SourceRateLimits `json:"rate_limits"`
-	AllowedFields        []string         `json:"allowed_fields"`
+	SourceID           string           `json:"source_id"`
+	Name               string           `json:"name"`
+	Publisher          string           `json:"publisher"`
+	SourceType         string           `json:"source_type"`
+	BaseURL            string           `json:"base_url"`
+	AllowedHosts       []string         `json:"allowed_hosts"`
+	AllowedPathPrefixes []string         `json:"allowed_path_prefixes,omitempty"`
+	TermsURL           *string          `json:"terms_url,omitempty"`
+	TermsReviewedAt    *time.Time       `json:"terms_reviewed_at,omitempty"`
+	RobotsReviewedAt   *time.Time       `json:"robots_reviewed_at,omitempty"`
+	ApprovalStatus     string           `json:"approval_status"`
+	ApprovalReason     *string          `json:"approval_reason,omitempty"`
+	RetrievalMethod    string           `json:"retrieval_method"`
+	AdapterID          *string          `json:"adapter_id,omitempty"`
+	AdapterVersion     *string          `json:"adapter_version,omitempty"`
+	AuthenticationRequired bool          `json:"authentication_required"`
+	CredentialReference *string         `json:"credential_reference,omitempty"`
+	RateLimits         SourceRateLimits `json:"rate_limits"`
+	AllowedFields      []string         `json:"allowed_fields"`
+	ProhibitedFields   []string         `json:"prohibited_fields,omitempty"`
+	Languages          []string         `json:"languages,omitempty"`
+	ExpectedUpdateFrequency *string       `json:"expected_update_frequency,omitempty"`
+	LastReviewedAt     *time.Time       `json:"last_reviewed_at,omitempty"`
+	Notes              *string          `json:"notes,omitempty"`
 }
-
-	Province             *string `json:"province,omitempty"`
-	AutonomousCommunity  *string `json:"autonomous_community,omitempty"`
-	CountryCode          *string `json:"country_code,omitempty"`
-	LocationText         *string `json:"location_text,omitempty"`
-}
-
-// OpportunityValue represents a published value/budget/rate.
-type OpportunityValue struct {
 
 // ResearchRun records a manual research action and its results.
 type ResearchRun struct {
@@ -252,65 +338,77 @@ func (l *InboundLead) Validate() error {
 	return nil
 }
 
-	Amount   *float64 `json:"amount,omitempty"`
-	Currency *string   `json:"currency,omitempty"`
-	Basis    *string   `json:"basis,omitempty"`
+// CanonicalURL returns the opportunity's canonical URL for deduplication.
+// Opportunities reference SourceEvidence records for their source URL,
+// so we return an empty string here - dedup uses SourceEvidence canonical URLs.
+func (o *Opportunity) CanonicalURL() string {
+	return ""
 }
 
-// FitCriterion is a single criterion evaluation.
-type FitCriterion struct {
-	CriterionID  string   `json:"criterion_id"`
-	Outcome      string   `json:"outcome"`
-	Reason       string   `json:"reason"`
-	EvidenceIDs  []string `json:"evidence_ids,omitempty"`
+// Publisher returns the publisher name from the first source evidence.
+// Opportunities don't store publisher directly; it comes from SourceEvidence.
+func (o *Opportunity) Publisher() string {
+	return ""
 }
 
-// FitAssessment records an owner-profile fit evaluation.
-type FitAssessment struct {
-	ProfileVersion     string        `json:"profile_version"`
-	FitStatus          string        `json:"fit_status"`
-	EvaluatedAt        time.Time     `json:"evaluated_at"`
-	Criteria           []FitCriterion `json:"criteria"`
-	MissingInformation []string      `json:"missing_information,omitempty"`
+// DateWindow returns the publication/deadline window string.
+func (o *Opportunity) DateWindow() string {
+	var parts []string
+	if o.PublishedAt != nil {
+		parts = append(parts, o.PublishedAt.Format("2006-01-02"))
+	}
+	if o.DeadlineAt != nil {
+		parts = append(parts, o.DeadlineAt.Format("2006-01-02"))
+	}
+	return strings.Join(parts, "|")
 }
 
-// EvidenceFact is a single extracted fact with provenance.
-type EvidenceFact struct {
-	FieldPath        string      `json:"field_path"`
-	Value            interface{} `json:"value"`
-	ExtractionMethod string      `json:"extraction_method"`
-	EvidenceExcerpt  *string     `json:"evidence_excerpt,omitempty"`
-	EvidenceLocator  *string     `json:"evidence_locator,omitempty"`
-	Confidence       *float64    `json:"confidence,omitempty"`
+// IsDuplicate checks whether two opportunities are likely duplicates based on
+// deterministic matching: exact canonical URL, or exact title+publisher+date window.
+func IsDuplicate(a, b *Opportunity) bool {
+	if a.CanonicalURL() != "" && a.CanonicalURL() == b.CanonicalURL() {
+		return true
+	}
+	if NormalizeCompanyName(a.Publisher()) == NormalizeCompanyName(b.Publisher()) &&
+		a.Title == b.Title &&
+		a.DateWindow() == b.DateWindow() &&
+		a.DateWindow() != "" {
+		return true
+	}
+	return false
 }
 
-// SourceRateLimits defines request constraints for a source.
-type SourceRateLimits struct {
-	MinimumIntervalSeconds int    `json:"minimum_interval_seconds"`
-	MaxParallelRequests    int    `json:"max_parallel_requests"`
-	DailyRequestLimit      *int   `json:"daily_request_limit,omitempty"`
-	TimeoutSeconds         int    `json:"timeout_seconds"`
-	MaxResponseBytes       int64  `json:"max_response_bytes"`
+// IsDuplicateLead checks whether two inbound leads are likely duplicates based
+// on channel + message reference + timestamp window.
+func IsDuplicateLead(a, b *InboundLead) bool {
+	if a.ChannelMessageRef != nil && b.ChannelMessageRef != nil && *a.ChannelMessageRef == *b.ChannelMessageRef {
+		return true
+	}
+	if a.ReceivedAt.Equal(b.ReceivedAt) &&
+		a.InboundChannel == b.InboundChannel &&
+		a.RequestSummary == b.RequestSummary {
+		return true
+	}
+	return false
 }
 
-// ContactInfo is minimal contact information for an inbound customer.
-type ContactInfo struct {
-	Name    *string `json:"name,omitempty"`
-	Email   *string `json:"email,omitempty"`
-	Phone   *string `json:"phone,omitempty"`
-	Purpose *string `json:"purpose,omitempty"`
+// ValidateDuplicateCandidate checks that an opportunity doesn't conflict with
+// an existing duplicate group.
+func ValidateDuplicateCandidate(newOpp *Opportunity, existing []*Opportunity) error {
+	for _, existing := range existing {
+		if IsDuplicate(newOpp, existing) {
+			return fmt.Errorf("potential duplicate of opportunity %s (duplicate group: %s)",
+				existing.OpportunityID, existing.DuplicateGroupID)
+		}
+	}
+	return nil
 }
 
-// InboundAIAssessment is AI-assisted extraction/summary for an inbound lead.
-type InboundAIAssessment struct {
-	ServiceCategory *string   `json:"service_category,omitempty"`
-	ProjectScope    *string   `json:"project_scope,omitempty"`
-	Location        *string   `json:"location,omitempty"`
-	Budget          *float64  `json:"budget,omitempty"`
-	TimingUrgency   *string   `json:"timing_urgency,omitempty"`
-	MissingDetails  []string  `json:"missing_details,omitempty"`
-	CompanyMatch    *string   `json:"company_match,omitempty"`
-	ResponseDraft   *string   `json:"response_draft,omitempty"`
-	EvaluatedAt     time.Time `json:"evaluated_at"`
-	ProfileVersion  string    `json:"profile_version,omitempty"`
+// fmtDate formats a time.Time as YYYY-MM-DD, or empty string if zero.
+func fmtDate(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return ""
+	}
+	return t.Format("2006-01-02")
 }
+

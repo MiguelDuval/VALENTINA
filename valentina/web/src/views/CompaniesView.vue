@@ -9,13 +9,13 @@
       <div v-else-if="companies.length === 0" class="valentina-empty">Нет компаний. Добавьте компанию вручную.</div>
       <div v-else class="valentina-list">
         <div v-for="c in companies" :key="c.company_id" class="valentina-company-card">
-          <div class="valentina-card-title">{{ c.name }}</td>
+          <div class="valentina-card-title">{{ c.name }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ c.domain || '—' }}</td>
-            <span class="valentina-cell-location">{{ c.location?.municipality || '—' }}</td>
+            <span class="valentina-badge">{{ c.domain || '—' }}</div>
+            <span class="valentina-cell-location">{{ c.location?.municipality || '—' }}</div>
           </div>
           <div class="valentina-card-industries">
-            <span v-for="(t, i) in c.industry_tags" :key="i" class="valentina-tag">{{ t }}</td>
+            <span v-for="(t, i) in c.industry_tags" :key="i" class="valentina-tag">{{ t }}</div>
           </div>
         </div>
       </div>
