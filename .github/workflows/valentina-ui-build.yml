@@ -55,17 +55,17 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/build-valentina.ps1 -OutputDirectory ./dist
-          if (-not (Test-Path ./dist/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
-          if ((Get-Item ./dist/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
+          if (-not (Test-Path ./dist/package/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
+          if ((Get-Item ./dist/package/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
 
       - name: Compute EXE SHA256
         shell: pwsh
         run: |
-          $hash = & certutil -hashfile ./dist/VALENTINA.exe SHA256
+          $hash = & certutil -hashfile ./dist/package/VALENTINA.exe SHA256
           $line = $hash | Select-Object -Skip 1 | Select-Object -First 1
           $sha = ($line -split '\s+')[0].Trim()
           Write-Host "EXE_SHA256=$sha"
-          $size = (Get-Item ./dist/VALENTINA.exe).Length
+          $size = (Get-Item ./dist/package/VALENTINA.exe).Length
           Write-Host "EXE_SIZE=$size"
           "EXE_SHA256=$sha" >> $env:GITHUB_ENV
           "EXE_SIZE=$size" >> $env:GITHUB_ENV
@@ -76,9 +76,8 @@ jobs:
         with:
           name: VALENTINA-windows-x64-${{ github.sha }}
           path: |
-            dist/VALENTINA.exe
-            dist/VALENTINA-BUILD-MANIFEST.json
             dist/package/*
+            dist/VALENTINA-windows-x64-${{ github.sha }}.zip
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

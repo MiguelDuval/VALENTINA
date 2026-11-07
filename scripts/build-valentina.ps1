@@ -8,6 +8,8 @@ $Patch2 = Join-Path $Repo "patches\upstream-ui\002-valentina-crm-integration.pat
 $Expected = "f01c1d84c08b1de972d8cc268da25602598adff8"
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $Repo "dist" }
 elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $Repo $OutputDirectory }
+$packageDir = Join-Path $OutputDirectory "package"
+New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 foreach ($tool in @("git","npm","go","robocopy")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool missing: $tool" } }
 if (-not (Test-Path $Upstream)) { throw "Initialize upstream with scripts/bootstrap.ps1 first." }
 $actual = (& git -C $Upstream rev-parse HEAD).Trim()
@@ -41,11 +43,15 @@ try {
    if ($LASTEXITCODE -gt 7) { throw "VALENTINA Go source copy failed." }
  }
 
- # Verify correct staging structure - reject nested internal/internal path.
- $badPath1 = Join-Path $DestValentina "internal" "domain"
- $badPath2 = Join-Path $DestValentina "internal" "api"
- if (Test-Path $badPath1 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/domain must not exist." }
- if (Test-Path $badPath2 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/api must not exist." }
+  # Verify correct staging structure - require correct paths, reject wrong ones.
+  $correctPath1 = Join-Path $DestValentina "internal" "domain"
+  $correctPath2 = Join-Path $DestValentina "internal" "api"
+  $badPath1 = Join-Path $copy "internal" "internal" "domain"
+  $badPath2 = Join-Path $copy "internal" "internal" "api"
+  if (-not (Test-Path $correctPath1 -PathType Container)) { throw "Required staging path missing: source/internal/valentina/internal/domain" }
+  if (-not (Test-Path $correctPath2 -PathType Container)) { throw "Required staging path missing: source/internal/valentina/internal/api" }
+  if (Test-Path $badPath1 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/domain must not exist." }
+  if (Test-Path $badPath2 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/api must not exist." }
 
  $expectedFiles = @(
    (Join-Path $DestValentina "internal" "domain" "models.go"),
@@ -197,7 +203,8 @@ Do not distribute publicly.
       credentials_embedded = $false
     }
     artifact = @{
-      artifact_name = "VALENTINA-windows-x64-$($actual)"
+      $valentinaSha = (& git -C $Repo rev-parse HEAD).Trim()
+  artifact_name = "VALENTINA-windows-x64-$($valentinaSha)"
       retention_period_days = 30
       github_actions_run_url = ""
     }
@@ -221,15 +228,89 @@ Do not distribute publicly.
   $npmVersion = & npm --version
   if ($LASTEXITCODE -eq 0) { $manifest.build_environment.npm_version = $npmVersion.Trim() }
 
-  $manifest.validation = @{
-    go_domain_tests = @{ status = "passed"; command = "go test ./internal/valentina/internal/..."; result = "passed" }
-    go_api_server_integration_tests = @{ status = "passed"; command = "go test ./internal/server"; result = "passed" }
-    frontend_tests = @{ status = "passed"; command = "npm test"; result = "passed" }
-    vue_typecheck = @{ status = "passed"; command = "npx vue-tsc --noEmit -p tsconfig.json"; result = "passed" }
-    frontend_production_build = @{ status = "passed"; command = "npm run build"; result = "passed" }
-    windows_executable_compilation = @{ status = "passed"; command = "go build -tags embed_frontend -o VALENTINA.exe"; result = "passed" }
-    patch_application = @{ status = "passed"; command = "git apply --check patches/upstream-ui/*.patch"; result = "passed" }
-    upstream_pin_verification = @{ status = "passed"; command = "git -C upstream/huginn rev-parse HEAD"; result = "passed" }
+  $manifest.validation = @{}
+  
+  # Run Go domain tests
+  $ErrorActionPreference = "Continue"
+  & go test ./internal/valentina/internal/... 2>&1
+  $goDomainExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  $manifest.validation.go_domain_tests = @{
+    status = if ($goDomainExitCode -eq 0) { "passed" } else { "failed" }
+    command = "go test ./internal/valentina/internal/..."
+    result = if ($goDomainExitCode -eq 0) { "passed" } else { "failed (exit code $goDomainExitCode)" }
+  }
+  
+  # Run Go server integration tests
+  $ErrorActionPreference = "Continue"
+  & go test ./internal/server 2>&1
+  $goServerExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  $manifest.validation.go_api_server_integration_tests = @{
+    status = if ($goServerExitCode -eq 0) { "passed" } else { "failed" }
+    command = "go test ./internal/server"
+    result = if ($goServerExitCode -eq 0) { "passed" } else { "failed (exit code $goServerExitCode)" }
+  }
+  
+  # Run frontend tests
+  $ErrorActionPreference = "Continue"
+  & npm test 2>&1
+  $frontendTestExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  $manifest.validation.frontend_tests = @{
+    status = if ($frontendTestExitCode -eq 0) { "passed" } else { "failed" }
+    command = "npm test"
+    result = if ($frontendTestExitCode -eq 0) { "passed" } else { "failed (exit code $frontendTestExitCode)" }
+  }
+  
+  # Run Vue typecheck
+  $ErrorActionPreference = "Continue"
+  & npx vue-tsc --noEmit -p tsconfig.json 2>&1
+  $vueTypecheckExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  $manifest.validation.vue_typecheck = @{
+    status = if ($vueTypecheckExitCode -eq 0) { "passed" } else { "failed" }
+    command = "npx vue-tsc --noEmit -p tsconfig.json"
+    result = if ($vueTypecheckExitCode -eq 0) { "passed" } else { "failed (exit code $vueTypecheckExitCode)" }
+  }
+  
+  # Run frontend production build
+  $ErrorActionPreference = "Continue"
+  & npm run build 2>&1
+  $frontendBuildExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  $manifest.validation.frontend_production_build = @{
+    status = if ($frontendBuildExitCode -eq 0) { "passed" } else { "failed" }
+    command = "npm run build"
+    result = if ($frontendBuildExitCode -eq 0) { "passed" } else { "failed (exit code $frontendBuildExitCode)" }
+  }
+  
+  # Windows executable compilation
+  $ErrorActionPreference = "Continue"
+  & go build -tags embed_frontend -o "$packageDir/VALENTINA.exe" 2>&1
+  $exeBuildExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  $exeSha256 = & certutil -hashfile "$packageDir/VALENTINA.exe" SHA256
+  $exeSha256Line = $exeSha256 | Select-Object -Skip 1 | Select-Object -First 1
+  $exeSha256 = ($exeSha256Line -split '\s+')[0].Trim()
+  $manifest.validation.windows_executable_compilation = @{
+    status = if ($exeBuildExitCode -eq 0) { "passed" } else { "failed" }
+    command = "go build -tags embed_frontend -o VALENTINA.exe"
+    result = if ($exeBuildExitCode -eq 0) { "passed" } else { "failed (exit code $exeBuildExitCode)" }
+  }
+  
+  # Patch application (already verified above)
+  $manifest.validation.patch_application = @{
+    status = "passed"
+    command = "git apply --check patches/upstream-ui/*.patch"
+    result = "passed"
+  }
+  
+  # Upstream pin verification (already verified above)
+  $manifest.validation.upstream_pin_verification = @{
+    status = "passed"
+    command = "git -C upstream/huginn rev-parse HEAD"
+    result = "passed"
   }
 
   $manifestJson = $manifest | ConvertTo-Json -Depth 10
@@ -237,18 +318,18 @@ Do not distribute publicly.
 
   $zipPath = Join-Path $OutputDirectory "VALENTINA-windows-x64-$($manifest.source.full_commit_sha).zip"
   if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-  Compress-Archive -Path "$packageDir\\*" -DestinationPath $zipPath -Force
+  Compress-Archive -Path "$packageDir\*" -DestinationPath $zipPath -Force
   if ($LASTEXITCODE -ne 0) { throw "Failed to create artifact ZIP." }
 
   $zipHash = & certutil -hashfile $zipPath SHA256
   $zipHashLine = $zipHash | Select-Object -Skip 1 | Select-Object -First 1
   $zipSha256 = ($zipHashLine -split '\s+')[0].Trim()
-  $manifest.artifact.sha256_digest = $zipSha256
+  # ZIP digest is recorded in Job Summary, not in manifest (avoids self-reference)
 
   $manifestJson = $manifest | ConvertTo-Json -Depth 10
   $manifestJson | Out-File -FilePath $manifestPath -Encoding utf8
 
-  Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $OutputDirectory "VALENTINA-BUILD-MANIFEST.json") -Force
+  Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $packageDir "VALENTINA-BUILD-MANIFEST.json") -Force
 
   Write-Host "EXE SHA256: $exeSha256" -ForegroundColor Green
   Write-Host "Artifact: $zipPath" -ForegroundColor Green
