@@ -182,7 +182,7 @@ index 7df33d2..5f7bf13 100644
 
 +		valentinaDBPath := filepath.Join(valentinaDir, "valentina.db")
 
-+		valentinaStore, err := domain.OpenStore(valentinaDBPath)
++		valentinaStore, err := domain.NewStore(ctx, valentinaDBPath)
 
 +		if err != nil {
 
@@ -204,7 +204,8 @@ index 7df33d2..5f7bf13 100644
 
  	if err := srv.Start(ctx); err != nil {
 
- 		return nil, "", nil, fmt.Errorf("server start: %w", err)
+ 		valentinaStore.Close()
+		return nil, "", nil, fmt.Errorf("server start: %w", err)
 
 diff --git a/web/src/router/index.ts b/web/src/router/index.ts
 

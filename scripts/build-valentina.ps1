@@ -13,6 +13,7 @@ $Patch2 = Join-Path $Repo "patches\upstream-ui\002-valentina-crm-integration.pat
 $ExpectedUpstreamSha = "f01c1d84c08b1de972d8cc268da25602598adff8"
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $Repo "dist" }
 elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $Repo $OutputDirectory }
+if (Test-Path $OutputDirectory) { Remove-Item -LiteralPath $OutputDirectory -Recurse -Force }
 $packageDir = Join-Path $OutputDirectory "package"
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 foreach ($tool in @("git","npm","go","certutil")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool missing: $tool" } }
@@ -22,7 +23,8 @@ if ($LASTEXITCODE -ne 0 -or $actualUpstream -ne $ExpectedUpstreamSha) { throw "U
 Write-Host "Upstream SHA verified: $actualUpstream" -ForegroundColor Green
 $sourceCommitSha = (& git -C $Repo rev-parse HEAD).Trim()
 $sourceParentSha = (& git -C $Repo rev-parse HEAD^).Trim()
-$sourceBranch = (& git -C $Repo rev-parse --abbrev-ref HEAD).Trim()
+$sourceBranch = $env:GITHUB_REF_NAME
+if ([string]::IsNullOrWhiteSpace($sourceBranch)) { $sourceBranch = (& git -C $Repo rev-parse --abbrev-ref HEAD).Trim() }
 $dirtyFlag = $false
 $porcelain = & git -C $Repo status --porcelain --untracked-files=all
 if ($porcelain) { $dirtyFlag = $true }
@@ -34,9 +36,6 @@ $patches = @($Patch1)
 if ($Profile -eq "Full") {
     if (-not (Test-Path $Patch2)) { throw "Missing VALENTINA CRM integration patch: $Patch2" }
     $patches = @($Patch1, $Patch2)
-}
-foreach ($patch in $patches) {
-    Write-Host "Verifying patch: $patch" -ForegroundColor Cyan
 }
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGuid().ToString("N"))
 $copy = Join-Path $tmp "source"
@@ -53,6 +52,24 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Patch does not apply to pinned source: $patch" }
         & git -C $copy apply $patch
         if ($LASTEXITCODE -ne 0) { throw "Could not apply patch: $patch" }
+    }
+    if ($Profile -eq "Full") {
+        Write-Host "Copying CRM Go source and Vue views for Full profile" -ForegroundColor Cyan
+        $destValentina = Join-Path $copy "internal\valentina"
+        New-Item -ItemType Directory -Path $destValentina -Force | Out-Null
+        $destDomain = Join-Path $destValentina "domain"
+        New-Item -ItemType Directory -Path $destDomain -Force | Out-Null
+        & robocopy (Join-Path $Repo "valentina\domain") $destDomain /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -gt 7) { throw "CRM domain copy failed." }
+        $destApi = Join-Path $destValentina "api"
+        New-Item -ItemType Directory -Path $destApi -Force | Out-Null
+        & robocopy (Join-Path $Repo "valentina\api") $destApi /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -gt 7) { throw "CRM API copy failed." }
+        $destViews = Join-Path $copy "web\src\views"
+        New-Item -ItemType Directory -Path $destViews -Force | Out-Null
+        & robocopy (Join-Path $Repo "valentina\web\src\views") $destViews /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -gt 7) { throw "CRM views copy failed." }
+        Write-Host "CRM sources copied successfully." -ForegroundColor Green
     }
     $webDir = Join-Path $copy "web"
     Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
@@ -79,7 +96,7 @@ try {
     }
     Push-Location $webDir
     Write-Host "Running Vue typecheck..." -ForegroundColor Cyan
-    & npx vue-tsc --noEmit -p tsconfig.json 2>&1
+    & npx vue-tsc -b 2>&1
     $vueTypecheckExitCode = $LASTEXITCODE
     Pop-Location
     if ($vueTypecheckExitCode -ne 0) { throw "Vue typecheck failed with exit code $vueTypecheckExitCode" }
@@ -92,8 +109,22 @@ try {
     if ($frontendBuildExitCode -ne 0) { throw "Frontend production build failed with exit code $frontendBuildExitCode" }
     Write-Host "Frontend production build passed." -ForegroundColor Green
     Write-Host "All patches applied successfully." -ForegroundColor Green
-    Write-Host "Compiling Windows executable..." -ForegroundColor Cyan
     Push-Location $copy
+    if ($Profile -eq "Full") {
+        Write-Host "Running Go domain tests..." -ForegroundColor Cyan
+        & go test ./internal/valentina/... 2>&1
+        $goDomainTestExitCode = $LASTEXITCODE
+        if ($goDomainTestExitCode -ne 0) { throw "Go domain tests failed with exit code $goDomainTestExitCode" }
+        Write-Host "Go domain tests passed." -ForegroundColor Green
+        Write-Host "Running Go server integration tests..." -ForegroundColor Cyan
+        & go test ./internal/server 2>&1
+        $goServerTestExitCode = $LASTEXITCODE
+        if ($goServerTestExitCode -ne 0) { throw "Go server integration tests failed with exit code $goServerTestExitCode" }
+        Write-Host "Go server integration tests passed." -ForegroundColor Green
+    } else {
+        Write-Host "Skipping Go tests (Foundation profile)" -ForegroundColor Yellow
+    }
+    Write-Host "Compiling Windows executable..." -ForegroundColor Cyan
     & go build -tags embed_frontend -o "$packageDir/VALENTINA.exe" 2>&1
     $exeBuildExitCode = $LASTEXITCODE
     Pop-Location
@@ -160,9 +191,9 @@ Verification:
             node_version = $nodeVersion
             npm_version = $npmVersion
             build_workflow_name = "VALENTINA Windows test build"
-            github_run_id = $env:GITHUB_RUN_ID
-            github_run_attempt = $env:GITHUB_RUN_ATTEMPT
-            github_server_url = $env:GITHUB_SERVER_URL
+            github_actions_run_id = $env:GITHUB_RUN_ID
+            github_actions_run_attempt = $env:GITHUB_RUN_ATTEMPT
+            github_actions_run_url = "${env:GITHUB_SERVER_URL}/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}"
             github_repository = $env:GITHUB_REPOSITORY
         }
         validation = @{}
@@ -207,7 +238,7 @@ Verification:
     }
     $manifest.validation.vue_typecheck = @{
         status = "passed"
-        command = "npx vue-tsc --noEmit -p tsconfig.json"
+        command = "vue-tsc -b"
         result = "exit code 0"
     }
     $manifest.validation.frontend_production_build = @{
@@ -223,7 +254,7 @@ Verification:
     if ($Profile -eq "Full") {
         $manifest.validation.go_domain_tests = @{
             status = "passed"
-            command = "go test ./internal/valentina/internal/..."
+            command = "go test ./internal/valentina/..."
             result = "exit code 0"
         }
         $manifest.validation.server_integration_tests = @{
@@ -234,7 +265,7 @@ Verification:
     } else {
         $manifest.validation.go_domain_tests = @{
             status = "skipped"
-            command = "go test ./internal/valentina/internal/..."
+            command = "go test ./internal/valentina/..."
             result = "CRM domain not included in Foundation profile"
         }
         $manifest.validation.server_integration_tests = @{
