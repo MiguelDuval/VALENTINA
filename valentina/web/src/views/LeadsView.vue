@@ -20,6 +20,23 @@
         </div>
       </div>
     </div>
+
+    <div class="valentina-create-section">
+      <h3 class="valentina-create-title">Создать входящую заявку вручную</h3>
+      <form @submit.prevent="createLead" class="valentina-create-form">
+        <div class="valentina-form-field">
+          <label for="lead-summary">Описание заявки</label>
+          <input id="lead-summary" v-model="newLead.request_summary" type="text" required placeholder="Что нужно клиенту" />
+        </div>
+        <div class="valentina-form-field">
+          <label for="lead-channel">Канал</label>
+          <input id="lead-channel" v-model="newLead.inbound_channel" type="text" required placeholder="например: веб-сайт, телефон" />
+        </div>
+        <button type="submit" class="valentina-btn" :disabled="creating">{{ creating ? 'Создаётся…' : 'Создать заявку' }}</button>
+        <div v-if="createError" class="valentina-error">{{ createError }}</div>
+        <div v-if="createSuccess" class="valentina-success">Заявка "{{ createdLeadSummary }}" создана.</div>
+      </form>
+    </div>
   </div>
 </template>
 
@@ -31,6 +48,16 @@ const filterStatus = ref('')
 const loading = ref(false)
 const error = ref(null)
 const leads = ref([])
+
+const creating = ref(false)
+const createError = ref(null)
+const createSuccess = ref(false)
+const createdLeadSummary = ref('')
+
+const newLead = ref({
+  request_summary: '',
+  inbound_channel: ''
+})
 
 const statusLabels = {
   'new': 'Новое',
@@ -62,6 +89,29 @@ const load = async () => {
     console.error(e)
   } finally {
     loading.value = false
+  }
+}
+
+const createLead = async () => {
+  creating = true
+  createError.value = null
+  createSuccess.value = false
+  createdLeadSummary.value = ''
+  try {
+    const res = await apiFetch('/api/v1/valentina/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newLead.value)
+    })
+    createdLeadSummary.value = newLead.value.request_summary
+    createSuccess.value = true
+    newLead.value = { request_summary: '', inbound_channel: '' }
+    await load()
+  } catch (e) {
+    createError.value = 'Не удалось создать заявку'
+    console.error(e)
+  } finally {
+    creating = false
   }
 }
 
@@ -98,5 +148,14 @@ onMounted(load)
 .valentina-badge.spam { background: var(--valentina-muted); color: #ffffff; }
 .valentina-badge.converted { background: var(--valentina-violet); color: #ffffff; }
 .valentina-error { padding: 16px; color: var(--valentina-red); background: rgba(255,126,136,0.1); border-radius: 6px; margin-bottom: 16px; }
+.valentina-success { padding: 16px; color: var(--valentina-green); background: rgba(89,214,166,0.1); border-radius: 6px; margin-bottom: 16px; }
+.valentina-create-section { margin-top: 24px; padding: 20px; border: 1px solid var(--valentina-border); border-radius: 8px; background: var(--valentina-surface); }
+.valentina-create-title { font-size: 18px; font-weight: 600; margin: 0 0 16px 0; color: var(--valentina-text); }
+.valentina-create-form { display: flex; flex-direction: column; gap: 12px; }
+.valentina-form-field { display: flex; flex-direction: column; gap: 6px; }
+.valentina-form-field label { font-size: 13px; color: var(--valentina-muted); font-weight: 500; }
+.valentina-form-field input { padding: 8px 12px; border: 1px solid var(--valentina-border); border-radius: 6px; background: var(--valentina-bg); color: var(--valentina-text); font-size: 14px; }
+.valentina-btn { padding: 10px 18px; border: 1px solid var(--valentina-border); border-radius: 6px; background: var(--valentina-accent); color: #001a14; font-weight: 600; cursor: pointer; font-size: 14px; }
+.valentina-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
 

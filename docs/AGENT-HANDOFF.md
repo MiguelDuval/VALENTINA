@@ -17,8 +17,8 @@ It is retained here as historical context only and is not an active task.
 | Repository | MiguelDuval/VALENTINA |
 | Origin | https://github.com/MiguelDuval/VALENTINA.git |
 | Active branch | feature/valentina-dual-pipeline-crm-20261106 |
-| HEAD | 365b5cf60bf1fe257fd38ac7364e84e6dc102694 |
-| Parent | 3724b25c57ec6186f2743fa6a20cc848f72429b5 |
+| HEAD | a1d628bf2ac4cc38b0272225ab897a2709f095f4 |
+| Parent | 84226b9 |
 | Intended PR base | audit/valentina-phase0-feature-inventory-20261106 |
 | Huginn upstream pin | f01c1d84c08b1de972d8cc268da25602598adff8 |
 | PR #4 | Open — do not modify, merge, or close |

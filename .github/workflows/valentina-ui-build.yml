@@ -58,12 +58,57 @@ jobs:
           if (-not (Test-Path ./dist/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
 
-      - name: Upload VALENTINA Windows executable
+      - name: Compute EXE SHA256
+        shell: pwsh
+        run: |
+          $hash = & certutil -hashfile ./dist/VALENTINA.exe SHA256
+          $line = $hash | Select-Object -Skip 1 | Select-Object -First 1
+          $sha = ($line -split '\s+')[0].Trim()
+          Write-Host "EXE_SHA256=$sha"
+          $size = (Get-Item ./dist/VALENTINA.exe).Length
+          Write-Host "EXE_SIZE=$size"
+          "EXE_SHA256=$sha" >> $env:GITHUB_ENV
+          "EXE_SIZE=$size" >> $env:GITHUB_ENV
+
+      - name: Upload VALENTINA Windows artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: VALENTINA-windows-x64-${{ github.sha }}
-          path: dist/VALENTINA.exe
+          path: |
+            dist/VALENTINA.exe
+            dist/VALENTINA-BUILD-MANIFEST.json
+            dist/package/*
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+      - name: Job summary
+        if: always()
+        shell: pwsh
+        run: |
+          $sha = $env:EXE_SHA256
+          $size = $env:EXE_SIZE
+          $runUrl = "${env:GITHUB_SERVER_URL}/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}"
+          $artifactName = "VALENTINA-windows-x64-${{ github.sha }}"
+          @"
+### VALENTINA Windows x64 Build Summary
+
+| Field | Value |
+|-------|-------|
+| Product | VALENTINA |
+| Commit SHA | ${{ github.sha }} |
+| Branch | ${{ github.ref_name }} |
+| Upstream Huginn SHA | f01c1d84c08b1de972d8cc268da25602598adff8 |
+| Go version | From upstream/huginn/go.mod |
+| Node version | 22 |
+| EXE file | VALENTINA.exe |
+| EXE size | $size bytes |
+| EXE SHA256 | $sha |
+| Artifact name | $artifactName |
+| Artifact download | $runUrl |
+| CI run URL | $runUrl |
+
+> **Verification:** After downloading the artifact, run `certutil -hashfile VALENTINA.exe SHA256` and compare with the EXE SHA256 above and the `binary.sha256` field in `VALENTINA-BUILD-MANIFEST.json`.
+
+"@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8

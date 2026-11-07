@@ -23,9 +23,9 @@ This queue is the product-level source of task priority. Update status only when
 
 | ID | Task | Status | Exit condition |
 |---|---|---|---|
-| VAL-P2-001 | Finalize domain contracts and persistence design | COMPLETE | ChatGPT directs; Cline implements | Company, Opportunity, SourceEvidence, Source, ResearchRun and ReviewDecision contracts plus migration/backup design reviewed; domain models compile; EnsureID before Validate; single Location definition |
-| VAL-P2-002 | Implement minimum in-process domain API and SQLite persistence | COMPLETE | ChatGPT directs; Cline implements | Validated records, migration tests, deduplication and restart persistence verified; GetOpportunity/GetInboundLead read correct entities; CreateReviewDecision transactional |
-| VAL-P2-003 | Implement real CRM list/detail/review screens | COMPLETE | ChatGPT directs; Cline implements | Five CRM views included in router and navLayout; API reads from SQLite; manual lead creation form; loading/error/empty states |
+| VAL-P2-001 | Finalize domain contracts and persistence design | IN_PROGRESS | ChatGPT directs; Cline implements | Company, Opportunity, SourceEvidence, Source, ResearchRun and ReviewDecision contracts plus migration/backup design reviewed; domain models compile; EnsureID before Validate; single Location definition; Windows executable build and CI confirmation pending |
+| VAL-P2-002 | Implement minimum in-process domain API and SQLite persistence | IN_PROGRESS | ChatGPT directs; Cline implements | Validated records, migration tests, deduplication and restart persistence verified; GetOpportunity/GetInboundLead read correct entities; CreateReviewDecision transactional; Windows executable build and CI confirmation pending |
+| VAL-P2-003 | Implement real CRM list/detail/review screens | IN_PROGRESS | ChatGPT directs; Cline implements | Five CRM views included in router and navLayout; API reads from SQLite; manual lead creation form; loading/error/empty states; Windows executable build and CI confirmation pending |
 
 ## P3 — prove one permitted source end to end
 

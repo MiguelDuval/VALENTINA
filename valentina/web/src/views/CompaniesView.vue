@@ -5,6 +5,7 @@
       <p class="valentina-page-subtitle">Организации, издатели и клиенты, связанные с возможностями и заявками</p>
     </div>
     <div class="valentina-companies-content">
+      <div v-if="error" class="valentina-error">{{ error }}</div>
       <div v-if="loading" class="valentina-loading">Загрузка...</div>
       <div v-else-if="companies.length === 0" class="valentina-empty">Нет компаний. Добавьте компанию вручную.</div>
       <div v-else class="valentina-list">
@@ -25,17 +26,20 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { apiFetch } from '../composables/useApi'
 
 const loading = ref(false)
+const error = ref(null)
 const companies = ref([])
 
 const load = async () => {
   loading.value = true
+  error.value = null
   try {
-    const res = await fetch('/api/v1/valentina/companies')
-    const data = await res.json()
-    companies.value = data.companies || []
+    const res = await apiFetch('/api/v1/valentina/companies')
+    companies.value = res.companies || []
   } catch (e) {
+    error.value = 'Не удалось загрузить компании'
     console.error(e)
   } finally {
     loading.value = false
@@ -63,6 +67,7 @@ onMounted(load)
 .valentina-card-title { font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: var(--valentina-text); }
 .valentina-card-meta { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .valentina-card-industries { display: flex; gap: 6px; flex-wrap: wrap; }
+.valentina-error { padding: 16px; color: var(--valentina-red); background: rgba(255,126,136,0.1); border-radius: 6px; margin-bottom: 16px; }
 .valentina-tag {
   font-size: 11px;
   padding: 2px 8px;

@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MiguelDuval/VALENTINA/schemas/valentina-build-manifest.schema.json",
+  "title": "VALENTINA Build Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "product_name",
+    "product_version",
+    "source",
+    "upstream",
+    "build_environment",
+    "validation",
+    "binary",
+    "security",
+    "artifact"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "product_name": { "type": "string", "const": "VALENTINA" },
+    "product_version": { "type": "string" },
+    "source": {
+      "type": "object",
+      "required": ["repository", "branch", "full_commit_sha", "dirty_working_tree", "build_timestamp_utc"],
+      "properties": {
+        "repository": { "type": "string" },
+        "branch": { "type": "string" },
+        "full_commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "parent_commit_sha": { "type": "string" },
+        "dirty_working_tree": { "type": "boolean" },
+        "build_timestamp_utc": { "type": "string", "format": "date-time" }
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "required": ["repository", "exact_pinned_sha", "verified"],
+      "properties": {
+        "repository": { "type": "string" },
+        "exact_pinned_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "verified": { "type": "boolean" }
+      }
+    },
+    "build_environment": {
+      "type": "object",
+      "required": ["operating_system", "architecture"],
+      "properties": {
+        "operating_system": { "type": "string" },
+        "architecture": { "type": "string" },
+        "go_version": { "type": "string" },
+        "node_version": { "type": "string" },
+        "npm_version": { "type": "string" },
+        "build_workflow_name": { "type": "string" },
+        "github_actions_run_id": { "type": "string" },
+        "github_actions_run_attempt": { "type": "string" },
+        "github_actions_run_url": { "type": "string" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": [
+        "go_domain_tests",
+        "frontend_tests",
+        "vue_typecheck",
+        "windows_executable_compilation",
+        "patch_application",
+        "upstream_pin_verification"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "command", "result"],
+        "properties": {
+          "status": { "type": "string", "enum": ["passed", "failed", "skipped", "not_run"] },
+          "command": { "type": "string" },
+          "result": { "type": "string" }
+        }
+      }
+    },
+    "binary": {
+      "type": "object",
+      "required": ["file_name", "file_size", "sha256", "platform", "architecture"],
+      "properties": {
+        "file_name": { "type": "string" },
+        "file_size": { "type": "integer" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "platform": { "type": "string" },
+        "architecture": { "type": "string" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": [
+        "secrets_included",
+        "local_database_included",
+        "user_profile_included",
+        "source_scraping_enabled",
+        "credentials_embedded"
+      ],
+      "properties": {
+        "secrets_included": { "type": "boolean" },
+        "local_database_included": { "type": "boolean" },
+        "user_profile_included": { "type": "boolean" },
+        "source_scraping_enabled": { "type": "boolean" },
+        "credentials_embedded": { "type": "boolean" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["artifact_name", "retention_period_days", "github_actions_run_url"],
+      "properties": {
+        "artifact_name": { "type": "string" },
+        "sha256_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "retention_period_days": { "type": "integer" },
+        "github_actions_run_url": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}
