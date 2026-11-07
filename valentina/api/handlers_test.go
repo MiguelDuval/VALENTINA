@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scrypster/huginn/internal/valentina/internal/domain"
+	"github.com/scrypster/huginn/internal/valentina/domain"
 )
 
 func testServer(t *testing.T) *Server {

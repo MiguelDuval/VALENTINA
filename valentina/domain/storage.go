@@ -725,7 +725,9 @@ func (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {
 		}
 		r.CompletedAt = parseTimePtr(completed)
 		if srcIDs.Valid {
-			json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs)
+			if err := json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs); err != nil {
+				return nil, fmt.Errorf("unmarshal source_ids: %w", err)
+			}
 		}
 		if notes.Valid {
 			r.Notes = notes.String
@@ -875,9 +877,6 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 if err := l.Validate(); err != nil {
 		return fmt.Errorf("validation: %w", err)
 	}
-	if l.LeadID == "" {
-		l.LeadID = NewLeadID()
-	}
 	if l.RetentionState == "" {
 		l.RetentionState = "active"
 	}
@@ -917,9 +916,9 @@ if err := l.Validate(); err != nil {
 		l.CompanyID, ptrStr(l.ContactInfo, "Name"), ptrStr(l.ContactInfo, "Email"),
 		ptrStr(l.ContactInfo, "Phone"), ptrStr(l.ContactInfo, "Purpose"),
 		ptrStr(l.AIAssessment, "ServiceCategory"), ptrStr(l.AIAssessment, "ProjectScope"),
-		ptrStr(l.AIAssessment, "Location"), ptrToIface(l.AIAssessment, "Budget"),
+		ptrStr(l.AIAssessment, "Location"), ptrF64Obj(l.AIAssessment, "Budget"),
 		ptrStr(l.AIAssessment, "TimingUrgency"), string(factsJSON), ptrStr(l.AIAssessment, "CompanyMatch"),
-		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), aiProfileVersion.String,
+		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), ptrStr(l.AIAssessment, "ProfileVersion"),
 		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), l.RetentionState)
 	return err
 }
@@ -1086,7 +1085,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 						l.ContactInfo.Purpose = &contactPurpose.String
 					}
 				}
-				if aiServiceCat.Valid || aiProjectScope.Valid || aiLocationVal.Valid || aiTimingUrgency.Valid || aiCompanyMatch.Valid || aiResponseDraft.Valid || aiProfileVersion.Valid || aiBudget.Valid || aiEval.Valid {
+				if aiServiceCat.Valid || aiProjectScope.Valid || aiLocationVal.Valid || aiTimingUrgency.Valid || aiCompanyMatch.Valid || aiResponseDraft.Valid || aiProfileVersion.Valid || aiBudget.Valid || aiEval.Valid || aiMissingDetails != "" {
 					l.AIAssessment = &InboundAIAssessment{}
 					if aiServiceCat.Valid {
 						l.AIAssessment.ServiceCategory = &aiServiceCat.String
@@ -1199,6 +1198,36 @@ func ptrF64(n sql.NullFloat64) *float64 {
 	}
 	v := n.Float64
 	return &v
+}
+
+
+// ptrF64Obj extracts a *float64 field from a struct by name using reflection.
+// Returns nil if obj is nil, field is missing, or the field is not a *float64.
+func ptrF64Obj(obj interface{}, field string) *float64 {
+	if obj == nil {
+		return nil
+	}
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+	f := v.FieldByName(field)
+	if !f.IsValid() {
+		return nil
+	}
+	if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Float64 {
+		if f.IsNil() {
+			return nil
+		}
+		return f.Interface().(*float64)
+	}
+	return nil
 }
 
 // ptrBool converts an *int to an *bool.

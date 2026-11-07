@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/scrypster/huginn/internal/valentina/internal/domain"
+	"github.com/scrypster/huginn/internal/valentina/domain"
 )
 
 // Server wraps a domain.Store and provides HTTP handlers for VALENTINA API.
@@ -45,8 +45,13 @@ func withJSON(r *http.Request, target interface{}) error {
 		}
 		return err
 	}
-	// Reject a second JSON value/object after the first.
-	if dec.More() {
+	// Reject a second JSON value after the first.
+// Try decoding another value; if it succeeds (not io.EOF), there's trailing data.
+	var extra json.RawMessage
+	if err := dec.Decode(&extra); err != nil && err != io.EOF {
+		return errors.New("request body contains trailing data after JSON object")
+	}
+	if err == nil {
 		return errors.New("request body contains multiple JSON objects")
 	}
 	return nil
