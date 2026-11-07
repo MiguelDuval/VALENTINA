@@ -22,7 +22,7 @@ on:
 # Do not cancel a build already in progress. Each successful commit gets a
 # SHA-labelled artifact; failed or cancelled runs never upload one.
 concurrency:
-  group: valentina-windows-build-${{ github.run_id }}
+  group: valentina-windows-build
   cancel-in-progress: false
 
 permissions:
