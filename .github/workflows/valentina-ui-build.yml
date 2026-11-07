@@ -80,24 +80,21 @@ jobs:
           $size = $env:EXE_SIZE
           $runUrl = "${env:GITHUB_SERVER_URL}/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}"
           $artifactName = "VALENTINA-windows-x64-${{ github.sha }}"
-          @"
-### VALENTINA Windows x64 Build Summary
-
-| Field | Value |
-|-------|-------|
-| Product | VALENTINA |
-| Commit SHA | ${{ github.sha }} |
-| Branch | ${{ github.ref_name }} |
-| Upstream Huginn SHA | f01c1d84c08b1de972d8cc268da25602598adff8 |
-| Go version | From upstream/huginn/go.mod |
-| Node version | 22 |
-| EXE file | VALENTINA.exe |
-| EXE size | $size bytes |
-| EXE SHA256 | $sha |
-| Artifact name | $artifactName |
-| Artifact download | $runUrl |
-| CI run URL | $runUrl |
-
-> **Verification:** After downloading the artifact, run `certutil -hashfile VALENTINA.exe SHA256` and compare with the EXE SHA256 above and the `binary.sha256` field in `VALENTINA-BUILD-MANIFEST.json`.
-
-"@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### VALENTINA Windows x64 Build Summary"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Field | Value |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|-------|-------|"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Product | VALENTINA |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Commit SHA | ${{ github.sha }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Branch | ${{ github.ref_name }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Upstream Huginn SHA | f01c1d84c08b1de972d8cc268da25602598adff8 |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Go version | From upstream/huginn/go.mod |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Node version | 22 |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| EXE file | VALENTINA.exe |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| EXE size | $size bytes |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| EXE SHA256 | $sha |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Artifact name | $artifactName |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Artifact download | $runUrl |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| CI run URL | $runUrl |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> **Verification:** After downloading the artifact, run `certutil -hashfile VALENTINA.exe SHA256` and compare with the EXE SHA256 above and the `binary.sha256` field in `VALENTINA-BUILD-MANIFEST.json`."
