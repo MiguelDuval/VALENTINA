@@ -1,125 +1,328 @@
 diff --git a/internal/server/server.go b/internal/server/server.go
-index 6ee6359..f0399ca 100644
+
+index 6ee6359..c7394a6 100644
+
 --- a/internal/server/server.go
+
 +++ b/internal/server/server.go
+
 @@ -26,6 +26,7 @@ import (
+
  	"github.com/scrypster/huginn/internal/runtime"
+
  	"github.com/scrypster/huginn/internal/scheduler"
+
  	"github.com/scrypster/huginn/internal/session"
-+	"github.com/scrypster/huginn/internal/valentina/internal/api"
+
++	"github.com/scrypster/huginn/internal/valentina/api"
+
  	"github.com/scrypster/huginn/internal/spaces"
+
  	"github.com/scrypster/huginn/internal/sqlitedb"
+
  	"github.com/scrypster/huginn/internal/stats"
+
 @@ -155,6 +156,10 @@ type Server struct {
+
  	// label never renders blank, even on a plain `go build` without -ldflags.
+
  	version string
+
  
+
 +	// valentinaAPI is the VALENTINA CRM API handler, injected before server start
+
 +	// so CRM routes are registered during registerRoutes().
+
 +	valentinaAPI *api.Server
+
 +
+
  	// vaultProberFn probes MCP vault connectivity for handleVaultTest.
+
  	// When nil the production implementation (agent.ProbeVaultConnectivity) is used.
+
  	// Tests override this to avoid real network connections.
+
 @@ -978,6 +983,14 @@ func (s *Server) SetVersion(v string) {
+
  	s.version = v
+
  }
+
  
+
 +// SetValentinaAPI injects the VALENTINA CRM API handler so that CRM routes
+
 +// are registered during registerRoutes(). Must be called before Start().
+
 +func (s *Server) SetValentinaAPI(api *api.Server) {
+
 +	s.mu.Lock()
+
 +	defer s.mu.Unlock()
+
 +	s.valentinaAPI = api
+
 +}
+
 +
+
  // SetMuninnConfigPath sets the path to the muninn.json global config.
+
  func (s *Server) SetMuninnConfigPath(path string) {
+
  	s.mu.Lock()
+
 @@ -1439,6 +1452,26 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
+
  	// WebSocket
+
  	mux.HandleFunc("GET /ws", s.handleWebSocket)
+
  
+
 +	// VALENTINA CRM API routes (authenticated, same middleware as other API routes)
+
 +	if s.valentinaAPI != nil {
+
 +		v := s.valentinaAPI
+
 +		mux.HandleFunc("GET /api/v1/valentina/health", api(v.handleHealth))
+
 +		mux.HandleFunc("GET /api/v1/valentina/opportunities", api(v.handleListOpportunities))
+
 +		mux.HandleFunc("POST /api/v1/valentina/opportunities", api(v.handleCreateOpportunity))
+
 +		mux.HandleFunc("GET /api/v1/valentina/opportunities/{id}", api(v.handleGetOpportunity))
+
 +		mux.HandleFunc("GET /api/v1/valentina/leads", api(v.handleListLeads))
+
 +		mux.HandleFunc("POST /api/v1/valentina/leads", api(v.handleCreateLead))
+
 +		mux.HandleFunc("GET /api/v1/valentina/leads/{id}", api(v.handleGetLead))
+
 +		mux.HandleFunc("GET /api/v1/valentina/companies", api(v.handleListCompanies))
+
 +		mux.HandleFunc("POST /api/v1/valentina/companies", api(v.handleCreateCompany))
+
 +		mux.HandleFunc("GET /api/v1/valentina/sources", api(v.handleListSources))
+
 +		mux.HandleFunc("POST /api/v1/valentina/sources", api(v.handleCreateSource))
+
 +		mux.HandleFunc("GET /api/v1/valentina/research-runs", api(v.handleListResearchRuns))
+
 +		mux.HandleFunc("POST /api/v1/valentina/research-runs", api(v.handleCreateResearchRun))
+
 +		mux.HandleFunc("GET /api/v1/valentina/review-decisions", api(v.handleListReviewDecisions))
+
 +		mux.HandleFunc("POST /api/v1/valentina/review-decisions", api(v.handleCreateReviewDecision))
+
 +	}
+
 +
+
  	// Frontend SPA -- catch-all (must be last)
+
  	mux.Handle("/", http.FileServer(staticFS()))
+
  }
+
+diff --git a/main.go b/main.go
+
+index 7df33d2..5f7bf13 100644
+
+--- a/main.go
+
++++ b/main.go
+
+@@ -55,6 +55,8 @@ import (
+
+ 	"github.com/scrypster/huginn/internal/skills"
+
+ 	"github.com/scrypster/huginn/internal/spaces"
+
+ 	"github.com/scrypster/huginn/internal/sqlitedb"
+
++	"github.com/scrypster/huginn/internal/valentina/api"
+
++	"github.com/scrypster/huginn/internal/valentina/domain"
+
+ 	"github.com/scrypster/huginn/internal/stats"
+
+ 	"github.com/scrypster/huginn/internal/storage"
+
+ 	"github.com/scrypster/huginn/internal/symbol"
+
+@@ -3758,6 +3760,25 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
+
+ 	// the profile popover footer, and Settings тЖТ About.
+
+ 	srv.SetVersion(version)
+
+ 
+
++	// тФАтФА VALENTINA CRM initialization тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+
++	// Create domain Store and CRM API before server start so CRM routes
+
++	// are registered during registerRoutes(). SQLite data lives outside
+
++	// the install directory in the user data directory.
+
++	if sqlDB != nil {
+
++		valentinaDir := filepath.Join(huginnHome, "valentina")
+
++		if err := os.MkdirAll(valentinaDir, 0700); err != nil {
+
++			return nil, "", nil, fmt.Errorf("valentina dir: %w", err)
+
++		}
+
++		valentinaDBPath := filepath.Join(valentinaDir, "valentina.db")
+
++		valentinaStore, err := domain.OpenStore(valentinaDBPath)
+
++		if err != nil {
+
++			return nil, "", nil, fmt.Errorf("valentina store: %w", err)
+
++		}
+
++		crmAPI := api.NewServer(valentinaStore)
+
++		srv.SetValentinaAPI(crmAPI)
+
++		cleanupFns = append(cleanupFns, func() { valentinaStore.Close() })
+
++	}
+
++
+
+ 	ctx := context.Background()
+
+ 	if err := srv.Start(ctx); err != nil {
+
+ 		return nil, "", nil, fmt.Errorf("server start: %w", err)
+
 diff --git a/web/src/router/index.ts b/web/src/router/index.ts
+
 index 789a055..1b2c389 100644
+
 --- a/web/src/router/index.ts
+
 +++ b/web/src/router/index.ts
+
 @@ -12,6 +12,11 @@ import WorkflowsView from '../views/WorkflowsView.vue'
+
  import CloudView from '../views/CloudView.vue'
+
  import SkillsView from '../views/SkillsView.vue'
+
  import MemoryView from '../views/MemoryView.vue'
+
 +import OpportunitiesView from '../views/OpportunitiesView.vue'
+
 +import LeadsView from '../views/LeadsView.vue'
+
 +import CompaniesView from '../views/CompaniesView.vue'
+
 +import SourcesView from '../views/SourcesView.vue'
+
 +import ResearchView from '../views/ResearchView.vue'
+
  
+
  export default createRouter({
+
    history: createWebHashHistory(),
+
 @@ -33,6 +38,11 @@ export default createRouter({
+
      { path: '/workflows/:id/runs/:runId', component: WorkflowsView, props: true },
+
      { path: '/cloud', component: CloudView },
+
      { path: '/skills/:tab?', component: SkillsView, props: true },
+
 +    { path: '/valentina/opportunities', component: OpportunitiesView },
+
 +    { path: '/valentina/leads', component: LeadsView },
+
 +    { path: '/valentina/companies', component: CompaniesView },
+
 +    { path: '/valentina/sources', component: SourcesView },
+
 +    { path: '/valentina/research', component: ResearchView },
+
      { path: '/:pathMatch(.*)*', redirect: '/' },
+
    ],
+
  })
+
 diff --git a/web/src/utils/navLayout.ts b/web/src/utils/navLayout.ts
+
 index 7bdb706..9669b33 100644
+
 --- a/web/src/utils/navLayout.ts
+
 +++ b/web/src/utils/navLayout.ts
+
 @@ -22,6 +22,7 @@ export type AppSection =
+
    | 'logs'
+
    | 'inbox'
+
    | 'cloud'
+
 +  | 'crm'
+
    | string
+
  
+
  /** First path segment, with aliases folded onto the icon-rail section. */
+
 @@ -57,6 +58,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
+
    'models',
+
    'memory',
+
    'cloud',
+
 +  'crm',
+
  ]
+
  
+
  export type NavGroupId = 'chat' | 'admin' | 'logs'
+
 @@ -92,6 +94,11 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
-       { section: 'connections', label: 'Подключения',  path: '/connections',    icon: 'connections' },
-       { section: 'skills',      label: 'Навыки',       path: '/skills/browse',  icon: 'skills' },
-       { section: 'settings',    label: 'Настройки',    path: '/settings',       icon: 'settings' },
-+      { section: 'crm',         label: 'Возможности',  path: '/valentina/opportunities', icon: 'crm' },
-+      { section: 'crm',         label: 'Заявки',       path: '/valentina/leads',         icon: 'crm' },
-+      { section: 'crm',         label: 'Компании',     path: '/valentina/companies',     icon: 'crm' },
-+      { section: 'crm',         label: 'Источники',    path: '/valentina/sources',       icon: 'crm' },
-+      { section: 'crm',         label: 'Исследования', path: '/valentina/research',      icon: 'crm' },
+
+       { section: 'connections', label: '╨Я╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╤П',  path: '/connections',    icon: 'connections' },
+
+       { section: 'skills',      label: '╨Э╨░╨▓╤Л╨║╨╕',       path: '/skills/browse',  icon: 'skills' },
+
+       { section: 'settings',    label: '╨Э╨░╤Б╤В╤А╨╛╨╣╨║╨╕',    path: '/settings',       icon: 'settings' },
+
++      { section: 'crm',         label: '╨Т╨╛╨╖╨╝╨╛╨╢╨╜╨╛╤Б╤В╨╕',  path: '/valentina/opportunities', icon: 'crm' },
+
++      { section: 'crm',         label: '╨Ч╨░╤П╨▓╨║╨╕',       path: '/valentina/leads',         icon: 'crm' },
+
++      { section: 'crm',         label: '╨Ъ╨╛╨╝╨┐╨░╨╜╨╕╨╕',     path: '/valentina/companies',     icon: 'crm' },
+
++      { section: 'crm',         label: '╨Ш╤Б╤В╨╛╤З╨╜╨╕╨║╨╕',    path: '/valentina/sources',       icon: 'crm' },
+
++      { section: 'crm',         label: '╨Ш╤Б╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╤П', path: '/valentina/research',      icon: 'crm' },
+
      ],
+
    },
+
    {
+
