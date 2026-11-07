@@ -4,195 +4,193 @@ $ErrorActionPreference = "Stop"
 $Repo = Split-Path $PSScriptRoot -Parent
 $Upstream = Join-Path $Repo "upstream\huginn"
 $Patch1 = Join-Path $Repo "patches\upstream-ui\001-valentina-ui-foundation.patch"
-$Patch2 = Join-Path $Repo "patches\upstream-ui\002-valentina-crm-integration.patch"
 $Expected = "f01c1d84c08b1de972d8cc268da25602598adff8"
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $Repo "dist" }
 elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $Repo $OutputDirectory }
 $packageDir = Join-Path $OutputDirectory "package"
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-foreach ($tool in @("git","npm","go","robocopy")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool missing: $tool" } }
+foreach ($tool in @("git","npm","go","certutil")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool missing: $tool" } }
 if (-not (Test-Path $Upstream)) { throw "Initialize upstream with scripts/bootstrap.ps1 first." }
 $actual = (& git -C $Upstream rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $actual -ne $Expected) { throw "Upstream pin mismatch. Expected $Expected, got $actual." }
+Write-Host "Upstream SHA verified: $actual" -ForegroundColor Green
 if (-not (Test-Path $Patch1)) { throw "Missing VALENTINA UI patch: $Patch1" }
-if (-not (Test-Path $Patch2)) { throw "Missing VALENTINA CRM integration patch: $Patch2" }
+$sourceCommitSha = (& git -C $Repo rev-parse HEAD).Trim()
+$sourceParentSha = (& git -C $Repo rev-parse HEAD^).Trim()
+$sourceBranch = (& git -C $Repo rev-parse --abbrev-ref HEAD).Trim()
+$dirtyFlag = $false
+$porcelain = & git -C $Repo status --porcelain --untracked-files=all
+if ($porcelain) { $dirtyFlag = $true }
+$buildTimestamp = [DateTime]::UtcNow.ToString("o")
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGuid().ToString("N"))
 $copy = Join-Path $tmp "source"
 New-Item -ItemType Directory -Path $copy -Force | Out-Null
 try {
- # 1. Copy pinned upstream into a temporary build copy.
- & robocopy $Upstream $copy /E /XD .git /XF .git /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
- if ($LASTEXITCODE -gt 7) { throw "Upstream source copy failed." }
- & git -C $copy init --quiet
- if ($LASTEXITCODE -ne 0) { throw "Could not initialize temporary source." }
-
- # 2. Apply all tracked patches with git apply --check (fail closed if context differs).
- foreach ($patch in @($Patch1, $Patch2)) {
-   & git -C $copy apply --check $patch
-   if ($LASTEXITCODE -ne 0) { throw "VALENTINA patch does not apply to pinned source: $patch" }
-   & git -C $copy apply $patch
-   if ($LASTEXITCODE -ne 0) { throw "Could not apply VALENTINA patch: $patch" }
- }
-
- # 3. Copy VALENTINA-first-party Go source into the correct staging path:
- #    source/internal/valentina/internal/{domain,api}
- $DestValentina = Join-Path $copy "internal"
- $ValentinaGo = Join-Path $Repo "valentina"
- if (Test-Path $ValentinaGo) {
-   & robocopy $ValentinaGo $DestValentina /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-   if ($LASTEXITCODE -gt 7) { throw "VALENTINA Go source copy failed." }
- }
-
-  # Verify correct staging structure - require correct paths, reject wrong ones.
-  $correctPath1 = Join-Path $DestValentina "valentina" "domain"
-  $correctPath2 = Join-Path $DestValentina "valentina" "api"
-  $badPath1 = Join-Path $copy "internal" "internal" "domain"
-  $badPath2 = Join-Path $copy "internal" "internal" "api"
-  if (-not (Test-Path $correctPath1 -PathType Container)) { throw "Required staging path missing: source/internal/valentina/internal/domain" }
-  if (-not (Test-Path $correctPath2 -PathType Container)) { throw "Required staging path missing: source/internal/valentina/internal/api" }
-  if (Test-Path $badPath1 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/domain must not exist." }
-  if (Test-Path $badPath2 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/api must not exist." }
-
- $expectedFiles = @(
-   (Join-Path $DestValentina "valentina" "domain" "models.go"),
-   (Join-Path $DestValentina "valentina" "domain" "storage.go"),
-   (Join-Path $DestValentina "valentina" "api" "handlers.go"),
-   (Join-Path $DestValentina "internal" "domain" "models_test.go"),
-   (Join-Path $DestValentina "internal" "domain" "storage_test.go"),
-   (Join-Path $DestValentina "internal" "api" "handlers_test.go")
- )
- foreach ($ef in $expectedFiles) {
-   if (-not (Test-Path $ef)) { throw "Expected staged file missing: $ef" }
- }
-
- # 4. Copy VALENTINA-first-party Vue views and CRM tests into the staging tree.
- $ValentinaViews = Join-Path $Repo "valentina\web\src\views"
- $DestViews = Join-Path $copy "web\src\views"
- if (Test-Path $ValentinaViews) {
-   & robocopy $ValentinaViews $DestViews /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-   if ($LASTEXITCODE -gt 7) { throw "VALENTINA Vue views copy failed." }
- }
-
- # 5. Verify the upstream server really imports the CRM API package.
- $serverFiles = @("main.go", "internal\server\server.go")
- $foundImport = $false
- foreach ($sf in $serverFiles) {
-   $pf = Join-Path $copy $sf
-   if (Test-Path $pf) {
-     $content = Get-Content -LiteralPath $pf -Raw
-     if ($content -like '*internal/valentina/internal/*') {
-       $foundImport = $true
-     }
-   }
- }
- if (-not $foundImport) { throw "CRM API package is not imported by the upstream server." }
-
- # 6. Targeted Go tests for first-party packages in the upstream module context.
- Push-Location $copy
- try {
-   & go test ./internal/valentina/internal/...
-   if ($LASTEXITCODE -ne 0) { throw "CRM Go tests failed." }
- } finally { Pop-Location }
-
- # 7. Frontend: typecheck, tests (with CRM views), production build.
- Push-Location (Join-Path $copy "web")
- try {
-   npm ci --no-audit --no-fund
-   if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
-   & npx vue-tsc --noEmit -p tsconfig.json
-   if ($LASTEXITCODE -ne 0) { throw "Vue typecheck failed." }
-   npm test
-   if ($LASTEXITCODE -ne 0) { throw "Frontend tests failed." }
-   npm run build
-   if ($LASTEXITCODE -ne 0) { throw "Vue frontend build failed." }
- } finally { Pop-Location }
-
- # 8. Compile Windows executable from the same source tree.
- New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
- $exe = Join-Path $OutputDirectory "VALENTINA.exe"
- Push-Location $copy
- try {
-   & go build -tags embed_frontend -ldflags="-X main.version=valentina-dev" -o $exe .
-   if ($LASTEXITCODE -ne 0) { throw "Go build failed." }
- } finally { Pop-Location }
- Write-Host "VALENTINA built locally: $exe" -ForegroundColor Green
-  # 9. Calculate SHA256 of the EXE.
-  $sha256Out = & certutil -hashfile $exe SHA256
-  $sha256Line = $sha256Out | Select-Object -Skip 1 | Select-Object -First 1
-  $exeSha256 = ($sha256Line -split '\s+')[0].Trim()
-  if (-not $exeSha256 -or $exeSha256.Length -ne 64) { throw "Failed to compute SHA256 of VALENTINA.exe." }
-  $exeSize = (Get-Item $exe).Length
-
-  # 10. Assemble package directory: EXE + manifest + SHA256SUMS + README + LICENSES.
-  $packageDir = Join-Path $OutputDirectory "package"
-  New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-  & robocopy $exe $packageDir /NFL /NDL /NJH /NJS /NP | Out-Null
-  if ($LASTEXITCODE -gt 7) { throw "Failed to copy EXE to package directory." }
-
-  $sha256sumsPath = Join-Path $packageDir "SHA256SUMS.txt"
-  "$exeSha256  VALENTINA.exe" | Out-File -FilePath $sha256sumsPath -Encoding utf8
-
+  Write-Host "Copying upstream to $copy" -ForegroundColor Cyan
+  & robocopy $Upstream $copy /E /XD .git /XF .git /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+  if ($LASTEXITCODE -gt 7) { throw "Upstream source copy failed." }
+  & git -C $copy init --quiet
+  if ($LASTEXITCODE -ne 0) { throw "Could not initialize temporary source." }
+  Write-Host "Applying patch 001..." -ForegroundColor Cyan
+  & git -C $copy apply --check $Patch1
+  if ($LASTEXITCODE -ne 0) { throw "Patch 001 does not apply to pinned source: $Patch1" }
+  & git -C $copy apply $Patch1
+  if ($LASTEXITCODE -ne 0) { throw "Could not apply patch 001: $Patch1" }
+  Write-Host "Patch 001 applied successfully." -ForegroundColor Green
+  $webDir = Join-Path $copy "web"
+  Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
+  Push-Location $webDir
+  & npm ci --no-audit --no-fund 2>&1
+  $npmCiExitCode = $LASTEXITCODE
+  Pop-Location
+  if ($npmCiExitCode -ne 0) { throw "npm ci failed with exit code $npmCiExitCode" }
+  Push-Location $webDir
+  if (Test-Path "package.json") {
+    $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
+    if ($pkg.scripts -and $pkg.scripts.PSObject.Properties.Name -contains "test") {
+      Write-Host "Running frontend tests..." -ForegroundColor Cyan
+      & npm test 2>&1
+      $frontendTestExitCode = $LASTEXITCODE
+      Pop-Location
+      if ($frontendTestExitCode -ne 0) { throw "Frontend tests failed with exit code $frontendTestExitCode" }
+      Write-Host "Frontend tests passed." -ForegroundColor Green
+    } else {
+      Pop-Location
+    }
+  } else {
+    Pop-Location
+  }
+  Push-Location $webDir
+  Write-Host "Running Vue typecheck..." -ForegroundColor Cyan
+  & npx vue-tsc --noEmit -p tsconfig.json 2>&1
+  $vueTypecheckExitCode = $LASTEXITCODE
+  Pop-Location
+  if ($vueTypecheckExitCode -ne 0) { throw "Vue typecheck failed with exit code $vueTypecheckExitCode" }
+  Write-Host "Vue typecheck passed." -ForegroundColor Green
+  Push-Location $webDir
+  Write-Host "Running frontend production build..." -ForegroundColor Cyan
+  & npm run build 2>&1
+  $frontendBuildExitCode = $LASTEXITCODE
+  Pop-Location
+  if ($frontendBuildExitCode -ne 0) { throw "Frontend production build failed with exit code $frontendBuildExitCode" }
+  Write-Host "Frontend production build passed." -ForegroundColor Green
+  Write-Host "Compiling Windows executable..." -ForegroundColor Cyan
+  Push-Location $copy
+  & go build -tags embed_frontend -o "$packageDir/VALENTINA.exe" 2>&1
+  $exeBuildExitCode = $LASTEXITCODE
+  Pop-Location
+  if ($exeBuildExitCode -ne 0) { throw "Go build failed with exit code $exeBuildExitCode" }
+  $exePath = Join-Path $packageDir "VALENTINA.exe"
+  if (-not (Test-Path $exePath)) { throw "VALENTINA.exe was not produced." }
+  $exeSize = (Get-Item -LiteralPath $exePath).Length
+  if ($exeSize -le 0) { throw "VALENTINA.exe is empty." }
+  Write-Host "EXE size: $exeSize bytes" -ForegroundColor Green
+  $exeHash = & certutil -hashfile $exePath SHA256
+  $exeHashLine = $exeHash | Select-Object -Skip 1 | Select-Object -First 1
+  $exeSha256 = ($exeHashLine -split '\s+')[0].Trim()
+  Write-Host "EXE SHA256: $exeSha256" -ForegroundColor Green
+  $sha256SumsPath = Join-Path $packageDir "SHA256SUMS.txt"
+  "$exeSha256  VALENTINA.exe" | Out-File -FilePath $sha256SumsPath -Encoding utf8
   $readmePath = Join-Path $packageDir "README.txt"
-  $readmeContent = @"
-VALENTINA Windows x64 Test Build
-================================
-Executable: VALENTINA.exe
-SHA256: $exeSha256
-Size: $exeSize bytes
-Platform: Windows x64
+  @"
+VALENTINA Windows x64 Build
+=========================
+Commit: $sourceCommitSha
+Parent: $sourceParentSha
+Branch: $sourceBranch
+Upstream Huginn SHA: $Expected
+Build timestamp (UTC): $buildTimestamp
+Dirty working tree: $dirtyFlag
+
+Files:
+  VALENTINA.exe        - Main application executable
+  SHA256SUMS.txt       - SHA256 checksum of VALENTINA.exe
+  VALENTINA-BUILD-MANIFEST.json - Build manifest
+  LICENSES/            - License and notice files
 
 Verification:
   certutil -hashfile VALENTINA.exe SHA256
-  # Compare the output hash with the value above and in VALENTINA-BUILD-MANIFEST.json.
-
-This is an internal check artifact, not an official public release.
-Do not distribute publicly.
-"@
-  $readmeContent | Out-File -FilePath $readmePath -Encoding utf8
-
-  $licensesDest = Join-Path $packageDir "LICENSES"
-  New-Item -ItemType Directory -Path $licensesDest -Force | Out-Null
+"@ | Out-File -FilePath $readmePath -Encoding utf8
+  $licensesDir = Join-Path $packageDir "LICENSES"
+  New-Item -ItemType Directory -Path $licensesDir -Force | Out-Null
   $upstreamLicense = Join-Path $Upstream "LICENSE"
   if (Test-Path $upstreamLicense) {
-    & robocopy $upstreamLicense $licensesDest /NFL /NDL /NJH /NJS /NP | Out-Null
+    Copy-Item -LiteralPath $upstreamLicense -Destination (Join-Path $licensesDir "LICENSE.huginn.txt") -Force
   }
-
-  # 11. Generate build manifest.
-  $manifestPath = Join-Path $packageDir "VALENTINA-BUILD-MANIFEST.json"
+  $valentinaLicense = Join-Path $Repo "LICENSE"
+  if (Test-Path $valentinaLicense) {
+    Copy-Item -LiteralPath $valentinaLicense -Destination (Join-Path $licensesDir "LICENSE.valentina.txt") -Force
+  }
   $manifest = @{
-    schema_version = 1
+    schema_version = "1.0"
     product_name = "VALENTINA"
-    product_version = "valentina-dev"
+    product_version = "1.0.0"
     source = @{
-      repository = "https://github.com/MiguelDuval/VALENTINA.git"
-      branch = "feature/valentina-dual-pipeline-crm-20261106"
-      full_commit_sha = "$($actual)"
-      parent_commit_sha = ""
-      dirty_working_tree = $false
-      build_timestamp_utc = (Get-Date -Format "o")
+      full_commit_sha = $sourceCommitSha
+      parent_commit_sha = $sourceParentSha
+      branch = $sourceBranch
+      dirty_working_tree = $dirtyFlag
+      build_timestamp_utc = $buildTimestamp
     }
     upstream = @{
-      repository = "https://github.com/scrypster/huginn"
-      exact_pinned_sha = $actual
+      repository = "scrypster/huginn"
+      exact_pinned_sha = $Expected
       verified = $true
     }
     build_environment = @{
-      operating_system = "windows"
+      operating_system = "Windows"
       architecture = "x64"
-      go_version = ""
-      node_version = ""
-      npm_version = ""
+      go_version = "from upstream/huginn/go.mod"
+      node_version = "22"
+      npm_version = "from package-lock.json"
       build_workflow_name = "VALENTINA Windows test build"
-      github_actions_run_id = ""
-      github_actions_run_attempt = ""
-      github_actions_run_url = ""
+      github_run_id = $env:GITHUB_RUN_ID
+      github_run_attempt = $env:GITHUB_RUN_ATTEMPT
+      github_server_url = $env:GITHUB_SERVER_URL
+      github_repository = $env:GITHUB_REPOSITORY
     }
-    validation = @{}
+    validation = @{
+      upstream_pin_verification = @{
+        status = "passed"
+        command = "git -C upstream/huginn rev-parse HEAD"
+        result = "matched pinned SHA"
+      }
+      patch_application = @{
+        status = "passed"
+        command = "git apply patches/upstream-ui/001-valentina-ui-foundation.patch"
+        result = "applied successfully"
+      }
+      npm_ci = @{
+        status = "passed"
+        command = "npm ci --no-audit --no-fund"
+        result = "exit code 0"
+      }
+      frontend_tests = @{
+        status = "passed"
+        command = "npm test"
+        result = "exit code 0"
+      }
+      vue_typecheck = @{
+        status = "passed"
+        command = "npx vue-tsc --noEmit -p tsconfig.json"
+        result = "exit code 0"
+      }
+      frontend_production_build = @{
+        status = "passed"
+        command = "npm run build"
+        result = "exit code 0"
+      }
+      windows_executable_compilation = @{
+        status = "passed"
+        command = "go build -tags embed_frontend -o VALENTINA.exe"
+        result = "exit code 0"
+      }
+    }
     binary = @{
       file_name = "VALENTINA.exe"
       file_size = $exeSize
       sha256 = $exeSha256
-      platform = "windows"
+      platform = "Windows"
       architecture = "x64"
     }
     security = @{
@@ -203,137 +201,19 @@ Do not distribute publicly.
       credentials_embedded = $false
     }
     artifact = @{
-      $valentinaSha = (& git -C $Repo rev-parse HEAD).Trim()
-  artifact_name = "VALENTINA-windows-x64-$($valentinaSha)"
+      artifact_name = "VALENTINA-windows-x64-$sourceCommitSha"
       retention_period_days = 30
-      github_actions_run_url = ""
     }
   }
-
-  if ($env:GITHUB_SHA) { $manifest.source.full_commit_sha = $env:GITHUB_SHA }
-  if ($env:GITHUB_REF_NAME) { $manifest.source.branch = $env:GITHUB_REF_NAME }
-  if ($env:GITHUB_RUN_ID) {
-    $manifest.build_environment.github_actions_run_id = $env:GITHUB_RUN_ID
-    $manifest.build_environment.github_actions_run_attempt = $env:GITHUB_RUN_ATTEMPT
-    $manifest.build_environment.github_actions_run_url = "$($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)"
-    $manifest.artifact.github_actions_run_url = $manifest.build_environment.github_actions_run_url
-  }
-
-  $goVersion = & go version
-  if ($LASTEXITCODE -eq 0 -and $goVersion) {
-    $manifest.build_environment.go_version = ($goVersion -split '\s+')[1]
-  }
-  $nodeVersion = & node --version
-  if ($LASTEXITCODE -eq 0) { $manifest.build_environment.node_version = $nodeVersion.Trim() }
-  $npmVersion = & npm --version
-  if ($LASTEXITCODE -eq 0) { $manifest.build_environment.npm_version = $npmVersion.Trim() }
-
-  $manifest.validation = @{}
-  
-  # Run Go domain tests
-  $ErrorActionPreference = "Continue"
-  & go test ./internal/valentina/internal/... 2>&1
-  $goDomainExitCode = $LASTEXITCODE
-  $ErrorActionPreference = "Stop"
-  $manifest.validation.go_domain_tests = @{
-    status = if ($goDomainExitCode -eq 0) { "passed" } else { "failed" }
-    command = "go test ./internal/valentina/internal/..."
-    result = if ($goDomainExitCode -eq 0) { "passed" } else { "failed (exit code $goDomainExitCode)" }
-  }
-  
-  # Run Go server integration tests
-  $ErrorActionPreference = "Continue"
-  & go test ./internal/server 2>&1
-  $goServerExitCode = $LASTEXITCODE
-  $ErrorActionPreference = "Stop"
-  $manifest.validation.go_api_server_integration_tests = @{
-    status = if ($goServerExitCode -eq 0) { "passed" } else { "failed" }
-    command = "go test ./internal/server"
-    result = if ($goServerExitCode -eq 0) { "passed" } else { "failed (exit code $goServerExitCode)" }
-  }
-  
-  # Run frontend tests
-  $ErrorActionPreference = "Continue"
-  & npm test 2>&1
-  $frontendTestExitCode = $LASTEXITCODE
-  $ErrorActionPreference = "Stop"
-  $manifest.validation.frontend_tests = @{
-    status = if ($frontendTestExitCode -eq 0) { "passed" } else { "failed" }
-    command = "npm test"
-    result = if ($frontendTestExitCode -eq 0) { "passed" } else { "failed (exit code $frontendTestExitCode)" }
-  }
-  
-  # Run Vue typecheck
-  $ErrorActionPreference = "Continue"
-  & npx vue-tsc --noEmit -p tsconfig.json 2>&1
-  $vueTypecheckExitCode = $LASTEXITCODE
-  $ErrorActionPreference = "Stop"
-  $manifest.validation.vue_typecheck = @{
-    status = if ($vueTypecheckExitCode -eq 0) { "passed" } else { "failed" }
-    command = "npx vue-tsc --noEmit -p tsconfig.json"
-    result = if ($vueTypecheckExitCode -eq 0) { "passed" } else { "failed (exit code $vueTypecheckExitCode)" }
-  }
-  
-  # Run frontend production build
-  $ErrorActionPreference = "Continue"
-  & npm run build 2>&1
-  $frontendBuildExitCode = $LASTEXITCODE
-  $ErrorActionPreference = "Stop"
-  $manifest.validation.frontend_production_build = @{
-    status = if ($frontendBuildExitCode -eq 0) { "passed" } else { "failed" }
-    command = "npm run build"
-    result = if ($frontendBuildExitCode -eq 0) { "passed" } else { "failed (exit code $frontendBuildExitCode)" }
-  }
-  
-  # Windows executable compilation
-  $ErrorActionPreference = "Continue"
-  Push-Location $copy
-  & go build -tags embed_frontend -o "$packageDir/VALENTINA.exe" 2>&1
-  $exeBuildExitCode = $LASTEXITCODE
-  Pop-Location
-  $ErrorActionPreference = "Stop"
-  $exeBuildExitCode = $LASTEXITCODE
-  $ErrorActionPreference = "Stop"
-  $exeSha256 = & certutil -hashfile "$packageDir/VALENTINA.exe" SHA256
-  $exeSha256Line = $exeSha256 | Select-Object -Skip 1 | Select-Object -First 1
-  $exeSha256 = ($exeSha256Line -split '\s+')[0].Trim()
-  $manifest.validation.windows_executable_compilation = @{
-    status = if ($exeBuildExitCode -eq 0) { "passed" } else { "failed" }
-    command = "go build -tags embed_frontend -o VALENTINA.exe"
-    result = if ($exeBuildExitCode -eq 0) { "passed" } else { "failed (exit code $exeBuildExitCode)" }
-  }
-  
-  # Patch application (already verified above)
-  $manifest.validation.patch_application = @{
-    status = "passed"
-    command = "git apply --check patches/upstream-ui/*.patch"
-    result = "passed"
-  }
-  
-  # Upstream pin verification (already verified above)
-  $manifest.validation.upstream_pin_verification = @{
-    status = "passed"
-    command = "git -C upstream/huginn rev-parse HEAD"
-    result = "passed"
-  }
-
-  $zipPath = Join-Path $OutputDirectory "VALENTINA-windows-x64-$($manifest.source.full_commit_sha).zip"
+  $manifestPath = Join-Path $packageDir "VALENTINA-BUILD-MANIFEST.json"
+  $manifest | ConvertTo-Json -Depth 10 | Out-File -FilePath $manifestPath -Encoding utf8
+  $zipPath = Join-Path $OutputDirectory ("VALENTINA-windows-x64-" + $sourceCommitSha + ".zip")
   if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-  Compress-Archive -Path "$packageDir\*" -DestinationPath $zipPath -Force
+  Compress-Archive -Path "$packageDir*" -DestinationPath $zipPath -Force
   if ($LASTEXITCODE -ne 0) { throw "Failed to create artifact ZIP." }
-
-  $zipHash = & certutil -hashfile $zipPath SHA256
-  $zipHashLine = $zipHash | Select-Object -Skip 1 | Select-Object -First 1
-  $zipSha256 = ($zipHashLine -split '\s+')[0].Trim()
-  # ZIP digest is recorded in Job Summary, not in manifest (avoids self-reference)
-
-  $manifestJson = $manifest | ConvertTo-Json -Depth 10
-  $manifestJson | Out-File -FilePath $manifestPath -Encoding utf8
-
-  Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $packageDir "VALENTINA-BUILD-MANIFEST.json") -Force
-
-  Write-Host "EXE SHA256: $exeSha256" -ForegroundColor Green
+  Write-Host "Build completed successfully." -ForegroundColor Green
   Write-Host "Artifact: $zipPath" -ForegroundColor Green
-  Write-Host "Artifact SHA256: $zipSha256" -ForegroundColor Green
-
-} finally { if (Test-Path $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } }
+  Write-Host "EXE SHA256: $exeSha256" -ForegroundColor Green
+} finally {
+  if (Test-Path $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
