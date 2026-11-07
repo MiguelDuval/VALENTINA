@@ -272,6 +272,9 @@ func NewEvidenceID() string { return ulid.Make().String() }
 // NewRunID generates a stable research run ID.
 func NewRunID() string { return ulid.Make().String() }
 
+// NewSourceID generates a stable source ID.
+func NewSourceID() string { return ulid.Make().String() }
+
 // NewDecisionID generates a stable review decision ID.
 func NewDecisionID() string { return uuid.New().String() }
 
@@ -301,7 +304,7 @@ func (c *Company) EnsureID() {
 // EnsureID assigns a generated ID when the caller left it empty.
 func (s *Source) EnsureID() {
 	if s.SourceID == "" {
-		s.SourceID = NewRunID()
+		s.SourceID = NewSourceID()
 	}
 
 // NormalizeCompanyName produces a deterministic normalized company name.

@@ -681,7 +681,84 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 	return err
 }
 
-// ListSources returns all sources.`nfunc (s *Store) ListSources(ctx context.Context) ([]*Source, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t		SELECT source_id, name, publisher, source_type, base_url, allowed_hosts,`n`t			allowed_path_prefixes, terms_url, terms_reviewed_at, robots_reviewed_at,`n`t			approval_status, approval_reason, retrieval_method, adapter_id, adapter_version,`n`t			authentication_required, credential_reference, minimum_interval_seconds,`n`t			max_parallel_requests, daily_request_limit, timeout_seconds, max_response_bytes,`n`t			allowed_fields, prohibited_fields, languages, expected_update_frequency,`n`t			last_reviewed_at, notes`n`t		FROM sources ORDER BY name`n`t	)`n`t	if err != nil {`n`t		return nil, err`n`t	}`n`t	defer rows.Close()`n`n`t	var out []*Source`n`t	for rows.Next() {`n`t		var s Source`n`t		var allowedHosts, allowedPaths, allowedFields, prohibitedFields, languages sql.NullString`n`t		var termsURL, termsReviewed, robotsReviewed, approvalReason, adapterID, adapterVersion sql.NullString`n`t		var credRef, expectedFreq, lastReviewed, notes sql.NullString`n`t		err := rows.Scan(`n`t			&s.SourceID, &s.Name, &s.Publisher, &s.SourceType, &s.BaseURL, &allowedHosts,`n`t				&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,`n`t				&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,`n`t				&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,`n`t				&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,`n`t				&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,`n`t				&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,`n`t		)`n`t		if err != nil {`n`t			return nil, err`n`t		}`n`t		if termsURL.Valid { s.TermsURL = termsURL }`n`t		if termsReviewed.Valid { s.TermsReviewedAt = parseTime(termsReviewed.String) }`n`t		if robotsReviewed.Valid { s.RobotsReviewedAt = parseTime(robotsReviewed.String) }`n`t		if approvalReason.Valid { s.ApprovalReason = approvalReason }`n`t		if adapterID.Valid { s.AdapterID = adapterID }`n`t		if adapterVersion.Valid { s.AdapterVersion = adapterVersion }`n`t		if credRef.Valid { s.CredentialReference = credRef }`n`t		if expectedFreq.Valid { s.ExpectedUpdateFrequency = expectedFreq }`n`t		if lastReviewed.Valid { s.LastReviewedAt = parseTime(lastReviewed) }`n`t		if notes.Valid { s.Notes = notes }`n`t		if allowedHosts.Valid { json.Unmarshal([]byte(allowedHosts.String), &s.AllowedHosts) }`n`t		if allowedPaths.Valid { json.Unmarshal([]byte(allowedPaths.String), &s.AllowedPathPrefixes) }`n`t		if allowedFields.Valid { json.Unmarshal([]byte(allowedFields.String), &s.AllowedFields) }`n`t		if prohibitedFields.Valid { json.Unmarshal([]byte(prohibitedFields.String), &s.ProhibitedFields) }`n`t		if languages.Valid { json.Unmarshal([]byte(languages.String), &s.Languages) }`n`t		out = append(out, &s)`n`t	}`n`t	return out, rows.Err()`n`t}`n`n// CreateResearchRun inserts a new research run record.
+// ListSources returns all sources.
+func (s *Store) ListSources(ctx context.Context) ([]*Source, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT source_id, name, publisher, source_type, base_url, allowed_hosts,
+			allowed_path_prefixes, terms_url, terms_reviewed_at, robots_reviewed_at,
+			approval_status, approval_reason, retrieval_method, adapter_id, adapter_version,
+			authentication_required, credential_reference, minimum_interval_seconds,
+			max_parallel_requests, daily_request_limit, timeout_seconds, max_response_bytes,
+			allowed_fields, prohibited_fields, languages, expected_update_frequency,
+			last_reviewed_at, notes
+		FROM sources ORDER BY name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*Source
+	for rows.Next() {
+		var s Source
+		var allowedHosts, allowedPaths, allowedFields, prohibitedFields, languages sql.NullString
+		var termsURL, termsReviewed, robotsReviewed, approvalReason, adapterID, adapterVersion sql.NullString
+		var credRef, expectedFreq, lastReviewed, notes sql.NullString
+		err := rows.Scan(
+			&s.SourceID, &s.Name, &s.Publisher, &s.SourceType, &s.BaseURL, &allowedHosts,
+				&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,
+				&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,
+				&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,
+				&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,
+				&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,
+				&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if termsURL.Valid { s.TermsURL = termsURL }
+		if termsReviewed.Valid { s.TermsReviewedAt = parseTime(termsReviewed.String) }
+		if robotsReviewed.Valid { s.RobotsReviewedAt = parseTime(robotsReviewed.String) }
+		if approvalReason.Valid { s.ApprovalReason = approvalReason }
+		if adapterID.Valid { s.AdapterID = adapterID }
+		if adapterVersion.Valid { s.AdapterVersion = adapterVersion }
+		if credRef.Valid { s.CredentialReference = credRef.String }
+		if expectedFreq.Valid { s.ExpectedUpdateFrequency = expectedFreq.String }
+		if lastReviewed.Valid { s.LastReviewedAt = parseTimePtr(lastReviewed) }
+		if notes.Valid { s.Notes = notes.String }
+
+		// Parse JSON arrays
+		if allowedHosts.Valid {
+			if err := json.Unmarshal([]byte(allowedHosts.String), &s.AllowedHosts); err != nil {
+				return nil, fmt.Errorf("unmarshal allowed_hosts: %w", err)
+			}
+		}
+		if allowedPaths.Valid {
+			if err := json.Unmarshal([]byte(allowedPaths.String), &s.AllowedPathPrefixes); err != nil {
+				return nil, fmt.Errorf("unmarshal allowed_path_prefixes: %w", err)
+			}
+		}
+		if allowedFields.Valid {
+			if err := json.Unmarshal([]byte(allowedFields.String), &s.AllowedFields); err != nil {
+				return nil, fmt.Errorf("unmarshal allowed_fields: %w", err)
+			}
+		}
+		if prohibitedFields.Valid {
+			if err := json.Unmarshal([]byte(prohibitedFields.String), &s.ProhibitedFields); err != nil {
+				return nil, fmt.Errorf("unmarshal prohibited_fields: %w", err)
+			}
+		}
+		if languages.Valid {
+			if err := json.Unmarshal([]byte(languages.String), &s.Languages); err != nil {
+				return nil, fmt.Errorf("unmarshal languages: %w", err)
+			}
+		}
+
+		out = append(out, &s)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 	if r.RunID == "" {
 		r.RunID = NewRunID()
