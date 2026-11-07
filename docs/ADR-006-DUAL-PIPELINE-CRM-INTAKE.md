@@ -82,7 +82,7 @@ Receive → Validate → Deduplicate → Preserve Original → Extract → Class
 ### 4.4 AI must not
 
 - Send a response, promise a price, make an appointment, submit a proposal or contact a customer
-- Independently make irreversible business decisions
+- Independently make irreversible business decisions or silently discard records.
 
 ### 4.5 External channels
 
@@ -150,18 +150,3 @@ All provider options supported by the pinned Huginn runtime are preserved (Ollam
 ## 9. First usable implementation scope
 
 Stage C–G implementation: domain persistence (SQLite), minimal API, Vue CRM UI (Overview, Opportunities, Incoming Leads, Companies, Sources, Research), source-policy foundation, manual inbound entry, AI-assisted extraction through provider abstraction, human review workflow. One approved source or synthetic fixtures — no real source scraping without owner approval.
-
-- Silently merge or delete records
-- Override source permissions
-- Execute shell, Git, file-write or external-action tools
-- Contact publishers or apply for work
-
-### 3.6 Evidence requirement
-
-Every review-ready cold opportunity must contain an original publisher reference and supporting SourceEvidence record: canonical URL, publisher, observation time, content hash when available, extractor ID/version, and short factual excerpts or locators.
-
-
-1. **Cold:** find public construction/renovation opportunities, verify them, preserve evidence, assess fit and place them in a review queue.
-2. **Hot:** collect customer enquiries arriving through the owner's business channels, preserve the request, extract meaning and place them in a separate incoming-client queue.
-
-A clear separation avoids conflating publicly discovered opportunities (unverified, publisher-originated) with inbound enquiries (customer-originated, potentially containing contact information supplied directly by the customer).

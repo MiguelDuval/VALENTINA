@@ -111,3 +111,33 @@ They are data contracts for prompt outputs, fixtures and future validation, not 
 - Huginn state: use its native per-user config/data location unless a reviewed migration requires otherwise.
 
 See SECURITY-AND-SECRETS.md and DEPLOYMENT-AND-INSTALLER.md.
+
+## 9. CRM implementation status (corrective pass)
+
+The CRM domain entities and SQLite persistence are implemented in `valentina/internal/domain/` and exposed through `valentina/internal/api/`.
+
+Implemented entities:
+- `Company` — stable company ID, name, normalized name, website/domain, industry tags, location, source evidence IDs, timestamps.
+- `Opportunity` — stable opportunity ID, company ID, title, summary, type, status, geography, dates, value, fit assessment, evidence IDs, demand evidence type/note.
+- `InboundLead` — stable lead ID, received timestamp, channel, message ref, summary, original content, requested services, geography, budget, timing, company ID, contact info, AI assessment, status, decision history, retention state.
+- `Source` — source ID, name, publisher, type, base URL, allowed hosts/paths, terms, approval status (`pending_review` by default), retrieval method, rate limits, allowed/prohibited fields.
+- `SourceEvidence` — evidence ID, source ID, canonical URL, publisher, observed/published times, content hash, retrieval status, extractor, facts.
+- `ResearchRun` — run ID, timestamps, status, source IDs, counts (candidate/verified/duplicate/accepted/rejected), notes.
+- `ReviewDecision` — decision ID, entity type/ID, previous/new status, decision time, reason, profile version, operator ref.
+- `Location` — municipality, province, autonomous community, country code, location text (single definition).
+- `OpportunityValue` — amount, currency, basis (nil-safe).
+- `FitAssessment` — profile version, fit status, evaluated at, criteria, missing information.
+- `InboundAIAssessment` — service category, project scope, location, budget, timing urgency, missing details, company match, response draft, evaluated at, profile version.
+- `ContactInfo` — name, email, phone, purpose (nil-safe pointer).
+
+Key correctness rules:
+- ID generation happens **before** validation via `EnsureID()`.
+- `CreateReviewDecision` is transactional: entity existence → transition validation → previous status read → decision insert → status update → commit, with rollback on any error.
+- Nil pointer fields (`Value`, `ContactInfo`, `AIAssessment`) are never dereferenced without a nil check.
+- SQL queries use the passed `id` parameter, not uninitialized struct fields.
+- Nested structures are only reconstructed when source data is present (no constant nil helpers losing values).
+
+Not implemented:
+- Source-policy adapter (server-side host/path allowlist enforcement). Source status remains `pending_review`.
+- Unattended scraping; no source adapter; no external source collection.
+- NVIDIA NIM live integration (no credentials).

@@ -129,3 +129,20 @@ The initial product does not send email/WhatsApp/social messages or applications
 A result must have a stable opportunity ID, factual title/summary, publisher/company reference where identifiable, at least one original source evidence record, first-seen/last-observed times, publication/deadline values when available, an owner-profile fit explanation, an explicit review state and notes for uncertainty or conflicting facts.
 
 See DATA-AND-EVIDENCE.md, SOURCE-REGISTRY.md and QUALITY-AND-OPERATIONS.md. The manual workflow input shape is defined in schemas/workflow-input.schema.json and illustrated in templates/workflow-input.example.json.
+
+## 10. CRM integration (corrective pass)
+
+The corrective implementation pass integrates the VALENTINA CRM vertical slice into the pinned Huginn runtime as a single local executable.
+
+- **Domain models** (`valentina/internal/domain/models.go`): Company, Opportunity, InboundLead, Source, SourceEvidence, ResearchRun, ReviewDecision, Location, OpportunityValue, FitAssessment, InboundAIAssessment, ContactInfo. Duplicate `Location` definition removed. `EnsureID()` is called before `Validate()` so callers may omit IDs.
+- **SQLite persistence** (`valentina/internal/domain/storage.go`): `_ "modernc.org/sqlite"` driver. Idempotent migrations. Create/Get/List for all entities. Nil-safe handling of `OpportunityValue`, `ContactInfo`, `AIAssessment` pointers. Real `ptrStr`/`ptrToIface` via reflection (not constant nil). `GetOpportunity` uses the input `id`, not an uninitialized struct field.
+- **Transactional human review** (`CreateReviewDecision`): one SQL transaction performs entity-existence check, status-transition validation, previous-status read, decision insert, entity status update, and commit. Rollback on any error. A decision is never saved unless the transition executed.
+- **API handlers** (`valentina/internal/api/handlers.go`): GetOpportunity, GetInboundLead (reads InboundLead, not Opportunity), ListCompanies, ListSources, ListResearchRuns, ListReviewDecisions — all read from SQLite. Detail endpoints for all CRM entities. Request body limit (1 MB), malformed JSON rejection, second-JSON-object rejection, missing ID, not found, invalid status, correct HTTP status codes. No SQL details leaked. No 501/mock/static stubs.
+- **Server integration**: patch `patches/upstream-ui/002-valentina-crm-integration.patch` registers CRM API on the existing Huginn HTTP mux with existing auth/request-ID/logging/body-limit middleware. No second server, no additional port. SQLite database at `~/.huginn/valentina/valentina.db` (outside the executable install directory). `defer valentinaStore.Close()` on shutdown.
+- **Frontend integration**: five CRM views (Opportunities, Leads, Companies, Sources, Research) included in `web/src/router/index.ts` and `web/src/utils/navLayout.ts`. Fixed HTML closing tags (`</span>` instead of `</div>`, `</strong>` instead of `</div>`). All API requests use `apiFetch` from `../composables/useApi` (existing Huginn auth). Loading, error and empty states. Manual inbound-lead creation form on the Leads screen.
+
+The source-policy adapter is NOT implemented; source status remains `pending_review`; no unattended scraping; human source approval required. NVIDIA NIM is not connected without credentials.
+
+Tests: Go domain, storage and API tests under `valentina/internal/domain/*_test.go` and `valentina/internal/api/handlers_test.go`. Frontend Vitest tests under `valentina/web/src/views/__tests__/CRMViews.test.go`.
+
+Build script `scripts/build-valentina.ps1`: verifies exact upstream pin, applies tracked patches with `git apply --check`, copies Go source into `source/internal/valentina/internal/{domain,api}`, runs `go test ./internal/valentina/internal/...`, `npx vue-tsc --noEmit`, `npm test`, `npm run build`, and compiles the Windows executable.

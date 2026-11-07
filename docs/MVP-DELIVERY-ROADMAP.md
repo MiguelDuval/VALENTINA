@@ -147,9 +147,9 @@ Initialize and verify the pinned submodule. Build and run the unmodified Go appl
 
 Create the tracked patch/build pipeline. Rebrand ordinary UI surfaces, make Overview the landing page, introduce the VALENTINA navigation and group existing engine views under AI & Automation / Advanced. Run frontend build, unit tests and Playwright smoke tests.
 
-### Stage 3 — real business workspace
+### Stage 3 — real business workspace (CRM vertical slice — complete)
 
-Add Opportunities, Opportunity Detail, Companies, Sources and Research routes to the same Vue app. Start with synthetic fixtures; connect each page to the real local API and SQLite-backed records before calling it functional.
+Add Opportunities, Opportunity Detail (GetOpportunity), Companies, Sources and Research routes to the same Vue app. Back each page by the real local API and SQLite-backed records, not mock data. Add InboundLead detail/create (GetInboundLead reads InboundLead, not Opportunity) and ReviewDecision endpoints. All list endpoints read from SQLite. Human review is transactional (entity exists, transition valid, previous status read, decision insert, status update, commit; rollback on error). Go domain/storage/API tests and frontend Vitest tests are included in CI.
 
 ### Stage 4 — one real source
 
