@@ -36,7 +36,7 @@ try {
 
  # 3. Copy VALENTINA-first-party Go source into the correct staging path:
  #    source/internal/valentina/internal/{domain,api}
- $DestValentina = Join-Path $copy "internal" "valentina"
+ $DestValentina = Join-Path $copy "internal"
  $ValentinaGo = Join-Path $Repo "valentina"
  if (Test-Path $ValentinaGo) {
    & robocopy $ValentinaGo $DestValentina /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
@@ -44,8 +44,8 @@ try {
  }
 
   # Verify correct staging structure - require correct paths, reject wrong ones.
-  $correctPath1 = Join-Path $DestValentina "internal" "domain"
-  $correctPath2 = Join-Path $DestValentina "internal" "api"
+  $correctPath1 = Join-Path $DestValentina "valentina" "domain"
+  $correctPath2 = Join-Path $DestValentina "valentina" "api"
   $badPath1 = Join-Path $copy "internal" "internal" "domain"
   $badPath2 = Join-Path $copy "internal" "internal" "api"
   if (-not (Test-Path $correctPath1 -PathType Container)) { throw "Required staging path missing: source/internal/valentina/internal/domain" }
@@ -54,9 +54,9 @@ try {
   if (Test-Path $badPath2 -PathType Container) { throw "Incorrect staging path detected: source/internal/internal/api must not exist." }
 
  $expectedFiles = @(
-   (Join-Path $DestValentina "internal" "domain" "models.go"),
-   (Join-Path $DestValentina "internal" "domain" "storage.go"),
-   (Join-Path $DestValentina "internal" "api" "handlers.go"),
+   (Join-Path $DestValentina "valentina" "domain" "models.go"),
+   (Join-Path $DestValentina "valentina" "domain" "storage.go"),
+   (Join-Path $DestValentina "valentina" "api" "handlers.go"),
    (Join-Path $DestValentina "internal" "domain" "models_test.go"),
    (Join-Path $DestValentina "internal" "domain" "storage_test.go"),
    (Join-Path $DestValentina "internal" "api" "handlers_test.go")
@@ -287,7 +287,11 @@ Do not distribute publicly.
   
   # Windows executable compilation
   $ErrorActionPreference = "Continue"
+  Push-Location $copy
   & go build -tags embed_frontend -o "$packageDir/VALENTINA.exe" 2>&1
+  $exeBuildExitCode = $LASTEXITCODE
+  Pop-Location
+  $ErrorActionPreference = "Stop"
   $exeBuildExitCode = $LASTEXITCODE
   $ErrorActionPreference = "Stop"
   $exeSha256 = & certutil -hashfile "$packageDir/VALENTINA.exe" SHA256
@@ -312,9 +316,6 @@ Do not distribute publicly.
     command = "git -C upstream/huginn rev-parse HEAD"
     result = "passed"
   }
-
-  $manifestJson = $manifest | ConvertTo-Json -Depth 10
-  $manifestJson | Out-File -FilePath $manifestPath -Encoding utf8
 
   $zipPath = Join-Path $OutputDirectory "VALENTINA-windows-x64-$($manifest.source.full_commit_sha).zip"
   if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force }

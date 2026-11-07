@@ -510,11 +510,11 @@ func boolToInt(b *bool) *int {
 
 // CreateOpportunity inserts a new opportunity record.
 func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
-	if o.OpportunityID == "" {\r
-		o.OpportunityID = NewOpportunityID()\r
-	}\r
-	if err := o.Validate(); err != nil {\r
-		return fmt.Errorf("validation: %w", err)\r
+	if o.OpportunityID == "" {
+		o.OpportunityID = NewOpportunityID()
+	}
+	if err := o.Validate(); err != nil {
+		return fmt.Errorf("validation: %w", err)
 	}
 	now := time.Now().UTC()
 	if o.FirstSeenAt.IsZero() {
@@ -634,7 +634,10 @@ func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) err
 	if e.ObservedAt.IsZero() {
 		e.ObservedAt = time.Now().UTC()
 	}
-	facts, _ := json.Marshal(e.Facts)
+	facts, err := json.Marshal(e.Facts)
+		if err != nil {
+			return fmt.Errorf("marshal facts: %w", err)
+		}
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO source_evidence (evidence_id, source_id, canonical_url, publisher, page_title,
@@ -696,7 +699,42 @@ func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 	return err
 }
 
-// ListResearchRuns returns all research runs.`nfunc (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t		SELECT run_id, started_at, completed_at, status, source_ids,`n`t			candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes`n`t		FROM research_runs ORDER BY started_at DESC`n`t	)`n`t	if err != nil {`n`t		return nil, err`n`t	}`n`t	defer rows.Close()`n`n`t	var out []*ResearchRun`n`t	for rows.Next() {`n`t		var r ResearchRun`n`t		var srcIDs, completed, notes sql.NullString`n`t		err := rows.Scan(`n`t			&r.RunID, &r.StartedAt, &completed, &r.Status, &srcIDs,`n`t				&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,`n`t				&r.AcceptedCount, &r.RejectedCount, &notes,`n`t		)`n`t		if err != nil {`n`t			return nil, err`n`t		}`n`t		r.CompletedAt = parseTimePtr(completed)`n`t		if srcIDs.Valid {`n`t			json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs)`n`t		}`n`t		if notes.Valid { r.Notes = notes }`n`t		out = append(out, &r)`n`t	}`n`t	return out, rows.Err()`n`t}`n`n
+// ListResearchRuns returns all research runs.
+func (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {
+	rows, err := s.db.QueryContext(ctx, `
+			SELECT run_id, started_at, completed_at, status, source_ids,
+				candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes
+			FROM research_runs ORDER BY started_at DESC
+		`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*ResearchRun
+	for rows.Next() {
+		var r ResearchRun
+		var srcIDs, completed, notes sql.NullString
+		err := rows.Scan(
+			&r.RunID, &r.StartedAt, &completed, &r.Status, &srcIDs,
+				&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,
+				&r.AcceptedCount, &r.RejectedCount, &notes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		r.CompletedAt = parseTimePtr(completed)
+		if srcIDs.Valid {
+			json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs)
+		}
+		if notes.Valid {
+			r.Notes = notes.String
+		}
+		out = append(out, &r)
+	}
+	return out, rows.Err()
+}
+
 // validTransition checks whether a status transition is allowed for an entity type.
 func validTransition(entityType, prevStatus, newStatus string) bool {
 	switch entityType {
@@ -844,8 +882,21 @@ if err := l.Validate(); err != nil {
 		l.RetentionState = "active"
 	}
 
-	services, _ := json.Marshal(l.RequestedServices)
-	missing, _ := json.Marshal(l.MissingInformation)
+	services, err := json.Marshal(l.RequestedServices)
+		if err != nil {
+			return fmt.Errorf("marshal requested services: %w", err)
+		}
+	missingInfoJSON, err := json.Marshal(l.MissingInformation)
+		if err != nil {
+			return fmt.Errorf("marshal missing information: %w", err)
+		}
+	var factsJSON []byte
+	if l.AIAssessment != nil {
+		factsJSON, err = json.Marshal(l.AIAssessment.MissingDetails)
+		if err != nil {
+			return fmt.Errorf("marshal ai missing details: %w", err)
+		}
+	}
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO inbound_leads (lead_id, received_at, inbound_channel, channel_message_ref,
@@ -867,9 +918,9 @@ if err := l.Validate(); err != nil {
 		ptrStr(l.ContactInfo, "Phone"), ptrStr(l.ContactInfo, "Purpose"),
 		ptrStr(l.AIAssessment, "ServiceCategory"), ptrStr(l.AIAssessment, "ProjectScope"),
 		ptrStr(l.AIAssessment, "Location"), ptrToIface(l.AIAssessment, "Budget"),
-		ptrStr(l.AIAssessment, "TimingUrgency"), string(missing), ptrStr(l.AIAssessment, "CompanyMatch"),
-		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), ptrStr(l.AIAssessment, "ProfileVersion"),
-		string(missing), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), l.RetentionState)
+		ptrStr(l.AIAssessment, "TimingUrgency"), string(factsJSON), ptrStr(l.AIAssessment, "CompanyMatch"),
+		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), aiProfileVersion.String,
+		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), l.RetentionState)
 	return err
 }
 // ListOpportunities returns opportunities with optional status filter and pagination.
@@ -925,12 +976,19 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 		o.DeadlineAt = parseTimePtr(deadAt)
 		o.ValidFrom = parseTimePtr(validFrom)
 		o.ValidUntil = parseTimePtr(validUntil)
-		if valAmount.Valid {
-			v := valAmount.Float64
-			o.Value = &OpportunityValue{Amount: &v}
+		if valAmount.Valid || valCurr.Valid || valBasis.Valid {
+			o.Value = &OpportunityValue{}
+			if valAmount.Valid {
+				v := valAmount.Float64
+				o.Value.Amount = &v
+			}
+			if valCurr.Valid {
+				o.Value.Currency = &valCurr.String
+			}
+			if valBasis.Valid {
+				o.Value.Basis = &valBasis.String
+			}
 		}
-		o.Value.Currency = valCurr
-		o.Value.Basis = valBasis
 		if fitProf.Valid {
 			o.FitAssessment = &FitAssessment{ProfileVersion: fitProf.String, FitStatus: fitStatus.String}
 			if fitEval.Valid {
@@ -1003,7 +1061,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
-						l.ReceivedAt = parseTime(received)
+				l.ReceivedAt = parseTime(received)
 				if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
 					return nil, fmt.Errorf("unmarshal requested_services: %w", err)
 				}
@@ -1057,6 +1115,13 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 					}
 					if aiEval.Valid {
 						l.AIAssessment.EvaluatedAt = parseTime(aiEval.String)
+					}
+					if aiMissingDetails != "" {
+						var missing []string
+						if err := json.Unmarshal([]byte(aiMissingDetails), &missing); err != nil {
+							return nil, fmt.Errorf("unmarshal ai missing details: %w", err)
+						}
+						l.AIAssessment.MissingDetails = missing
 					}
 				}
 				if err := json.Unmarshal([]byte(missingInfo), &l.MissingInformation); err != nil {

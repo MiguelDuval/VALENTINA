@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/scrypster/huginn/internal/valentina/internal/domain"
 )
@@ -120,7 +119,7 @@ func (s *Server) handleCreateOpportunity(w http.ResponseWriter, r *http.Request)
 
 // handleGetOpportunity returns a single opportunity by ID.
 func (s *Server) handleGetOpportunity(w http.ResponseWriter, r *http.Request) {
-	id := pathValue(r, "id")
+	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing opportunity id")
 		return
@@ -162,7 +161,7 @@ func (s *Server) handleCreateLead(w http.ResponseWriter, r *http.Request) {
 
 // handleGetLead returns a single inbound lead by ID.
 func (s *Server) handleGetLead(w http.ResponseWriter, r *http.Request) {
-	id := pathValue(r, "id")
+	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing lead id")
 		return
@@ -282,17 +281,5 @@ func parseInt(s string, def int) int {
 	}
 	return v
 }
-
-// pathValue extracts a URL path value by key (simple implementation).
-func pathValue(r *http.Request, key string) string {
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	for i, p := range parts {
-		if p == key && i+1 < len(parts) {
-			return parts[i+1]
-		}
-	}
-	return ""
-}
-
 
 
