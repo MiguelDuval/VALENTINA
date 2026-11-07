@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"reflect"
 
-	"modernc.org/sqlite"
+	// modernc.org/sqlite is the pure-Go SQLite driver used by Store.
+	_ "modernc.org/sqlite"
 )
 
 // migration describes a single schema migration with version and SQL.
@@ -508,7 +510,12 @@ func boolToInt(b *bool) *int {
 
 // CreateOpportunity inserts a new opportunity record.
 func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
-	if o.OpportunityID == "" {\r\n\t\to.OpportunityID = NewOpportunityID()\r\n\t}\r\n\tif err := o.Validate(); err != nil {\r\n\t\treturn fmt.Errorf("validation: %w", err)\r\n\t}
+	if o.OpportunityID == "" {\r
+		o.OpportunityID = NewOpportunityID()\r
+	}\r
+	if err := o.Validate(); err != nil {\r
+		return fmt.Errorf("validation: %w", err)\r
+	}
 	now := time.Now().UTC()
 	if o.FirstSeenAt.IsZero() {
 		o.FirstSeenAt = now
@@ -553,7 +560,7 @@ func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
 		o.ReviewNote, o.DemandEvidenceType, o.DemandEvidenceNote)
 	return err
 }
-// GetOpportunity returns a single opportunity by ID.`nfunc (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, error) {`n`tvar o Opportunity`n`tvar fitProf, fitStatus, fitEval sql.NullString`n`tvar valAmount sql.NullFloat64`n`tvar valCurr, valBasis sql.NullString`n`tvar pubAt, deadAt, vf, vu sql.NullString`n`tvar firstSeen, lastSeen string`n`tvar srcEvid string`n`tvar dupGroup, reviewNote, demType, demNote sql.NullString`n`terr := s.db.QueryRowContext(ctx, "SELECT opportunity_id, company_id, title, summary, opportunity_type, status,`n`t\t\t\t\t\tmunicipality, province, autonomous_community, country_code, location_text,`n`t\t\t\t\tpublished_at, deadline_at, valid_from, valid_until,`n`t\t\t\t\tvalue_amount, value_currency, value_basis,`n`t\t\t\t\tfit_profile_version, fit_status, fit_evaluated_at,`n`t\t\t\t\tsource_evidence_ids, first_seen_at, last_seen_at,`n`t\t\t\t\tduplicate_group_id, review_note,`n`t\t\t\t\tdemand_evidence_type, demand_evidence_note`n`t\t\t\t\tFROM opportunities WHERE opportunity_id = ?", o.OpportunityID).Scan(`n`t\t\t&o.OpportunityID, &o.CompanyID, &o.Title, &o.Summary, &o.OpportunityType, &o.Status,`n`t\t\tlocScan(&o.Geography, "municipality"), locScan(&o.Geography, "province"),`n`t\t\tlocScan(&o.Geography, "autonomous_community"), locScan(&o.Geography, "country_code"), locScan(&o.Geography, "location_text"),`n`t\t\ttimeScan(&pubAt), timeScan(&deadAt), timeScan(&vf), timeScan(&vu),`n`t\t\t&valAmount, &valCurr, &valBasis,`n`t\t\t&fitProf, &fitStatus, &fitEval,`n`t\t\t&srcEvid, &firstSeen, &lastSeen,`n`t\t\t&dupGroup, &reviewNote,`n`t\t\t&demType, &demNote,`n`t\t)`n`t`tif err != nil {`n`t\t\treturn nil, err`n`t\t}`n`t\to.PublishedAt = parseTimePtr(pubAt)`n`t\to.DeadlineAt = parseTimePtr(deadAt)`n`t\to.ValidFrom = parseTimePtr(vf)`n`t\to.ValidUntil = parseTimePtr(vu)`n`t\tif valAmount.Valid {`n`t\t\tv := valAmount.Float64`n`t\t\to.Value = &OpportunityValue{Amount: &v}`n`t\t}`n`t\to.Value.Currency = valCurr`n`t\to.Value.Basis = valBasis`n`t\tif fitProf.Valid {`n`t\t\to.FitAssessment = &FitAssessment{ProfileVersion: fitProf.String, FitStatus: fitStatus.String}`n`t\t\tif fitEval.Valid {`n`t\t\t\to.FitAssessment.EvaluatedAt = parseTime(fitEval.String)`n`t\t\t}`n`t\t}`n`t\tif err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {`n`t\t\treturn nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)`n`t\t}`n`t\to.FirstSeenAt = parseTime(firstSeen)`n`t\to.LastSeenAt = parseTime(lastSeen)`n`t\to.DuplicateGroupID = dupGroup`n`t\to.ReviewNote = reviewNote`n`t\to.DemandEvidenceType = DemandEvidenceType(demType.String)`n`t\to.DemandEvidenceNote = demNote`n`t\treturn &o, nil`n`t}`n`n// CreateSourceEvidence inserts a new source evidence record.
+// GetOpportunity returns a single opportunity by ID.`nfunc (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, error) {`n`tvar o Opportunity`n`tvar fitProf, fitStatus, fitEval sql.NullString`n`tvar valAmount sql.NullFloat64`n`tvar valCurr, valBasis sql.NullString`n`tvar pubAt, deadAt, vf, vu sql.NullString`n`tvar firstSeen, lastSeen string`n`tvar srcEvid string`n`tvar dupGroup, reviewNote, demType, demNote sql.NullString`n`terr := s.db.QueryRowContext(ctx, "SELECT opportunity_id, company_id, title, summary, opportunity_type, status,`n`t					municipality, province, autonomous_community, country_code, location_text,`n`t				published_at, deadline_at, valid_from, valid_until,`n`t				value_amount, value_currency, value_basis,`n`t				fit_profile_version, fit_status, fit_evaluated_at,`n`t				source_evidence_ids, first_seen_at, last_seen_at,`n`t				duplicate_group_id, review_note,`n`t				demand_evidence_type, demand_evidence_note`n`t				FROM opportunities WHERE opportunity_id = ?", id).Scan(`n`t		&o.OpportunityID, &o.CompanyID, &o.Title, &o.Summary, &o.OpportunityType, &o.Status,`n`t		locScan(&o.Geography, "municipality"), locScan(&o.Geography, "province"),`n`t		locScan(&o.Geography, "autonomous_community"), locScan(&o.Geography, "country_code"), locScan(&o.Geography, "location_text"),`n`t		timeScan(&pubAt), timeScan(&deadAt), timeScan(&vf), timeScan(&vu),`n`t		&valAmount, &valCurr, &valBasis,`n`t		&fitProf, &fitStatus, &fitEval,`n`t		&srcEvid, &firstSeen, &lastSeen,`n`t		&dupGroup, &reviewNote,`n`t		&demType, &demNote,`n`t	)`n`t`tif err != nil {`n`t		return nil, err`n`t	}`n`t	o.PublishedAt = parseTimePtr(pubAt)`n`t	o.DeadlineAt = parseTimePtr(deadAt)`n`t	o.ValidFrom = parseTimePtr(vf)`n`t	o.ValidUntil = parseTimePtr(vu)`n`t	if valAmount.Valid {`n`t		v := valAmount.Float64`n`t		o.Value = &OpportunityValue{Amount: &v}`n`t	}`n`t	if o.Value != nil {`n`t			o.Value.Currency = valCurr`n`t			o.Value.Basis = valBasis`n`t	}`n`t	if fitProf.Valid {`n`t		o.FitAssessment = &FitAssessment{ProfileVersion: fitProf.String, FitStatus: fitStatus.String}`n`t		if fitEval.Valid {`n`t			o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)`n`t		}`n`t	}`n`t	if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {`n`t		return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)`n`t	}`n`t	o.FirstSeenAt = parseTime(firstSeen)`n`t	o.LastSeenAt = parseTime(lastSeen)`n`t	o.DuplicateGroupID = dupGroup`n`t	o.ReviewNote = reviewNote`n`t	o.DemandEvidenceType = DemandEvidenceType(demType.String)`n`t	o.DemandEvidenceNote = demNote`n`t	return &o, nil`n`t}`n`n// CreateSourceEvidence inserts a new source evidence record.
 func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) error {
 	if e.EvidenceID == "" {
 		e.EvidenceID = NewEvidenceID()
@@ -605,7 +612,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 	return err
 }
 
-// ListSources returns all sources.`nfunc (s *Store) ListSources(ctx context.Context) ([]*Source, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t\t\tSELECT source_id, name, publisher, source_type, base_url, allowed_hosts,`n`t\t\t\tallowed_path_prefixes, terms_url, terms_reviewed_at, robots_reviewed_at,`n`t\t\t\tapproval_status, approval_reason, retrieval_method, adapter_id, adapter_version,`n`t\t\t\tauthentication_required, credential_reference, minimum_interval_seconds,`n`t\t\t\tmax_parallel_requests, daily_request_limit, timeout_seconds, max_response_bytes,`n`t\t\t\tallowed_fields, prohibited_fields, languages, expected_update_frequency,`n`t\t\t\tlast_reviewed_at, notes`n`t\t\tFROM sources ORDER BY name`n`t\t)`n`t\tif err != nil {`n`t\t\treturn nil, err`n`t\t}`n`t\tdefer rows.Close()`n`n`t\tvar out []*Source`n`t\tfor rows.Next() {`n`t\t\tvar s Source`n`t\t\tvar allowedHosts, allowedPaths, allowedFields, prohibitedFields, languages sql.NullString`n`t\t\tvar termsURL, termsReviewed, robotsReviewed, approvalReason, adapterID, adapterVersion sql.NullString`n`t\t\tvar credRef, expectedFreq, lastReviewed, notes sql.NullString`n`t\t\terr := rows.Scan(`n`t\t\t\t&s.SourceID, &s.Name, &s.Publisher, &s.SourceType, &s.BaseURL, &allowedHosts,`n`t\t\t\t\t&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,`n`t\t\t\t\t&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,`n`t\t\t\t\t&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,`n`t\t\t\t\t&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,`n`t\t\t\t\t&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,`n`t\t\t\t\t&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,`n`t\t\t)`n`t\t\tif err != nil {`n`t\t\t\treturn nil, err`n`t\t\t}`n`t\t\tif termsURL.Valid { s.TermsURL = termsURL }`n`t\t\tif termsReviewed.Valid { s.TermsReviewedAt = parseTime(termsReviewed.String) }`n`t\t\tif robotsReviewed.Valid { s.RobotsReviewedAt = parseTime(robotsReviewed.String) }`n`t\t\tif approvalReason.Valid { s.ApprovalReason = approvalReason }`n`t\t\tif adapterID.Valid { s.AdapterID = adapterID }`n`t\t\tif adapterVersion.Valid { s.AdapterVersion = adapterVersion }`n`t\t\tif credRef.Valid { s.CredentialReference = credRef }`n`t\t\tif expectedFreq.Valid { s.ExpectedUpdateFrequency = expectedFreq }`n`t\t\tif lastReviewed.Valid { s.LastReviewedAt = parseTime(lastReviewed) }`n`t\t\tif notes.Valid { s.Notes = notes }`n`t\t\tif allowedHosts.Valid { json.Unmarshal([]byte(allowedHosts.String), &s.AllowedHosts) }`n`t\t\tif allowedPaths.Valid { json.Unmarshal([]byte(allowedPaths.String), &s.AllowedPathPrefixes) }`n`t\t\tif allowedFields.Valid { json.Unmarshal([]byte(allowedFields.String), &s.AllowedFields) }`n`t\t\tif prohibitedFields.Valid { json.Unmarshal([]byte(prohibitedFields.String), &s.ProhibitedFields) }`n`t\t\tif languages.Valid { json.Unmarshal([]byte(languages.String), &s.Languages) }`n`t\t\tout = append(out, &s)`n`t\t}`n`t\treturn out, rows.Err()`n`t}`n`n// CreateResearchRun inserts a new research run record.
+// ListSources returns all sources.`nfunc (s *Store) ListSources(ctx context.Context) ([]*Source, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t		SELECT source_id, name, publisher, source_type, base_url, allowed_hosts,`n`t			allowed_path_prefixes, terms_url, terms_reviewed_at, robots_reviewed_at,`n`t			approval_status, approval_reason, retrieval_method, adapter_id, adapter_version,`n`t			authentication_required, credential_reference, minimum_interval_seconds,`n`t			max_parallel_requests, daily_request_limit, timeout_seconds, max_response_bytes,`n`t			allowed_fields, prohibited_fields, languages, expected_update_frequency,`n`t			last_reviewed_at, notes`n`t		FROM sources ORDER BY name`n`t	)`n`t	if err != nil {`n`t		return nil, err`n`t	}`n`t	defer rows.Close()`n`n`t	var out []*Source`n`t	for rows.Next() {`n`t		var s Source`n`t		var allowedHosts, allowedPaths, allowedFields, prohibitedFields, languages sql.NullString`n`t		var termsURL, termsReviewed, robotsReviewed, approvalReason, adapterID, adapterVersion sql.NullString`n`t		var credRef, expectedFreq, lastReviewed, notes sql.NullString`n`t		err := rows.Scan(`n`t			&s.SourceID, &s.Name, &s.Publisher, &s.SourceType, &s.BaseURL, &allowedHosts,`n`t				&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,`n`t				&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,`n`t				&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,`n`t				&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,`n`t				&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,`n`t				&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,`n`t		)`n`t		if err != nil {`n`t			return nil, err`n`t		}`n`t		if termsURL.Valid { s.TermsURL = termsURL }`n`t		if termsReviewed.Valid { s.TermsReviewedAt = parseTime(termsReviewed.String) }`n`t		if robotsReviewed.Valid { s.RobotsReviewedAt = parseTime(robotsReviewed.String) }`n`t		if approvalReason.Valid { s.ApprovalReason = approvalReason }`n`t		if adapterID.Valid { s.AdapterID = adapterID }`n`t		if adapterVersion.Valid { s.AdapterVersion = adapterVersion }`n`t		if credRef.Valid { s.CredentialReference = credRef }`n`t		if expectedFreq.Valid { s.ExpectedUpdateFrequency = expectedFreq }`n`t		if lastReviewed.Valid { s.LastReviewedAt = parseTime(lastReviewed) }`n`t		if notes.Valid { s.Notes = notes }`n`t		if allowedHosts.Valid { json.Unmarshal([]byte(allowedHosts.String), &s.AllowedHosts) }`n`t		if allowedPaths.Valid { json.Unmarshal([]byte(allowedPaths.String), &s.AllowedPathPrefixes) }`n`t		if allowedFields.Valid { json.Unmarshal([]byte(allowedFields.String), &s.AllowedFields) }`n`t		if prohibitedFields.Valid { json.Unmarshal([]byte(prohibitedFields.String), &s.ProhibitedFields) }`n`t		if languages.Valid { json.Unmarshal([]byte(languages.String), &s.Languages) }`n`t		out = append(out, &s)`n`t	}`n`t	return out, rows.Err()`n`t}`n`n// CreateResearchRun inserts a new research run record.
 func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 	if r.RunID == "" {
 		r.RunID = NewRunID()
@@ -623,26 +630,118 @@ func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 	return err
 }
 
-// ListResearchRuns returns all research runs.`nfunc (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t\t\tSELECT run_id, started_at, completed_at, status, source_ids,`n`t\t\t\tcandidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes`n`t\t\tFROM research_runs ORDER BY started_at DESC`n`t\t)`n`t\tif err != nil {`n`t\t\treturn nil, err`n`t\t}`n`t\tdefer rows.Close()`n`n`t\tvar out []*ResearchRun`n`t\tfor rows.Next() {`n`t\t\tvar r ResearchRun`n`t\t\tvar srcIDs, completed, notes sql.NullString`n`t\t\terr := rows.Scan(`n`t\t\t\t&r.RunID, &r.StartedAt, &completed, &r.Status, &srcIDs,`n`t\t\t\t\t&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,`n`t\t\t\t\t&r.AcceptedCount, &r.RejectedCount, &notes,`n`t\t\t)`n`t\t\tif err != nil {`n`t\t\t\treturn nil, err`n`t\t\t}`n`t\t\tr.CompletedAt = parseTimePtr(completed)`n`t\t\tif srcIDs.Valid {`n`t\t\t\tjson.Unmarshal([]byte(srcIDs.String), &r.SourceIDs)`n`t\t\t}`n`t\t\tif notes.Valid { r.Notes = notes }`n`t\t\tout = append(out, &r)`n`t\t}`n`t\treturn out, rows.Err()`n`t}`n`n// CreateReviewDecision inserts a new review decision record.
-func (s *Store) CreateReviewDecision(ctx context.Context, d *ReviewDecision) error {
-	if d.DecisionID == "" {
-		d.DecisionID = NewDecisionID()
+// ListResearchRuns returns all research runs.`nfunc (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t		SELECT run_id, started_at, completed_at, status, source_ids,`n`t			candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes`n`t		FROM research_runs ORDER BY started_at DESC`n`t	)`n`t	if err != nil {`n`t		return nil, err`n`t	}`n`t	defer rows.Close()`n`n`t	var out []*ResearchRun`n`t	for rows.Next() {`n`t		var r ResearchRun`n`t		var srcIDs, completed, notes sql.NullString`n`t		err := rows.Scan(`n`t			&r.RunID, &r.StartedAt, &completed, &r.Status, &srcIDs,`n`t				&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,`n`t				&r.AcceptedCount, &r.RejectedCount, &notes,`n`t		)`n`t		if err != nil {`n`t			return nil, err`n`t		}`n`t		r.CompletedAt = parseTimePtr(completed)`n`t		if srcIDs.Valid {`n`t			json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs)`n`t		}`n`t		if notes.Valid { r.Notes = notes }`n`t		out = append(out, &r)`n`t	}`n`t	return out, rows.Err()`n`t}`n`n
+// validTransition checks whether a status transition is allowed for an entity type.
+func validTransition(entityType, prevStatus, newStatus string) bool {
+	switch entityType {
+	case "opportunity":
+		switch prevStatus {
+		case "candidate":
+			return newStatus == "verified" || newStatus == "needs_review" || newStatus == "rejected" || newStatus == "archived"
+		case "verified":
+			return newStatus == "needs_review" || newStatus == "qualified" || newStatus == "rejected" || newStatus == "expired" || newStatus == "archived"
+		case "needs_review":
+			return newStatus == "qualified" || newStatus == "rejected" || newStatus == "archived"
+		case "qualified":
+			return newStatus == "expired" || newStatus == "archived"
+		default:
+			return newStatus == "archived"
+		}
+	case "inbound_lead":
+		switch prevStatus {
+		case "new":
+			return newStatus == "triage" || newStatus == "needs_information" || newStatus == "spam" || newStatus == "archived"
+		case "triage":
+			return newStatus == "needs_information" || newStatus == "qualified" || newStatus == "declined" || newStatus == "spam" || newStatus == "archived"
+		case "needs_information":
+			return newStatus == "triage" || newStatus == "qualified" || newStatus == "declined" || newStatus == "archived"
+		case "qualified":
+			return newStatus == "converted" || newStatus == "declined" || newStatus == "archived"
+		case "converted", "declined", "spam":
+			return newStatus == "archived"
+		default:
+			return newStatus == "archived"
+		}
+	case "company":
+		return newStatus == "active" || newStatus == "archived"
+	default:
+		return false
 	}
-	if d.DecisionTime.IsZero() {
-		d.DecisionTime = time.Now().UTC()
-	}
-	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO review_decisions (decision_id, entity_type, entity_id, previous_status,
-			new_status, decision_time, decision_reason, profile_version, operator_ref)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		d.DecisionID, d.EntityType, d.EntityID, d.PreviousStatus, d.NewStatus,
-		d.DecisionTime.Format(time.RFC3339), d.DecisionReason, d.ProfileVersion, d.OperatorRef)
-	return err
 }
 
-// ListReviewDecisions returns all review decisions.`nfunc (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t\t\tSELECT decision_id, entity_type, entity_id, previous_status,`n`t\t\t\tnew_status, decision_time, decision_reason, profile_version, operator_ref`n`t\t\tFROM review_decisions ORDER BY decision_time DESC`n`t\t)`n`t\tif err != nil {`n`t\t\treturn nil, err`n`t\t}`n`t\tdefer rows.Close()`n`n`t\tvar out []*ReviewDecision`n`t\tfor rows.Next() {`n`t\t\tvar d ReviewDecision`n`t\t\tvar opRef sql.NullString`n`t\t\terr := rows.Scan(`n`t\t\t\t&d.DecisionID, &d.EntityType, &d.EntityID, &d.PreviousStatus,`n`t\t\t\t\t&d.NewStatus, &d.DecisionTime, &d.DecisionReason,`n`t\t\t\t\t&d.ProfileVersion, &opRef,`n`t\t\t)`n`t\t\tif err != nil {`n`t\t\t\treturn nil, err`n`t\t\t}`n`t\t\tif opRef.Valid { d.OperatorRef = opRef }`n`t\t\tout = append(out, &d)`n`t\t}`n`t\treturn out, rows.Err()`n`t}`n`n// CreateInboundLead inserts a new inbound lead record.
+// CreateReviewDecision inserts a new review decision record.
+func (s *Store) CreateReviewDecision(ctx context.Context, d *ReviewDecision) error {
+        if d.DecisionID == "" {
+                d.DecisionID = NewDecisionID()
+        }
+        if d.DecisionTime.IsZero() {
+                d.DecisionTime = time.Now().UTC()
+        }
+
+        tx, err := s.db.BeginTx(ctx, nil)
+        if err != nil {
+                return fmt.Errorf("begin transaction: %w", err)
+        }
+        defer tx.Rollback()
+
+        // Verify entity exists and read previous status.
+        var prevStatus string
+        switch d.EntityType {
+        case "opportunity":
+                err = tx.QueryRowContext(ctx, "SELECT status FROM opportunities WHERE opportunity_id = ?", d.EntityID).Scan(&prevStatus)
+        case "inbound_lead":
+                err = tx.QueryRowContext(ctx, "SELECT status FROM inbound_leads WHERE lead_id = ?", d.EntityID).Scan(&prevStatus)
+        case "company":
+                err = tx.QueryRowContext(ctx, "SELECT status FROM companies WHERE company_id = ?", d.EntityID).Scan(&prevStatus)
+        default:
+                return fmt.Errorf("unsupported entity type: %q", d.EntityType)
+        }
+        if err != nil {
+                return fmt.Errorf("entity not found: %w", err)
+        }
+        d.PreviousStatus = prevStatus
+
+        // Validate status transition.
+        if !validTransition(d.EntityType, prevStatus, d.NewStatus) {
+                return fmt.Errorf("invalid status transition for %s: %q -> %q", d.EntityType, prevStatus, d.NewStatus)
+        }
+
+        // Write the review decision.
+        _, err = tx.ExecContext(ctx, `
+                INSERT INTO review_decisions (decision_id, entity_type, entity_id, previous_status,
+                        new_status, decision_time, decision_reason, profile_version, operator_ref)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                d.DecisionID, d.EntityType, d.EntityID, d.PreviousStatus, d.NewStatus,
+                d.DecisionTime.Format(time.RFC3339), d.DecisionReason, d.ProfileVersion, d.OperatorRef)
+        if err != nil {
+                return fmt.Errorf("insert review decision: %w", err)
+        }
+
+        // Change the entity status.
+        switch d.EntityType {
+        case "opportunity":
+                _, err = tx.ExecContext(ctx, "UPDATE opportunities SET status = ? WHERE opportunity_id = ?", d.NewStatus, d.EntityID)
+        case "inbound_lead":
+                _, err = tx.ExecContext(ctx, "UPDATE inbound_leads SET status = ? WHERE lead_id = ?", d.NewStatus, d.EntityID)
+        case "company":
+                _, err = tx.ExecContext(ctx, "UPDATE companies SET status = ? WHERE company_id = ?", d.NewStatus, d.EntityID)
+        }
+        if err != nil {
+                return fmt.Errorf("update entity status: %w", err)
+        }
+
+        if err := tx.Commit(); err != nil {
+                return fmt.Errorf("commit transaction: %w", err)
+        }
+        return nil
+}
+
+// ListReviewDecisions returns all review decisions.`nfunc (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, error) {`n`trows, err := s.db.QueryContext(ctx, `n`t		SELECT decision_id, entity_type, entity_id, previous_status,`n`t			new_status, decision_time, decision_reason, profile_version, operator_ref`n`t		FROM review_decisions ORDER BY decision_time DESC`n`t	)`n`t	if err != nil {`n`t		return nil, err`n`t	}`n`t	defer rows.Close()`n`n`t	var out []*ReviewDecision`n`t	for rows.Next() {`n`t		var d ReviewDecision`n`t		var opRef sql.NullString`n`t		err := rows.Scan(`n`t			&d.DecisionID, &d.EntityType, &d.EntityID, &d.PreviousStatus,`n`t				&d.NewStatus, &d.DecisionTime, &d.DecisionReason,`n`t				&d.ProfileVersion, &opRef,`n`t		)`n`t		if err != nil {`n`t			return nil, err`n`t		}`n`t		if opRef.Valid { d.OperatorRef = opRef }`n`t		out = append(out, &d)`n`t	}`n`t	return out, rows.Err()`n`t}`n`n// CreateInboundLead inserts a new inbound lead record.
 func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
-	if err := l.Validate(); err != nil {
+	if l.LeadID == "" {
+		l.LeadID = NewLeadID()
+	}
+if err := l.Validate(); err != nil {
 		return fmt.Errorf("validation: %w", err)
 	}
 	if l.LeadID == "" {
@@ -794,34 +893,81 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		var aiBudget sql.NullFloat64
 		var burC sql.NullString
 
+				var contactName, contactEmail, contactPhone, contactPurpose sql.NullString
+		var aiServiceCat, aiProjectScope, aiLocationVal, aiTimingUrgency, aiCompanyMatch, aiResponseDraft, aiProfileVersion sql.NullString
 		err := rows.Scan(
-			&l.LeadID, &received, &l.InboundChannel, &l.ChannelMessageRef,
-			&l.RequestSummary, &l.OriginalContent, &services,
-			locScan(&l.ProjectLocation, "municipality"), locScan(&l.ProjectLocation, "province"),
-			locScan(&l.ProjectLocation, "autonomous_community"), locScan(&l.ProjectLocation, "country_code"),
-			locScan(&l.ProjectLocation, "location_text"),
-			&budget, &burC, &l.DesiredTiming,
-			&l.CompanyID, &l.ContactInfo.Name, &l.ContactInfo.Email, &l.ContactInfo.Phone, &l.ContactInfo.Purpose,
-			&l.AIAssessment.ServiceCategory, &l.AIAssessment.ProjectScope, &l.AIAssessment.Location,
-			&aiBudget, &l.AIAssessment.TimingUrgency, &missing, &l.AIAssessment.CompanyMatch,
-			&l.AIAssessment.ResponseDraft, &aiEval, &l.AIAssessment.ProfileVersion,
-			&missing, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &l.RetentionState,
-		)
+				&l.LeadID, &received, &l.InboundChannel, &l.ChannelMessageRef,
+				&l.RequestSummary, &l.OriginalContent, &services,
+				locScan(&l.ProjectLocation, "municipality"), locScan(&l.ProjectLocation, "province"),
+				locScan(&l.ProjectLocation, "autonomous_community"), locScan(&l.ProjectLocation, "country_code"),
+				locScan(&l.ProjectLocation, "location_text"),
+				&budget, &burC, &l.DesiredTiming,
+				&l.CompanyID, &contactName, &contactEmail, &contactPhone, &contactPurpose,
+				&aiServiceCat, &aiProjectScope, &aiLocationVal, &aiBudget, &aiTimingUrgency, &missing,
+				&aiCompanyMatch, &aiResponseDraft, &aiEval, &aiProfileVersion,
+				&missing, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &l.RetentionState,
+			)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
-		l.ReceivedAt = parseTime(received)
-		if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
-			return nil, fmt.Errorf("unmarshal requested_services: %w", err)
-		}
-		l.Budget = ptrF64(budget)
-		l.BudgetCurrency = burC
-		l.AIAssessment.Budget = ptrF64(aiBudget)
-		l.AIAssessment.EvaluatedAt = parseTime(aiEval.String)
-		if err := json.Unmarshal([]byte(missing), &l.MissingInformation); err != nil {
-			return nil, fmt.Errorf("unmarshal missing_information: %w", err)
-		}
-		l.PrivacyNotice = ptrBool(l.PrivacyNotice)
+						l.ReceivedAt = parseTime(received)
+				if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
+					return nil, fmt.Errorf("unmarshal requested_services: %w", err)
+				}
+				l.Budget = ptrF64(budget)
+				l.BudgetCurrency = burC
+
+				// Rebuild nested structs only when data is present.
+				if contactName.Valid || contactEmail.Valid || contactPhone.Valid || contactPurpose.Valid {
+					l.ContactInfo = &ContactInfo{}
+					if contactName.Valid {
+						l.ContactInfo.Name = &contactName.String
+					}
+					if contactEmail.Valid {
+						l.ContactInfo.Email = &contactEmail.String
+					}
+					if contactPhone.Valid {
+						l.ContactInfo.Phone = &contactPhone.String
+					}
+					if contactPurpose.Valid {
+						l.ContactInfo.Purpose = &contactPurpose.String
+					}
+				}
+				if aiServiceCat.Valid || aiProjectScope.Valid || aiLocationVal.Valid || aiTimingUrgency.Valid || aiCompanyMatch.Valid || aiResponseDraft.Valid || aiProfileVersion.Valid || aiBudget.Valid || aiEval.Valid {
+					l.AIAssessment = &InboundAIAssessment{}
+					if aiServiceCat.Valid {
+						l.AIAssessment.ServiceCategory = &aiServiceCat.String
+					}
+					if aiProjectScope.Valid {
+						l.AIAssessment.ProjectScope = &aiProjectScope.String
+					}
+					if aiLocationVal.Valid {
+						l.AIAssessment.Location = &aiLocationVal.String
+					}
+					if aiBudget.Valid {
+						v := aiBudget.Float64
+						l.AIAssessment.Budget = &v
+					}
+					if aiTimingUrgency.Valid {
+						l.AIAssessment.TimingUrgency = &aiTimingUrgency.String
+					}
+					if aiCompanyMatch.Valid {
+						l.AIAssessment.CompanyMatch = &aiCompanyMatch.String
+					}
+					if aiResponseDraft.Valid {
+						l.AIAssessment.ResponseDraft = &aiResponseDraft.String
+					}
+					if aiProfileVersion.Valid {
+						l.AIAssessment.ProfileVersion = aiProfileVersion.String
+					}
+					if aiEval.Valid {
+						l.AIAssessment.EvaluatedAt = parseTime(aiEval.String)
+					}
+				}
+				if err := json.Unmarshal([]byte(missing), &l.MissingInformation); err != nil {
+					return nil, fmt.Errorf("unmarshal missing_information: %w", err)
+				}
+				l.PrivacyNotice = ptrBool(l.PrivacyNotice)
 		out = append(out, &l)
 	}
 	return out, rows.Err()
@@ -904,17 +1050,61 @@ func ptrBool(i *int) *bool {
 	return &v
 }
 
-// ptrStr extracts a string pointer from an InboundAIAssessment or ContactInfo field.
+// ptrStr extracts a *string field from a struct by name using reflection.
+// Returns nil if obj is nil, field is missing, or the field is not a *string.
 func ptrStr(obj interface{}, field string) *string {
-	_ = obj
-	_ = field
+	if obj == nil {
+		return nil
+	}
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+	f := v.FieldByName(field)
+	if !f.IsValid() {
+		return nil
+	}
+	if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.String {
+		if f.IsNil() {
+			return nil
+		}
+		return f.Interface().(*string)
+	}
 	return nil
 }
 
-// ptrToIface returns a float64 pointer as an interface{}, or nil.
+// ptrToIface extracts a *float64 field from a struct by name using reflection.
+// Returns nil if obj is nil, field is missing, or not a *float64.
 func ptrToIface(obj interface{}, field string) interface{} {
-	_ = obj
-	_ = field
+	if obj == nil {
+		return nil
+	}
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+	f := v.FieldByName(field)
+	if !f.IsValid() {
+		return nil
+	}
+	if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Float64 {
+		if f.IsNil() {
+			return nil
+		}
+		return f.Interface()
+	}
 	return nil
 }
 
@@ -960,67 +1150,7 @@ return &v
 }
 
 // GetOpportunity returns a single opportunity by ID.
-func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, error) {
-var o Opportunity
-var fitProf, fitStatus, fitEval sql.NullString
-var valAmount sql.NullFloat64
-var valCurr, valBasis sql.NullString
-var pubAt, deadAt, vf, vu sql.NullString
-var firstSeen, lastSeen string
-var srcEvid string
-var dupGroup, reviewNote, demType, demNote sql.NullString
-err := s.db.QueryRowContext(ctx, `
-SELECT opportunity_id, company_id, title, summary, opportunity_type, status,
-municipality, province, autonomous_community, country_code, location_text,
-published_at, deadline_at, valid_from, valid_until,
-value_amount, value_currency, value_basis,
-fit_profile_version, fit_status, fit_evaluated_at,
-source_evidence_ids, first_seen_at, last_seen_at,
-duplicate_group_id, review_note,
-demand_evidence_type, demand_evidence_note
-FROM opportunities WHERE opportunity_id = ?`, o.OpportunityID).Scan(
-&o.OpportunityID, &o.CompanyID, &o.Title, &o.Summary, &o.OpportunityType, &o.Status,
-locScan(&o.Geography, "municipality"), locScan(&o.Geography, "province"),
-locScan(&o.Geography, "autonomous_community"), locScan(&o.Geography, "country_code"), locScan(&o.Geography, "location_text"),
-timeScan(&pubAt), timeScan(&deadAt), timeScan(&vf), timeScan(&vu),
-&valAmount, &valCurr, &valBasis,
-&fitProf, &fitStatus, &fitEval,
-&srcEvid, &firstSeen, &lastSeen,
-&dupGroup, &reviewNote,
-&demType, &demNote,
-)
-if err != nil {
-return nil, err
-}
-o.PublishedAt = parseTimePtr(pubAt)
-o.DeadlineAt = parseTimePtr(deadAt)
-o.ValidFrom = parseTimePtr(vf)
-o.ValidUntil = parseTimePtr(vu)
-if valAmount.Valid {
-v := valAmount.Float64
-o.Value = &OpportunityValue{Amount: &v}
-}
-o.Value.Currency = valCurr
-o.Value.Basis = valBasis
-if fitProf.Valid {
-o.FitAssessment = &FitAssessment{ProfileVersion: fitProf.String, FitStatus: fitStatus.String}
-if fitEval.Valid {
-o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
-}
-}
-if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
-return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
-}
-o.FirstSeenAt = parseTime(firstSeen)
-o.LastSeenAt = parseTime(lastSeen)
-o.DuplicateGroupID = dupGroup
-o.ReviewNote = reviewNote
-o.DemandEvidenceType = DemandEvidenceType(demType.String)
-o.DemandEvidenceNote = demNote
-return &o, nil
-}
 
-// ListCompanies returns all companies.
 func (s *Store) ListCompanies(ctx context.Context) ([]*Company, error) {
 rows, err := s.db.QueryContext(ctx, `
 SELECT company_id, name, normalized_name, website, domain, industry_tags,
@@ -1194,19 +1324,72 @@ func aiTime(a *InboundAIAssessment) *time.Time {
 }
 
 
+// GetInboundLead returns a single inbound lead by ID.
+func (s *Store) GetInboundLead(ctx context.Context, id string) (*InboundLead, error) {
+	leads, err := s.ListInboundLeads(ctx, "", 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range leads {
+		if l.LeadID == id {
+			return l, nil
+		}
+	}
+	return nil, fmt.Errorf("inbound lead not found: %s", id)
+}
 
+// GetCompany returns a single company by ID.
+func (s *Store) GetCompany(ctx context.Context, id string) (*Company, error) {
+	companies, err := s.ListCompanies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range companies {
+		if c.CompanyID == id {
+			return c, nil
+		}
+	}
+	return nil, fmt.Errorf("company not found: %s", id)
+}
 
+// GetSource returns a single source by ID.
+func (s *Store) GetSource(ctx context.Context, id string) (*Source, error) {
+	sources, err := s.ListSources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, src := range sources {
+		if src.SourceID == id {
+			return src, nil
+		}
+	}
+	return nil, fmt.Errorf("source not found: %s", id)
+}
 
+// GetResearchRun returns a single research run by ID.
+func (s *Store) GetResearchRun(ctx context.Context, id string) (*ResearchRun, error) {
+	runs, err := s.ListResearchRuns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range runs {
+		if r.RunID == id {
+			return r, nil
+		}
+	}
+	return nil, fmt.Errorf("research run not found: %s", id)
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
+// GetReviewDecision returns a single review decision by ID.
+func (s *Store) GetReviewDecision(ctx context.Context, id string) (*ReviewDecision, error) {
+	decisions, err := s.ListReviewDecisions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range decisions {
+		if d.DecisionID == id {
+			return d, nil
+		}
+	}
+	return nil, fmt.Errorf("review decision not found: %s", id)
+}

@@ -1,0 +1,148 @@
+diff --git a/internal/server/server.go b/internal/server/server.go
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/scrypster/huginn/internal/runtime"
+ 	"github.com/scrypster/huginn/internal/scheduler"
+ 	"github.com/scrypster/huginn/internal/session"
++	"github.com/scrypster/huginn/internal/valentina/internal/api"
+ 	"github.com/scrypster/huginn/internal/spaces"
+ 	"github.com/scrypster/huginn/internal/sqlitedb"
+ 	"github.com/scrypster/huginn/internal/stats"
+@@ -47,6 +48,7 @@ type Server struct {
+ 	connMgr        *connections.Manager
+ 	connStore      connections.StoreInterface
+ 	connProviders  map[connections.Provider]connections.IntegrationProvider
++	valentinaAPI   *api.Server
+ 	oauthLimiter   *flowRateLimiter
+ 	authLimiter    *authFailLimiter // per-server IP-based auth-failure rate limiter
+ 	credValidators *catalogpkg.Registry
+@@ -290,6 +292,25 @@ func (s *Server) SetMCPManager(mgr *mcp.ServerManager) {
+ 	s.mcpMgr = mgr
+ }
+ 
++// SetValentinaAPI wires the VALENTINA CRM API into the existing Huginn HTTP server.
++func (s *Server) SetValentinaAPI(a *api.Server) {
++	s.valentinaAPI = a
++}
++
++// apiMiddleware wraps a handler with the same logging, request-ID, auth, and
++// body-limit middleware used by all authenticated Huginn API endpoints.
++func (s *Server) apiMiddleware(h http.HandlerFunc) http.HandlerFunc {
++	return loggingMiddleware(requestIDMiddleware(s.authMiddleware(func(w http.ResponseWriter, r *http.Request) {
++		r.Body = http.MaxBytesReader(w, r.Body, 10<<20) // 10 MiB
++		h(w, r)
++	})))
++}
++
++// registerValentinaRoutes mounts the VALENTINA CRM API routes on the mux.
++func (s *Server) registerValentinaRoutes(mux *http.ServeMux) {
++	if s.valentinaAPI == nil {
++		return
++	}
++	for pattern, handler := range s.valentinaAPI.Routes() {
++		mux.HandleFunc(pattern, s.apiMiddleware(handler))
++	}
++}
++
+ // registerRoutes registers all HTTP routes on the mux.
+ func (s *Server) registerRoutes(mux *http.ServeMux) {
+ 	// withMaxBody applies a per-endpoint body size limit. Applied before the
+@@ -410,6 +431,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
+ 		mux.HandleFunc("GET /ws", s.handleWebSocket)
+ 
+ 		// Frontend SPA -- catch-all (must be last)
++		// VALENTINA CRM API routes (authenticated, logged, rate-limited)
++		s.registerValentinaRoutes(mux)
++
+ 		mux.Handle("/", http.FileServer(staticFS()))
+ 	}
+ }
+diff --git a/main.go b/main.go
+--- a/main.go
++++ b/main.go
+@@ -68,6 +68,8 @@ import (
+ 	"github.com/scrypster/huginn/internal/tools"
+ 	traypkg "github.com/scrypster/huginn/internal/tray"
+ 	"github.com/scrypster/huginn/internal/tui"
++	"github.com/scrypster/huginn/internal/valentina/internal/api"
++	"github.com/scrypster/huginn/internal/valentina/internal/domain"
+ 	"github.com/scrypster/huginn/internal/turnmetrics"
+ 	"github.com/scrypster/huginn/internal/workspace"
+ )
+@@ -4105,6 +4107,28 @@ func main() {
+         srv, token, cleanup, err := startServer(cfg)
+         if err != nil {
+                 fatalf("%v", err)
+         }
+         defer cleanup()
+ 
++        // VALENTINA CRM: initialize domain store and API server inside the
++        // existing Huginn server process. User data lives outside the
++        // executable install directory, under ~/.huginn/valentina/.
++        huginnHome, hErr := huginnDir()
++        if hErr != nil {
++                fatalf("huginn dir: %v", hErr)
++        }
++        valentinaDir := filepath.Join(huginnHome, "valentina")
++        if mErr := os.MkdirAll(valentinaDir, 0755); mErr != nil {
++                fatalf("valentina dir: %v", mErr)
++        }
++        valentinaDBPath := filepath.Join(valentinaDir, "valentina.db")
++        valentinaStore, dErr := domain.NewStore(context.Background(), valentinaDBPath)
++        if dErr != nil {
++                fatalf("valentina store: %v", dErr)
++        }
++        defer valentinaStore.Close()
++
++        crmAPI := api.NewServer(valentinaStore)
++        srv.SetValentinaAPI(crmAPI)
++
+         fmt.Printf("Huginn Web UI: http://%s\n", srv.Addr())
+         fmt.Printf("Auth token:    %s\n", token)
+
+diff --git a/web/src/utils/navLayout.ts b/web/src/utils/navLayout.ts
+--- a/web/src/utils/navLayout.ts
++++ b/web/src/utils/navLayout.ts
+@@ -11,6 +11,7 @@ export type AppSection =
+   | 'chat'
+   | 'agents'
+   | 'memory'
++  | 'crm'
+   | 'models'
+   | 'automation'
+   | 'connections'
+@@ -46,6 +47,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
+   'stats',        // analytics
+   'logs',
+   'settings',
++  'crm',          // VALENTINA CRM (opportunities, leads, companies, sources, research)
+   'agents',       // people
+   'connections',  // plugins
+   'skills',       // plugins / skill library
+@@ -74,7 +76,7 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
+     ],
+   },
+   {
+-    id: 'admin',
++    id: 'crm',
+     items: [
+       { section: 'opportunities', label: 'Opportunities', path: '/opportunities', icon: 'opportunities' },
+       { section: 'leads',         label: 'Incoming Leads',  path: '/leads',         icon: 'leads' },
+       { section: 'companies',     label: 'Companies',       path: '/companies',     icon: 'companies' },
+       { section: 'sources',       label: 'Sources',         path: '/sources',       icon: 'sources' },
+       { section: 'research',      label: 'Research',        path: '/research',      icon: 'research' },
+     ],
+   },
+   {
+     id: 'admin',
+     items: [
+       { section: 'agents',      label: 'Agents',       path: '/agents',         icon: 'agents' },
+       { section: 'memory',      label: 'Memory',       path: '/memory',         icon: 'memory' },
+       { section: 'models',      label: 'Models',       path: '/models',         icon: 'models' },
+       { section: 'automation',  label: 'Automation',   path: '/workflows',      icon: 'automation' },
+       { section: 'connections', label: 'Connections',  path: '/connections',    icon: 'connections' },
+       { section: 'skills',      label: 'Skills',       path: '/skills/browse',  icon: 'skills' },
+       { section: 'settings',    label: 'Settings',     path: '/settings',       icon: 'settings' },
+     ],
+   },

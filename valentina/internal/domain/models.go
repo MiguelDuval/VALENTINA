@@ -161,15 +161,6 @@ type Opportunity struct {
 	DemandEvidenceNote  *string            `json:"demand_evidence_note,omitempty"`
 }
 
-// Location represents a geographic location.
-type Location struct {
-	Municipality         *string `json:"municipality,omitempty"`
-	Province             *string `json:"province,omitempty"`
-	AutonomousCommunity  *string `json:"autonomous_community,omitempty"`
-	CountryCode          *string `json:"country_code,omitempty"`
-	LocationText         *string `json:"location_text,omitempty"`
-}
-
 // SourceEvidence records one observation of one page/document.
 type SourceEvidence struct {
 	EvidenceID       string         `json:"evidence_id"`
@@ -283,6 +274,35 @@ func NewRunID() string { return ulid.Make().String() }
 
 // NewDecisionID generates a stable review decision ID.
 func NewDecisionID() string { return uuid.New().String() }
+
+// EnsureID assigns a generated ID when the caller left it empty. Must be called
+// before Validate so that a missing ID never fails validation.
+func (o *Opportunity) EnsureID() {
+	if o.OpportunityID == "" {
+		o.OpportunityID = NewOpportunityID()
+	}
+}
+
+// EnsureID assigns a generated ID when the caller left it empty. Must be called
+// before Validate so that a missing ID never fails validation.
+func (l *InboundLead) EnsureID() {
+	if l.LeadID == "" {
+		l.LeadID = NewLeadID()
+	}
+}
+
+// EnsureID assigns a generated ID when the caller left it empty.
+func (c *Company) EnsureID() {
+	if c.CompanyID == "" {
+		c.CompanyID = NewCompanyID()
+	}
+}
+
+// EnsureID assigns a generated ID when the caller left it empty.
+func (s *Source) EnsureID() {
+	if s.SourceID == "" {
+		s.SourceID = NewRunID()
+	}
 
 // NormalizeCompanyName produces a deterministic normalized company name.
 func NormalizeCompanyName(name string) string {

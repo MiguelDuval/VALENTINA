@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -26,13 +26,31 @@ func NewServer(store *domain.Store) *Server {
 	}
 }
 
+// maxRequestBody is the maximum allowed request body size (1 MB).
+const maxRequestBody = 1 << 20
+
 // withJSON parses a JSON request body into the given target.
+// It enforces a body limit and rejects documents with trailing data after the
+// first JSON value (e.g. a second JSON object).
 func withJSON(r *http.Request, target interface{}) error {
 	if r.Body == nil {
 		return errors.New("request body is empty")
 	}
 	defer r.Body.Close()
-	return json.NewDecoder(r.Body).Decode(target)
+	body := io.LimitReader(r.Body, maxRequestBody)
+	dec := json.NewDecoder(body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(target); err != nil {
+		if err == io.EOF {
+			return errors.New("request body is empty")
+		}
+		return err
+	}
+	// Reject a second JSON value/object after the first.
+	if dec.More() {
+		return errors.New("request body contains multiple JSON objects")
+	}
+	return nil
 }
 
 // writeJSON sends a JSON response.
@@ -44,7 +62,7 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	}
 }
 
-// writeError sends a JSON error response.
+// writeError sends a JSON error response without leaking SQL details.
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }
@@ -103,8 +121,16 @@ func (s *Server) handleCreateOpportunity(w http.ResponseWriter, r *http.Request)
 // handleGetOpportunity returns a single opportunity by ID.
 func (s *Server) handleGetOpportunity(w http.ResponseWriter, r *http.Request) {
 	id := pathValue(r, "id")
-	if id == "" {`n`t\twriteError(w, http.StatusBadRequest, "missing opportunity id")`n`t\treturn`n\t}`n\topp, err := s.store.GetOpportunity(r.Context(), id)`n\tif err != nil {`n`t\twriteError(w, http.StatusNotFound, err.Error())`n`t\treturn`n\t}`n\twriteJSON(w, http.StatusOK, opp)`n}
-	writeError(w, http.StatusNotImplemented, "not implemented")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing opportunity id")
+		return
+	}
+	opp, err := s.store.GetOpportunity(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "opportunity not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, opp)
 }
 
 // handleListLeads lists inbound leads with optional status filter.
@@ -134,16 +160,29 @@ func (s *Server) handleCreateLead(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, body)
 }
 
-// handleGetLead returns a single lead by ID.
+// handleGetLead returns a single inbound lead by ID.
 func (s *Server) handleGetLead(w http.ResponseWriter, r *http.Request) {
 	id := pathValue(r, "id")
-	if id == "" {`n`t\twriteError(w, http.StatusBadRequest, "missing opportunity id")`n`t\treturn`n\t}`n\topp, err := s.store.GetOpportunity(r.Context(), id)`n\tif err != nil {`n`t\twriteError(w, http.StatusNotFound, err.Error())`n`t\treturn`n\t}`n\twriteJSON(w, http.StatusOK, opp)`n}
-	writeError(w, http.StatusNotImplemented, "not implemented")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing lead id")
+		return
+	}
+	lead, err := s.store.GetInboundLead(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "lead not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, lead)
 }
 
 // handleListCompanies lists companies.
 func (s *Server) handleListCompanies(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]interface{}{"companies": []interface{}{}, "count": 0})
+	companies, err := s.store.ListCompanies(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list companies")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"companies": companies, "count": len(companies)})
 }
 
 // handleCreateCompany creates a new company.
@@ -162,7 +201,12 @@ func (s *Server) handleCreateCompany(w http.ResponseWriter, r *http.Request) {
 
 // handleListSources lists sources.
 func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]interface{}{"sources": []interface{}{}, "count": 0})
+	sources, err := s.store.ListSources(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list sources")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"sources": sources, "count": len(sources)})
 }
 
 // handleCreateSource creates a new source.
@@ -181,7 +225,12 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 
 // handleListResearchRuns lists research runs.
 func (s *Server) handleListResearchRuns(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]interface{}{"runs": []interface{}{}, "count": 0})
+	runs, err := s.store.ListResearchRuns(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list research runs")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"runs": runs, "count": len(runs)})
 }
 
 // handleCreateResearchRun creates a new research run.
@@ -200,7 +249,12 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 
 // handleListReviewDecisions lists review decisions.
 func (s *Server) handleListReviewDecisions(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]interface{}{"decisions": []interface{}{}, "count": 0})
+	decisions, err := s.store.ListReviewDecisions(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list review decisions")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"decisions": decisions, "count": len(decisions)})
 }
 
 // handleCreateReviewDecision creates a new review decision.
@@ -239,8 +293,6 @@ func pathValue(r *http.Request, key string) string {
 	}
 	return ""
 }
-
-var _ = fmt.Sprintf
 
 
 

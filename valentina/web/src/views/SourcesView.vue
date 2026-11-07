@@ -4,6 +4,7 @@
       <h1 class="valentina-page-title">Источники</h1>
       <p class="valentina-page-subtitle">Утвержденные источники сбора данных и их состояние</p>
     </div>
+    <div v-if="error" class="valentina-error">{{ error }}</div>
     <div class="valentina-sources-content">
       <div v-if="loading" class="valentina-loading">Загрузка...</div>
       <div v-else-if="sources.length === 0" class="valentina-empty">Нет утвержденных источников. Источники добавляются вручную через реестр источников.</div>
@@ -11,9 +12,9 @@
         <div v-for="s in sources" :key="s.source_id" class="valentina-source-card">
           <div class="valentina-card-title">{{ s.name }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ s.source_type }}</div>
-            <span class="valentina-badge" :class="`valentina-approval-${s.approval_status}`">{{ s.approval_status }}</div>
-            <span class="valentina-cell-url">{{ s.base_url }}</div>
+            <span class="valentina-badge">{{ s.source_type }}</span>
+            <span class="valentina-badge" :class="`valentina-approval-${s.approval_status}`">{{ s.approval_status }}</span>
+            <span class="valentina-cell-url">{{ s.base_url }}</span>
           </div>
           <div class="valentina-card-publisher">{{ s.publisher }}</div>
         </div>
@@ -24,17 +25,20 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { apiFetch } from '../composables/useApi'
 
 const loading = ref(false)
+const error = ref(null)
 const sources = ref([])
 
 const load = async () => {
   loading.value = true
+  error.value = null
   try {
-    const res = await fetch('/api/v1/valentina/sources')
-    const data = await res.json()
-    sources.value = data.sources || []
+    const res = await apiFetch('/api/v1/valentina/sources')
+    sources.value = res.sources || []
   } catch (e) {
+    error.value = 'Не удалось загрузить источники'
     console.error(e)
   } finally {
     loading.value = false
@@ -72,4 +76,5 @@ onMounted(load)
 .valentina-approval-pending_review { background: var(--valentina-amber); color: #001a14; }
 .valentina-approval-blocked { background: var(--valentina-red); color: #ffffff; }
 .valentina-approval-paused { background: var(--valentina-muted); color: #ffffff; }
+.valentina-error { padding: 16px; color: var(--valentina-red); background: rgba(255,126,136,0.1); border-radius: 6px; margin-bottom: 16px; }
 </style>

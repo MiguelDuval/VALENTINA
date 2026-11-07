@@ -11,8 +11,8 @@
         <div v-for="c in companies" :key="c.company_id" class="valentina-company-card">
           <div class="valentina-card-title">{{ c.name }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ c.domain || '—' }}</div>
-            <span class="valentina-cell-location">{{ c.location?.municipality || '—' }}</div>
+            <span class="valentina-badge">{{ c.domain || '—' }}</span>
+            <span class="valentina-cell-location">{{ c.location?.municipality || '—' }}</span>
           </div>
           <div class="valentina-card-industries">
             <span v-for="(t, i) in c.industry_tags" :key="i" class="valentina-tag">{{ t }}</div>

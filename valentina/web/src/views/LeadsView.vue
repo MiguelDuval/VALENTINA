@@ -5,15 +5,16 @@
       <p class="valentina-page-subtitle">Клиентские запросы, поступившие через каналы связи бизнеса</p>
     </div>
     <div class="valentina-leads-content">
-      <div v-if="loading" class="valentina-loading">Загрузка...</div>
+      <div v-if="error" class="valentina-error">{{ error }}</div>
+    <div v-if="loading" class="valentina-loading">Загрузка...</div>
       <div v-else-if="leads.length === 0" class="valentina-empty">Нет входящих заявок. Добавьте заявку вручную.</div>
       <div v-else class="valentina-list">
         <div v-for="l in filtered" :key="l.lead_id" class="valentina-lead-card">
           <div class="valentina-card-title">{{ l.request_summary }}</div>
           <div class="valentina-card-meta">
-            <span class="valentina-badge">{{ l.inbound_channel }}</div>
-            <span class="valentina-badge">{{ statusLabel(l.status) }}</div>
-            <span class="valentina-cell-date">{{ formatDate(l.received_at) }}</div>
+            <span class="valentina-badge">{{ l.inbound_channel }}</span>
+            <span class="valentina-badge">{{ statusLabel(l.status) }}</span>
+            <span class="valentina-cell-date">{{ formatDate(l.received_at) }}</span>
           </div>
           <div class="valentina-card-summary">{{ l.request_summary }}</div>
         </div>
@@ -24,9 +25,11 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { apiFetch } from '../composables/useApi'
 
 const filterStatus = ref('')
 const loading = ref(false)
+const error = ref(null)
 const leads = ref([])
 
 const statusLabels = {
@@ -50,11 +53,12 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU') : '—'
 
 const load = async () => {
   loading.value = true
+  error.value = null
   try {
-    const res = await fetch('/api/v1/valentina/leads')
-    const data = await res.json()
-    leads.value = data.leads || []
+    const res = await apiFetch('/api/v1/valentina/leads')
+    leads.value = res.leads || []
   } catch (e) {
+    error.value = 'Не удалось загрузить заявки'
     console.error(e)
   } finally {
     loading.value = false
@@ -93,5 +97,6 @@ onMounted(load)
 .valentina-badge.declined { background: var(--valentina-red); color: #ffffff; }
 .valentina-badge.spam { background: var(--valentina-muted); color: #ffffff; }
 .valentina-badge.converted { background: var(--valentina-violet); color: #ffffff; }
+.valentina-error { padding: 16px; color: var(--valentina-red); background: rgba(255,126,136,0.1); border-radius: 6px; margin-bottom: 16px; }
 </style>
 
