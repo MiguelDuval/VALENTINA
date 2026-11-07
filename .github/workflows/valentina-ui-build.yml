@@ -19,8 +19,6 @@ on:
       - "audit/**"
   workflow_dispatch:
 
-# Do not cancel a build already in progress. Each successful commit gets a
-# SHA-labelled artifact; failed or cancelled runs never upload one.
 concurrency:
   group: valentina-windows-build
   cancel-in-progress: false
@@ -39,25 +37,21 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: upstream/huginn/go.mod
+          go-version: '1.25.0'
           cache: false
-
       - name: Patch, test and build
         shell: pwsh
         run: |
           ./scripts/build-valentina.ps1 -Profile Full -OutputDirectory ./dist
           if (-not (Test-Path ./dist/package/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/package/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
-
       - name: Compute EXE SHA256
         shell: pwsh
         run: |
@@ -69,7 +63,6 @@ jobs:
           Write-Host "EXE_SIZE=$size"
           "EXE_SHA256=$sha" >> $env:GITHUB_ENV
           "EXE_SIZE=$size" >> $env:GITHUB_ENV
-
       - name: Upload VALENTINA Windows artifact
         if: success()
         uses: actions/upload-artifact@v4
@@ -79,7 +72,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
-
       - name: Job summary
         if: always()
         shell: pwsh
