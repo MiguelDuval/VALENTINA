@@ -1,5 +1,5 @@
 diff --git a/internal/server/server.go b/internal/server/server.go
-index 6ee6359..c7394a6 100644
+index 6ee6359..b4ceb7c 100644
 --- a/internal/server/server.go
 +++ b/internal/server/server.go
 @@ -26,6 +26,7 @@ import (
@@ -10,37 +10,21 @@ index 6ee6359..c7394a6 100644
  	"github.com/scrypster/huginn/internal/spaces"
  	"github.com/scrypster/huginn/internal/sqlitedb"
  	"github.com/scrypster/huginn/internal/stats"
-@@ -155,6 +156,10 @@ type Server struct {
+@@ -155,6 +156,9 @@ type Server struct {
  	// label never renders blank, even on a plain `go build` without -ldflags.
  	version string
  
-+	// valentinaAPI is the VALENTINA CRM API handler, injected before server start
-+	// so CRM routes are registered during registerRoutes().
++	// valentinaAPI is the VALENTINA CRM API handler
 +	valentinaAPI *valentinaapi.Server
 +
  	// vaultProberFn probes MCP vault connectivity for handleVaultTest.
  	// When nil the production implementation (agent.ProbeVaultConnectivity) is used.
  	// Tests override this to avoid real network connections.
-@@ -978,6 +983,14 @@ func (s *Server) SetVersion(v string) {
- 	s.version = v
- }
- 
-+// SetValentinaAPI injects the VALENTINA CRM API handler so that CRM routes
-+// are registered during registerRoutes(). Must be called before Start().
-+func (s *Server) SetValentinaAPI(api *valentinaapi.Server) {
-+	s.mu.Lock()
-+	defer s.mu.Unlock()
-+	s.valentinaAPI = api
-+}
-+
- // SetMuninnConfigPath sets the path to the muninn.json global config.
- func (s *Server) SetMuninnConfigPath(path string) {
- 	s.mu.Lock()
-@@ -1439,6 +1452,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
+@@ -1439,6 +1443,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
  	// WebSocket
  	mux.HandleFunc("GET /ws", s.handleWebSocket)
  
-+	// VALENTINA CRM API routes (authenticated, same middleware as other API routes)
++	// VALENTINA CRM API routes
 +	if s.valentinaAPI != nil {
 +		for pattern, handler := range s.valentinaAPI.Routes() {
 +			mux.HandleFunc(pattern, api(handler))
@@ -51,7 +35,7 @@ index 6ee6359..c7394a6 100644
  	mux.Handle("/", http.FileServer(staticFS()))
  }
 diff --git a/main.go b/main.go
-index 7df33d2..5f7bf13 100644
+index 7df33d2..cb69d2d 100644
 --- a/main.go
 +++ b/main.go
 @@ -55,6 +55,8 @@ import (
@@ -63,11 +47,10 @@ index 7df33d2..5f7bf13 100644
  	"github.com/scrypster/huginn/internal/stats"
  	"github.com/scrypster/huginn/internal/storage"
  	"github.com/scrypster/huginn/internal/symbol"
-@@ -3758,6 +3760,30 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
- 	// the profile popover footer, and Settings → About.
+@@ -3759,7 +3761,32 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
  	srv.SetVersion(version)
  
-+	ctx := context.Background()
+ 	ctx := context.Background()
 +	var valentinaStore *domain.Store
 +
 +	// VALENTINA CRM initialization
@@ -89,12 +72,14 @@ index 7df33d2..5f7bf13 100644
 +		cleanupFns = append(cleanupFns, func() { _ = valentinaStore.Close() })
 +	}
 +
--	ctx := context.Background()
  	if err := srv.Start(ctx); err != nil {
 +		if valentinaStore != nil {
 +			_ = valentinaStore.Close()
 +		}
++		return nil, "", nil, fmt.Errorf("server start: %w", err)
  		return nil, "", nil, fmt.Errorf("server start: %w", err)
+ 	}
+ 	orch.StartSessionCleanup(ctx)
 diff --git a/web/src/router/index.ts b/web/src/router/index.ts
 index 789a055..1b2c389 100644
 --- a/web/src/router/index.ts
@@ -124,7 +109,7 @@ index 789a055..1b2c389 100644
    ],
  })
 diff --git a/web/src/utils/navLayout.ts b/web/src/utils/navLayout.ts
-index 7bdb706..9669b33 100644
+index 7bdb706..f8d1744 100644
 --- a/web/src/utils/navLayout.ts
 +++ b/web/src/utils/navLayout.ts
 @@ -22,6 +22,7 @@ export type AppSection =
@@ -143,16 +128,3 @@ index 7bdb706..9669b33 100644
  ]
  
  export type NavGroupId = 'chat' | 'admin' | 'logs'
-@@ -92,6 +94,11 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
-       { section: 'connections', label: 'Connections',  path: '/connections',    icon: 'connections' },
-       { section: 'skills',      label: 'Skills',       path: '/skills/browse',  icon: 'skills' },
-       { section: 'settings',    label: 'Settings',     path: '/settings',       icon: 'settings' },
-+      { section: 'crm',         label: 'Opportunities', path: '/valentina/opportunities', icon: 'crm' },
-+      { section: 'crm',         label: 'Incoming Leads', path: '/valentina/leads',         icon: 'crm' },
-+      { section: 'crm',         label: 'Companies', path: '/valentina/companies',     icon: 'crm' },
-+      { section: 'crm',         label: 'Sources', path: '/valentina/sources',       icon: 'crm' },
-+      { section: 'crm',         label: 'Research', path: '/valentina/research',      icon: 'crm' },
-     ],
-   },
-   {
-   {
