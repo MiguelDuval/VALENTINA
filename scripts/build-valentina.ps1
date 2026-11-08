@@ -41,20 +41,20 @@ $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGui
 $copy = Join-Path $tmp "source"
 New-Item -ItemType Directory -Path $copy -Force | Out-Null
 try {
-    Write-Host "Copying upstream to $copy" -ForegroundColor Cyan
+    Write-Host "DEBUG: Step 1 - Copying upstream" -ForegroundColor Cyan; Write-Host "Copying upstream to $copy" -ForegroundColor Cyan
     & robocopy $Upstream $copy /E /XD .git /XF .git /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -gt 7) { Throw-Error "$1" }
     & git -C $copy init --quiet
     if ($LASTEXITCODE -ne 0) { Throw-Error "$1" }
     foreach ($patch in $patches) {
-        Write-Host "Applying patch: $patch" -ForegroundColor Cyan
+        Write-Host "DEBUG: Step 3 - Applying patch: $patch" -ForegroundColor Cyan; Write-Host "Applying patch: $patch" -ForegroundColor Cyan
         & git -C $copy apply --check $patch
         if ($LASTEXITCODE -ne 0) { Throw-Error "$1" }
         & git -C $copy apply $patch
         if ($LASTEXITCODE -ne 0) { Throw-Error "$1" }
     }
     if ($Profile -eq "Full") {
-        Write-Host "Copying CRM Go source and Vue views for Full profile" -ForegroundColor Cyan
+        Write-Host "DEBUG: Step 5 - Copying CRM sources" -ForegroundColor Cyan; Write-Host "Copying CRM Go source and Vue views for Full profile" -ForegroundColor Cyan
         $destValentina = Join-Path $copy "internal\valentina"
         New-Item -ItemType Directory -Path $destValentina -Force | Out-Null
         $destDomain = Join-Path $destValentina "domain"
@@ -72,7 +72,7 @@ try {
         Write-Host "CRM sources copied successfully." -ForegroundColor Green
     }
     $webDir = Join-Path $copy "web"
-    Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
+    Write-Host "DEBUG: Step 6 - npm ci" -ForegroundColor Cyan; Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
     Push-Location $webDir
     & npm ci --no-audit --no-fund 2>&1
     $npmCiExitCode = $LASTEXITCODE
@@ -82,7 +82,7 @@ try {
     if (Test-Path "package.json") {
         $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
         if ($pkg.scripts -and $pkg.scripts.PSObject.Properties.Name -contains "test") {
-            Write-Host "Running frontend tests..." -ForegroundColor Cyan
+            Write-Host "DEBUG: Step 7 - npm test" -ForegroundColor Cyan; Write-Host "Running frontend tests..." -ForegroundColor Cyan
             & npm test 2>&1
             $frontendTestExitCode = $LASTEXITCODE
             Pop-Location
@@ -95,23 +95,23 @@ try {
         Pop-Location
     }
     Push-Location $webDir
-    Write-Host "Running Vue typecheck..." -ForegroundColor Cyan
+    Write-Host "DEBUG: Step 8 - vue-tsc" -ForegroundColor Cyan; Write-Host "Running Vue typecheck..." -ForegroundColor Cyan
     & npx vue-tsc -b 2>&1
     $vueTypecheckExitCode = $LASTEXITCODE
     Pop-Location
     if ($vueTypecheckExitCode -ne 0) { Throw-Error "$1" }
     Write-Host "Vue typecheck passed." -ForegroundColor Green
     Push-Location $webDir
-    Write-Host "Running frontend production build..." -ForegroundColor Cyan
+    Write-Host "DEBUG: Step 9 - npm run build" -ForegroundColor Cyan; Write-Host "Running frontend production build..." -ForegroundColor Cyan
     & npm run build 2>&1
     $frontendBuildExitCode = $LASTEXITCODE
     Pop-Location
     if ($frontendBuildExitCode -ne 0) { Throw-Error "$1" }
     Write-Host "Frontend production build passed." -ForegroundColor Green
-    Write-Host "All patches applied successfully." -ForegroundColor Green
+    Write-Host "DEBUG: Step 4 - Patches applied" -ForegroundColor Green; Write-Host "All patches applied successfully." -ForegroundColor Green
     Push-Location $copy
     if ($Profile -eq "Full") {
-        Write-Host "Running Go domain tests..." -ForegroundColor Cyan
+        Write-Host "DEBUG: Step 10 - Go domain tests" -ForegroundColor Cyan; Write-Host "Running Go domain tests..." -ForegroundColor Cyan
         & go test ./internal/valentina/... 2>&1
         $goDomainTestExitCode = $LASTEXITCODE
         if ($goDomainTestExitCode -ne 0) { Throw-Error "$1" }
@@ -124,7 +124,7 @@ try {
     } else {
         Write-Host "Skipping Go tests (Foundation profile)" -ForegroundColor Yellow
     }
-    Write-Host "Compiling Windows executable..." -ForegroundColor Cyan
+    Write-Host "DEBUG: Step 11 - Go build" -ForegroundColor Cyan; Write-Host "Compiling Windows executable..." -ForegroundColor Cyan
     & go build -tags embed_frontend -o "$packageDir/VALENTINA.exe" 2>&1
     $exeBuildExitCode = $LASTEXITCODE
     Pop-Location
