@@ -49,7 +49,7 @@ jobs:
       - name: Patch, test and build
         shell: pwsh
         run: |
-          ./scripts/build-valentina.ps1 -Profile Foundation -OutputDirectory ./dist
+          ./scripts/build-valentina.ps1 -Profile Full -OutputDirectory ./dist
           if (-not (Test-Path ./dist/package/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/package/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
       - name: Compute EXE SHA256
