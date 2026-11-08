@@ -6,7 +6,7 @@
     </div>
     <div class="valentina-leads-content">
       <div v-if="error" class="valentina-error">{{ error }}</div>
-    <div v-if="loading" class="valentina-loading">Загрузка...</div>
+    <div v-else-if="loading" class="valentina-loading">Загрузка...</div>
       <div v-else-if="leads.length === 0" class="valentina-empty">Нет входящих заявок. Добавьте заявку вручную.</div>
       <div v-else class="valentina-list">
         <div v-for="l in filtered" :key="l.lead_id" class="valentina-lead-card">

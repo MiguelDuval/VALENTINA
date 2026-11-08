@@ -6,7 +6,7 @@
     </div>
     <div class="valentina-companies-content">
       <div v-if="error" class="valentina-error">{{ error }}</div>
-      <div v-if="loading" class="valentina-loading">Загрузка...</div>
+      <div v-else-if="loading" class="valentina-loading">Загрузка...</div>
       <div v-else-if="companies.length === 0" class="valentina-empty">Нет компаний. Добавьте компанию вручную.</div>
       <div v-else class="valentina-list">
         <div v-for="c in companies" :key="c.company_id" class="valentina-company-card">
@@ -16,7 +16,7 @@
             <span class="valentina-cell-location">{{ c.location?.municipality || '—' }}</span>
           </div>
           <div class="valentina-card-industries">
-            <span v-for="(t, i) in c.industry_tags" :key="i" class="valentina-tag">{{ t }}</div>
+            <span v-for="(t, i) in c.industry_tags" :key="i" class="valentina-tag">{{ t }}</span>
           </div>
         </div>
       </div>
