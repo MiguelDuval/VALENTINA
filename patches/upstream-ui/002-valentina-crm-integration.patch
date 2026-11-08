@@ -144,14 +144,15 @@ index 7bdb706..9669b33 100644
  
  export type NavGroupId = 'chat' | 'admin' | 'logs'
 @@ -92,6 +94,11 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
-       { section: 'connections', label: '╨Я╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╤П',  path: '/connections',    icon: 'connections' },
-       { section: 'skills',      label: '╨Э╨░╨▓╤Л╨║╨╕',       path: '/skills/browse',  icon: 'skills' },
-       { section: 'settings',    label: '╨Э╨░╤Б╤В╤А╨╛╨╣╨║╨╕',    path: '/settings',       icon: 'settings' },
-+      { section: 'crm',         label: '╨Т╨╛╨╖╨╝╨╛╨╢╨╜╨╛╤Б╤В╨╕',  path: '/valentina/opportunities', icon: 'crm' },
-+      { section: 'crm',         label: '╨Ч╨░╤П╨▓╨║╨╕',       path: '/valentina/leads',         icon: 'crm' },
-+      { section: 'crm',         label: '╨Ъ╨╛╨╝╨┐╨░╨╜╨╕╨╕',     path: '/valentina/companies',     icon: 'crm' },
-+      { section: 'crm',         label: '╨Ш╤Б╤В╨╛╤З╨╜╨╕╨║╨╕',    path: '/valentina/sources',       icon: 'crm' },
-+      { section: 'crm',         label: '╨Ш╤Б╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╤П', path: '/valentina/research',      icon: 'crm' },
+       { section: 'connections', label: 'Connections',  path: '/connections',    icon: 'connections' },
+       { section: 'skills',      label: 'Skills',       path: '/skills/browse',  icon: 'skills' },
+       { section: 'settings',    label: 'Settings',     path: '/settings',       icon: 'settings' },
++      { section: 'crm',         label: 'Opportunities', path: '/valentina/opportunities', icon: 'crm' },
++      { section: 'crm',         label: 'Incoming Leads', path: '/valentina/leads',         icon: 'crm' },
++      { section: 'crm',         label: 'Companies', path: '/valentina/companies',     icon: 'crm' },
++      { section: 'crm',         label: 'Sources', path: '/valentina/sources',       icon: 'crm' },
++      { section: 'crm',         label: 'Research', path: '/valentina/research',      icon: 'crm' },
      ],
    },
+   {
    {
