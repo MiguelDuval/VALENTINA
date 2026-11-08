@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import OpportunitiesView from '../OpportunitiesView.vue'
 import LeadsView from '../LeadsView.vue'
 import CompaniesView from '../CompaniesView.vue'
 import SourcesView from '../SourcesView.vue'
 import ResearchView from '../ResearchView.vue'
+import { apiFetch } from '../composables/useApi'
 
 // Mock apiFetch composable
 vi.mock('../composables/useApi', () => ({
@@ -20,7 +21,7 @@ vi.mock('../composables/useApi', () => ({
 }))
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createMemoryHistory(),
   routes: [
     { path: '/opportunities', component: OpportunitiesView },
     { path: '/leads', component: LeadsView },
@@ -124,16 +125,19 @@ describe('SourcesView', () => {
     expect(wrapper.text()).toContain('Источники')
   })
 
-  it('shows pending review approval state', () => {
+  it('shows pending review approval state', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      sources: [{ source_id: 's1', name: 'Test', source_type: 'public', base_url: 'https://example.com', publisher: 'Pub', approval_status: 'pending_review' }],
+      count: 1
+    })
+    
     const wrapper = mount(SourcesView, {
       global: { plugins: [router] },
-      data: () => ({
-        sources: [
-          { source_id: 's1', name: 'Test', source_type: 'public', base_url: 'https://example.com', publisher: 'Pub', approval_status: 'pending_review' },
-        ],
-        loading: false,
-      }),
     })
+    
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await wrapper.vm.$nextTick()
+    
     expect(wrapper.text()).toContain('pending_review')
   })
 })
