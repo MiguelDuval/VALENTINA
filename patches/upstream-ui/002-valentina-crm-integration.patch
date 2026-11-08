@@ -6,7 +6,7 @@ index 6ee6359..c7394a6 100644
  	"github.com/scrypster/huginn/internal/runtime"
  	"github.com/scrypster/huginn/internal/scheduler"
  	"github.com/scrypster/huginn/internal/session"
-+	"github.com/scrypster/huginn/internal/valentina/api"
++	valentinaapi "github.com/scrypster/huginn/internal/valentina/api"
  	"github.com/scrypster/huginn/internal/spaces"
  	"github.com/scrypster/huginn/internal/sqlitedb"
  	"github.com/scrypster/huginn/internal/stats"
@@ -16,7 +16,7 @@ index 6ee6359..c7394a6 100644
  
 +	// valentinaAPI is the VALENTINA CRM API handler, injected before server start
 +	// so CRM routes are registered during registerRoutes().
-+	valentinaAPI *api.Server
++	valentinaAPI *valentinaapi.Server
 +
  	// vaultProberFn probes MCP vault connectivity for handleVaultTest.
  	// When nil the production implementation (agent.ProbeVaultConnectivity) is used.
@@ -27,7 +27,7 @@ index 6ee6359..c7394a6 100644
  
 +// SetValentinaAPI injects the VALENTINA CRM API handler so that CRM routes
 +// are registered during registerRoutes(). Must be called before Start().
-+func (s *Server) SetValentinaAPI(api *api.Server) {
++func (s *Server) SetValentinaAPI(api *valentinaapi.Server) {
 +	s.mu.Lock()
 +	defer s.mu.Unlock()
 +	s.valentinaAPI = api
@@ -58,7 +58,7 @@ index 7df33d2..5f7bf13 100644
  	"github.com/scrypster/huginn/internal/skills"
  	"github.com/scrypster/huginn/internal/spaces"
  	"github.com/scrypster/huginn/internal/sqlitedb"
-+	"github.com/scrypster/huginn/internal/valentina/api"
++	valentinaapi "github.com/scrypster/huginn/internal/valentina/api"
 +	"github.com/scrypster/huginn/internal/valentina/domain"
  	"github.com/scrypster/huginn/internal/stats"
  	"github.com/scrypster/huginn/internal/storage"
@@ -84,7 +84,7 @@ index 7df33d2..5f7bf13 100644
 +			return nil, "", nil, fmt.Errorf("valentina store: %w", err)
 +		}
 +		valentinaStore = store
-+		crmAPI := api.NewServer(valentinaStore)
++		crmAPI := valentinaapi.NewServer(valentinaStore)
 +		srv.SetValentinaAPI(crmAPI)
 +		cleanupFns = append(cleanupFns, func() { _ = valentinaStore.Close() })
 +	}
