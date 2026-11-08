@@ -6,6 +6,21 @@ param(
     [string]$OutputDirectory = ""
 )
 $ErrorActionPreference = "Stop"
+
+trap {
+    Write-Host "UNHANDLED ERROR: $_" -ForegroundColor Red
+    if ($env:GITHUB_STEP_SUMMARY) {
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Build Error"
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Error: $_"
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Profile: $Profile"
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Commit: $sourceCommitSha"
+    }
+    exit 1
+}
+
 $validationResults = @{}
 function Throw-BuildError([string]$message) {
     Write-Host "BUILD ERROR: $message" -ForegroundColor Red
