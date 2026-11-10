@@ -50,17 +50,9 @@ jobs:
       - name: Patch, test and build
         shell: pwsh
         run: |
-          ./scripts/build-valentina.ps1 -Profile Full -OutputDirectory ./dist 2>&1 | Tee-Object -FilePath build-debug.log
+          ./scripts/build-valentina.ps1 -Profile Full -OutputDirectory ./dist
           if (-not (Test-Path ./dist/package/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/package/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
-      - name: Upload debug log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-debug-log-${{ github.sha }}
-          path: build-debug.log
-          if-no-files-found: warn
-          retention-days: 30
       - name: Compute EXE SHA256
         shell: pwsh
         run: |

@@ -1466,6 +1466,129 @@ out = append(out, &c)
 return out, rows.Err()
 }
 
+// ListSources returns all sources.
+func (s *Store) ListSources(ctx context.Context) ([]*Source, error) {
+rows, err := s.db.QueryContext(ctx, `
+SELECT source_id, name, publisher, source_type, base_url, allowed_hosts,
+allowed_path_prefixes, terms_url, terms_reviewed_at, robots_reviewed_at,
+approval_status, approval_reason, retrieval_method, adapter_id, adapter_version,
+authentication_required, credential_reference, minimum_interval_seconds,
+max_parallel_requests, daily_request_limit, timeout_seconds, max_response_bytes,
+allowed_fields, prohibited_fields, languages, expected_update_frequency,
+last_reviewed_at, notes
+FROM sources ORDER BY name`)
+if err != nil {
+return nil, err
+}
+defer rows.Close()
+var out []*Source
+for rows.Next() {
+var s Source
+var allowedHosts, allowedPaths, allowedFields, prohibitedFields, languages sql.NullString
+var termsURL, termsReviewed, robotsReviewed, approvalReason, adapterID, adapterVersion sql.NullString
+var credRef, expectedFreq, lastReviewed, notes sql.NullString
+err := rows.Scan(
+&s.SourceID, &s.Name, &s.Publisher, &s.SourceType, &s.BaseURL, &allowedHosts,
+&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,
+&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,
+&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,
+&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,
+&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,
+&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,
+)
+if err != nil {
+return nil, err
+}
+if termsURL.Valid { s.TermsURL = termsURL }
+if termsReviewed.Valid { s.TermsReviewedAt = parseTime(termsReviewed.String) }
+if robotsReviewed.Valid { s.RobotsReviewedAt = parseTime(robotsReviewed.String) }
+if approvalReason.Valid { s.ApprovalReason = approvalReason }
+if adapterID.Valid { s.AdapterID = adapterID }
+if adapterVersion.Valid { s.AdapterVersion = adapterVersion }
+if credRef.Valid { s.CredentialReference = credRef }
+if expectedFreq.Valid { s.ExpectedUpdateFrequency = expectedFreq }
+if lastReviewed.Valid { s.LastReviewedAt = parseTime(lastReviewed) }
+if notes.Valid { s.Notes = notes }
+if allowedHosts.Valid {
+json.Unmarshal([]byte(allowedHosts.String), &s.AllowedHosts)
+}
+if allowedPaths.Valid {
+json.Unmarshal([]byte(allowedPaths.String), &s.AllowedPathPrefixes)
+}
+if allowedFields.Valid {
+json.Unmarshal([]byte(allowedFields.String), &s.AllowedFields)
+}
+if prohibitedFields.Valid {
+json.Unmarshal([]byte(prohibitedFields.String), &s.ProhibitedFields)
+}
+if languages.Valid {
+json.Unmarshal([]byte(languages.String), &s.Languages)
+}
+out = append(out, &s)
+}
+return out, rows.Err()
+}
+
+// ListResearchRuns returns all research runs.
+func (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {
+rows, err := s.db.QueryContext(ctx, `
+SELECT run_id, started_at, completed_at, status, source_ids,
+candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes
+FROM research_runs ORDER BY started_at DESC`)
+if err != nil {
+return nil, err
+}
+defer rows.Close()
+var out []*ResearchRun
+for rows.Next() {
+var r ResearchRun
+var srcIDs, completed, notes sql.NullString
+err := rows.Scan(
+&r.RunID, &r.StartedAt, &completed, &r.Status, &srcIDs,
+&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,
+&r.AcceptedCount, &r.RejectedCount, &notes,
+)
+if err != nil {
+return nil, err
+}
+r.CompletedAt = parseTimePtr(completed)
+if srcIDs.Valid {
+json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs)
+}
+if notes.Valid { r.Notes = notes }
+out = append(out, &r)
+}
+return out, rows.Err()
+}
+
+// ListReviewDecisions returns all review decisions.
+func (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, error) {
+rows, err := s.db.QueryContext(ctx, `
+SELECT decision_id, entity_type, entity_id, previous_status,
+new_status, decision_time, decision_reason, profile_version, operator_ref
+FROM review_decisions ORDER BY decision_time DESC`)
+if err != nil {
+return nil, err
+}
+defer rows.Close()
+var out []*ReviewDecision
+for rows.Next() {
+var d ReviewDecision
+var opRef sql.NullString
+err := rows.Scan(
+&d.DecisionID, &d.EntityType, &d.EntityID, &d.PreviousStatus,
+&d.NewStatus, &d.DecisionTime, &d.DecisionReason,
+&d.ProfileVersion, &opRef,
+)
+if err != nil {
+return nil, err
+}
+if opRef.Valid { d.OperatorRef = opRef }
+out = append(out, &d)
+}
+return out, rows.Err()
+}
+
 // aiTime returns the EvaluatedAt time from an InboundAIAssessment.
 func aiTime(a *InboundAIAssessment) *time.Time {
 	if a == nil {

@@ -306,7 +306,6 @@ func (s *Source) EnsureID() {
 	if s.SourceID == "" {
 		s.SourceID = NewSourceID()
 	}
-}
 
 // NormalizeCompanyName produces a deterministic normalized company name.
 func NormalizeCompanyName(name string) string {
