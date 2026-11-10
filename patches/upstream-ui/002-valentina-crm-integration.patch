@@ -34,20 +34,6 @@ index 6ee6359..b4ceb7c 100644
 +}
 +
  // SetMuninnConfigPath sets the path to the muninn.json global config.
-@@ -1439,6 +1450,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
- 	// WebSocket
- 	mux.HandleFunc("GET /ws", s.handleWebSocket)
- 
-+	// VALENTINA CRM API routes
-+	if s.valentinaAPI != nil {
-+		for pattern, handler := range s.valentinaAPI.Routes() {
-+			mux.HandleFunc(pattern, api(handler))
-+		}
-+	}
-+
- 	// Frontend SPA -- catch-all (must be last)
- 	mux.Handle("/", http.FileServer(staticFS()))
- }
 diff --git a/main.go b/main.go
 index 7df33d2..cb69d2d 100644
 --- a/main.go

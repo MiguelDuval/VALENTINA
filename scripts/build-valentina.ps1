@@ -67,6 +67,8 @@ try {
     if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
     & git -C $copy init --quiet
     if ($LASTEXITCODE -ne 0) { Throw-BuildError "Build step failed" }
+    & git -C $copy config core.autocrlf false
+    & git -C $copy config core.eol lf
     foreach ($patch in $patches) {
         Write-Host "DEBUG: Step 3 - Applying patch: $patch" -ForegroundColor Cyan; Write-Host "Applying patch: $patch" -ForegroundColor Cyan
         & git -C $copy apply --check $patch
@@ -105,6 +107,40 @@ try {
         Copy-Item -LiteralPath $sourceShims -Destination $destShims -Force
         if (-not (Test-Path -LiteralPath $destShims -PathType Leaf)) {
             Throw-BuildError "CRM Vue shim copy failed: $destShims"
+        }
+
+        # Copy VALENTINA router (complete version with Overview + CRM + Huginn routes)
+        $destRouter = Join-Path $copy "web\\src\\router\\index.ts"
+        $sourceRouter = Join-Path $Repo "valentina\\web\\src\\router\\index.ts"
+        if (-not (Test-Path -LiteralPath $sourceRouter -PathType Leaf)) {
+            Throw-BuildError "CRM router file is missing: $sourceRouter"
+        }
+        Copy-Item -LiteralPath $sourceRouter -Destination $destRouter -Force
+        if (-not (Test-Path -LiteralPath $destRouter -PathType Leaf)) {
+            Throw-BuildError "CRM router copy failed: $destRouter"
+        }
+
+        # Copy VALENTINA navLayout (complete version with CRM navigation groups)
+        $destNavLayout = Join-Path $copy "web\\src\\utils\\navLayout.ts"
+        $sourceNavLayout = Join-Path $Repo "valentina\\web\\src\\utils\\navLayout.ts"
+        New-Item -ItemType Directory -Path (Split-Path $destNavLayout) -Force | Out-Null
+        if (-not (Test-Path -LiteralPath $sourceNavLayout -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout file is missing: $sourceNavLayout"
+        }
+        Copy-Item -LiteralPath $sourceNavLayout -Destination $destNavLayout -Force
+        if (-not (Test-Path -LiteralPath $destNavLayout -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout copy failed: $destNavLayout"
+        }
+
+        # Copy VALENTINA navLayout test (updated expectations with CRM sections)
+        $destNavLayoutTest = Join-Path $copy "web\\src\\utils\\__tests__\\navLayout.test.ts"
+        $sourceNavLayoutTest = Join-Path $Repo "valentina\\web\\src\\utils\\__tests__\\navLayout.test.ts"
+        if (-not (Test-Path -LiteralPath $sourceNavLayoutTest -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout test file is missing: $sourceNavLayoutTest"
+        }
+        Copy-Item -LiteralPath $sourceNavLayoutTest -Destination $destNavLayoutTest -Force
+        if (-not (Test-Path -LiteralPath $destNavLayoutTest -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout test copy failed: $destNavLayoutTest"
         }
     }
     $webDir = Join-Path $copy "web"
