@@ -21,13 +21,13 @@ All three are tracked on the live branch `feature/valentina-dual-pipeline-crm-20
 | Repository | MiguelDuval/VALENTINA |
 | Origin | https://github.com/MiguelDuval/VALENTINA.git |
 | Active branch | feature/valentina-dual-pipeline-crm-20261106 (in sync with origin) |
-| HEAD (live, local + remote) | aa0b7239472428cb7bc9a3111ff6606238f74d80 |
+| HEAD (live, local + remote) | 3cc11a0dbf4fd87e1e7889e0c001c246021098b2 |
 | Huginn upstream pin | f01c1d84c08b1de972d8cc268da25602598adff8 — verified matches `docs/UPSTREAM-INTEGRATION.md` |
 | Working tree | 20 untracked user files present (`??`, scripts/logs/ZIP/checks); preserved untouched, not committed |
 | Modified tracked files (committed + pushed) | docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md, .clinerules/00-valentina-project.md, valentina/web/src/router/index.ts (new), valentina/web/src/views/__tests__/CRMViews.test.ts, valentina/web/src/views/LeadsView.vue, valentina/domain/storage.go, valentina/domain/storage_test.go, valentina/api/handlers_test.go, patches/upstream-ui/002-valentina-crm-integration.patch |
 | PR #4 | Open — base `chore/agent-collaboration-ci-20261106`, head `audit/valentina-phase0-feature-inventory-20261106` (204c88d...); do not modify, merge, or close |
 | PR #5 | Does not exist — will be created only after successful Full build + Windows artifact publication |
-| CI runs | Run #73 (commit 5756ba7): failed — frontend test blocker; Run #74 (commit 747f270): failed — CRMViews.test.ts route test; Run #75 (commit b8039d7): cancelled; Run #76 (commit aa0b723): failed — 5 CRMViews.test.ts failures. Current push fixes all 5 failures via real router import. |
+| CI runs | Run #95 (commit 3cc11a0): FAILURE — patch stack test build failed at step 5; Run #94 (commit 80e579e): FAILURE at step 5 in ~16s; Run #93 (commit d7346aa): FAILURE at step 5 in ~19s; Run #92 (commit d0bd689): FAILURE at step 5 in ~1m39s; Run #91 (commit dcae1fb): FAILURE at step 5 in ~14s |
 
 ## 2. Active assignment — documentation-only reconciliation (VAL-P0-001)
 
@@ -54,22 +54,22 @@ Domain models, SQLite persistence, Go API handlers, five CRM views, and tests ar
 - [x] SQLite persistence implemented and tested (Go)
 - [x] Go API handlers implemented and tested (httptest)
 - [x] Five CRM views implemented (Vue, real API, loading/error/empty states)
-- [x] Build script Full profile integrates domain, API, views into upstream copy
-- [ ] Full profile Windows EXE build (CI run #73 in progress — frontend test failure fixed, awaiting rebuild)
-- [ ] Windows EXE SHA256 + manifest verification
-- [ ] GitHub Actions artifact published
-- [ ] PR #5 creation (after successful build + artifact)
+- [x] Build script Full profile integrates domain, API, views, router, navLayout into upstream copy
+- [ ] Full profile Windows EXE build — CI Run #95 (commit 3cc11a0) FAILED at step 5; CI logs not accessible for diagnosis; `npm ci` or patch application suspected
+- [ ] Windows EXE SHA256 + manifest verification — blocked by build failure
+- [ ] GitHub Actions artifact published — blocked by build failure
+- [ ] PR #5 creation — blocked by build failure
 
-Not in scope (blocked): P3/P4 — no unattended scraping, real lead collection, live NIM, automatic external actions, real personal data.
+**CI blocker:** All CI runs fail at step 5 ("Patch, test and build") in 12–19 seconds. CI logs/artifacts are not accessible for diagnosis without GitHub authentication. Most likely cause: `npm ci` failing or patch application failing due to line-ending mismatch on the CI runner. Requires owner investigation with access to CI job logs.
 
 ## 4. Next steps
 
-1. Committed 747f270 + b8039d7 on `feature/valentina-dual-pipeline-crm-20261106` (exclude 20 untracked user files) — pushed to origin.
-2. GitHub Actions Windows test build triggered: Run #74 (commit 747f270) in progress; Run #75 (commit b8039d7) pending.
-3. Capture new Actions run ID, jobs, job logs; verify frontend tests pass (114/114 suites).
-4. Verify Go domain/API tests pass, Windows EXE builds, SHA256 + manifest verified.
-5. After successful artifact publication, create PR #5 (head `feature/...`, base `audit/...`).
-6. PR #4 remains open and unmodified — owner decides merge.
+1. Investigate CI Run #95 failure (commit 3cc11a0) — need access to GitHub Actions job logs
+2. If `npm ci` fails, check package-lock.json compatibility with Node.js version on CI runner
+3. If `git apply` fails, check line-ending handling (CRLF vs LF) between patches and working tree files
+4. After successful Windows EXE build, verify SHA256 + manifest
+5. After successful artifact publication, create PR #5 (head `feature/valentina-dual-pipeline-crm-20261106`, base `audit/valentina-phase0-feature-inventory-20261106`)
+6. PR #4 remains open and unmodified — owner decides merge
 
 ## 5. ChatGPT review
 
