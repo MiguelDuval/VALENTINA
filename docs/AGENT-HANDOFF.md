@@ -31,7 +31,8 @@ All three are tracked on the live branch `feature/valentina-dual-pipeline-crm-20
 | PR #5 | Does not exist (HTTP 404) — will be created only after successful Full build + Windows artifact |
 | CI evidence (PR #4 page) | Run #39 push completed/success; run #40 PR completed/success; Windows artifact `VALENTINA-windows-x64-f266c735b8379e770c103af3559f9da6b8530f55`, 95,542,273 bytes, present and not expired |
 | Submodule `upstream/huginn` | `git rev-parse HEAD` = f01c1d84c08b1de972d8cc268da25602598adff8 — pin intact |
-| CI blocker fixed | CRMViews.test.ts import `../composables/useApi` → `../../composables/useApi` (test at `views/__tests__/`, composable at `web/src/composables/`) — committed and pushed as 747f270; GitHub Actions Windows test build (Full profile) triggered by push |
+| CI blocker fixed | CRMViews.test.ts import `../composables/useApi` → `../../composables/useApi` (test at `views/__tests__/`, composable at `web/src/composables/`) — committed as 747f270, pushed to origin |
+| CI runs | Run #73 (commit 5756ba7): failed — frontend test suite failure (useApi import path) — the CI blocker; Run #74 (commit 747f270): in progress — test import fix; Run #75 (commit b8039d7): pending — waiting for #74 to finish |
 
 ## 2. Active assignment — documentation-only reconciliation (VAL-P0-001)
 
@@ -66,8 +67,8 @@ Not in scope (blocked): P3/P4 — no unattended scraping, real lead collection, 
 
 ## 4. Next steps
 
-1. Committed 747f270 on `feature/valentina-dual-pipeline-crm-20261106` (exclude 20 untracked user files) — pushed to origin.
-2. GitHub Actions Windows test build (Full profile) triggered by push — new Actions run ID to be captured.
+1. Committed 747f270 + b8039d7 on `feature/valentina-dual-pipeline-crm-20261106` (exclude 20 untracked user files) — pushed to origin.
+2. GitHub Actions Windows test build triggered: Run #74 (commit 747f270) in progress; Run #75 (commit b8039d7) pending.
 3. Capture new Actions run ID, jobs, job logs; verify frontend tests pass (114/114 suites).
 4. Verify Go domain/API tests pass, Windows EXE builds, SHA256 + manifest verified.
 5. After successful artifact publication, create PR #5 (head `feature/...`, base `audit/...`).
