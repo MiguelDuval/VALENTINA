@@ -951,7 +951,17 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 	if l.LeadID == "" {
 		l.LeadID = NewLeadID()
 	}
-if err := l.Validate(); err != nil {
+	// Apply backend defaults before validation so the frontend can submit
+	// only request_summary and inbound_channel.
+	if l.Status == "" {
+		l.Status = InboundLeadStatusNew
+	}
+	if l.ReceivedAt.IsZero() {
+		l.ReceivedAt = time.Now().UTC()
+	}
+	if err := l.Validate(); err != nil {
+		return fmt.Errorf("validation: %w", err)
+	}
 		return fmt.Errorf("validation: %w", err)
 	}
 	if l.RetentionState == "" {

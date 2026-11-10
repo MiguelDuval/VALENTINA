@@ -47,6 +47,6 @@ This queue is the product-level source of task priority. Update status only when
 
 - Work one active task at a time unless the owner explicitly approves parallel tasks with separate branches and handoff files.
 - A task cannot move from BLOCKED to READY without its dependency being satisfied.
-- P0 audit deliverables are documentation only. P1/P2/P3/P4 implementation requires separate owner approval.
+- VAL-P0-001 is complete (documentation-only audit, accepted by owner). P2 CRM implementation is owner-authorized and in progress. P1, P3, P4 remain blocked until separate owner decisions.
 - Cline updates the status and evidence when a task changes state. ChatGPT independently verifies the update.
 - The owner retains merge authority unless explicitly delegated.

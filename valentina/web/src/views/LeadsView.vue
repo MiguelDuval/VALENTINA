@@ -93,7 +93,7 @@ const load = async () => {
 }
 
 const createLead = async () => {
-  creating = true
+  creating.value = true
   createError.value = null
   createSuccess.value = false
   createdLeadSummary.value = ''
@@ -111,7 +111,7 @@ const createLead = async () => {
     createError.value = 'Не удалось создать заявку'
     console.error(e)
   } finally {
-    creating = false
+    creating.value = false
   }
 }
 

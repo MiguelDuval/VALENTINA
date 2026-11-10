@@ -97,6 +97,38 @@ func TestCreateInboundLeadIDBeforeValidate(t *testing.T) {
 	}
 }
 
+func TestCreateInboundLeadDefaults(t *testing.T) {
+	s := testStore(t)
+	l := &InboundLead{
+		RequestSummary:   "Test lead",
+		InboundChannel:   "web",
+		ContactInfo:      nil,
+		AIAssessment:     nil,
+	}
+	if err := s.CreateInboundLead(context.Background(), l); err != nil {
+		t.Fatalf("CreateInboundLead should apply defaults and validate: %v", err)
+	}
+	if l.LeadID == "" {
+		t.Fatal("LeadID should be auto-generated")
+	}
+	if l.Status != InboundLeadStatusNew {
+		t.Fatalf("Status should default to %q, got %q", InboundLeadStatusNew, l.Status)
+	}
+	if l.ReceivedAt.IsZero() {
+		t.Fatal("ReceivedAt should be set to current time")
+	}
+	got, err := s.GetInboundLead(context.Background(), l.LeadID)
+	if err != nil {
+		t.Fatalf("GetInboundLead: %v", err)
+	}
+	if got.Status != InboundLeadStatusNew {
+		t.Fatalf("Persisted status should be %q, got %q", InboundLeadStatusNew, got.Status)
+	}
+	if !got.ReceivedAt.After(l.ReceivedAt.Add(-time.Second)) && !got.ReceivedAt.Before(l.ReceivedAt.Add(time.Second)) {
+		t.Fatalf("Persisted ReceivedAt should match, got %v expected ~%v", got.ReceivedAt, l.ReceivedAt)
+	}
+}
+
 func TestListInboundLeadsNilNested(t *testing.T) {
 	s := testStore(t)
 	l := &InboundLead{

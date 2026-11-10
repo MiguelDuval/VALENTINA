@@ -90,6 +90,31 @@ func TestHandleGetOpportunityNotFound(t *testing.T) {
 	}
 }
 
+func TestHandleCreateLeadDefaults(t *testing.T) {
+	s := testServer(t)
+	body := `{"request_summary":"Test lead","inbound_channel":"web"}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/leads", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.handleCreateLead(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var created domain.InboundLead
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+		t.Fatalf("Invalid JSON: %v", err)
+	}
+	if created.LeadID == "" {
+		t.Fatal("LeadID should be generated")
+	}
+	if created.Status != domain.InboundLeadStatusNew {
+		t.Fatalf("Status should default to %q, got %q", domain.InboundLeadStatusNew, created.Status)
+	}
+	if created.ReceivedAt.IsZero() {
+		t.Fatal("ReceivedAt should be set")
+	}
+}
+
 func TestHandleCreateAndGetLead(t *testing.T) {
 	s := testServer(t)
 	body := `{"request_summary":"Test lead","inbound_channel":"web"}`
