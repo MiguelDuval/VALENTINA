@@ -20,7 +20,21 @@ index 6ee6359..b4ceb7c 100644
  	// vaultProberFn probes MCP vault connectivity for handleVaultTest.
  	// When nil the production implementation (agent.ProbeVaultConnectivity) is used.
  	// Tests override this to avoid real network connections.
-@@ -1439,6 +1443,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
+@@ -975,6 +979,13 @@ func (s *Server) SetVersion(v string) {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	s.version = v
+ }
+ 
++// SetValentinaAPI wires the VALENTINA CRM API handler.
++func (s *Server) SetValentinaAPI(handler *valentinaapi.Server) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	s.valentinaAPI = handler
++}
++
+ // SetMuninnConfigPath sets the path to the muninn.json global config.
+@@ -1439,6 +1449,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
  	// WebSocket
  	mux.HandleFunc("GET /ws", s.handleWebSocket)
  
@@ -83,7 +97,7 @@ diff --git a/web/src/router/index.ts b/web/src/router/index.ts
 index 789a055..1b2c389 100644
 --- a/web/src/router/index.ts
 +++ b/web/src/router/index.ts
-@@ -12,6 +12,11 @@ import WorkflowsView from '../views/WorkflowsView.vue'
+@@ -10,6 +10,11 @@ import WorkflowsView from '../views/WorkflowsView.vue'
  import CloudView from '../views/CloudView.vue'
  import SkillsView from '../views/SkillsView.vue'
  import MemoryView from '../views/MemoryView.vue'
@@ -95,7 +109,7 @@ index 789a055..1b2c389 100644
  
  export default createRouter({
    history: createWebHashHistory(),
-@@ -33,6 +38,11 @@ export default createRouter({
+@@ -31,6 +36,11 @@ export default createRouter({
      { path: '/workflows/:id/runs/:runId', component: WorkflowsView, props: true },
      { path: '/cloud', component: CloudView },
      { path: '/skills/:tab?', component: SkillsView, props: true },
@@ -119,7 +133,7 @@ index 7bdb706..f8d1744 100644
    | string
  
  /** First path segment, with aliases folded onto the icon-rail section. */
-@@ -27,7 +28,8 @@ export function sectionFromPath(path: string): AppSection {
+@@ -28,6 +29,7 @@ export function sectionFromPath(path: string): AppSection {
    const raw = (path.split('?')[0] || '').trim()
    const seg = (raw.replace(/^#/, '').split('/').filter(Boolean)[0] || 'chat').toLowerCase()
    if (seg === 'routines' || seg === 'workflows') return 'automation'
@@ -127,7 +141,7 @@ index 7bdb706..f8d1744 100644
 +  if (seg === 'valentina') return 'crm'
    return seg
  }
-@@ -57,6 +59,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
+@@ -55,6 +57,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
    'models',
    'memory',
    'cloud',
