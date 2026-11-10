@@ -6,9 +6,9 @@ This queue is the product-level source of task priority. Update status only when
 
 | ID | Task | Status | Owner / executor | Exit condition |
 |---|---|---|---|---|
-| VAL-P0-001 | Complete full Phase 0 feature inventory and safe cleanup audit | READY_FOR_REVIEW | ChatGPT directs; Cline audits | Inventory, cleanup plan and permission matrix committed; no application code changed; reviewed by ChatGPT |
+| VAL-P0-001 | Complete full Phase 0 feature inventory and safe cleanup audit | DONE — owner accepted | ChatGPT directed; Cline audited | Inventory, cleanup plan and permission matrix committed; no application code changed; reviewed by ChatGPT; owner accepted P2 authorization |
 | VAL-P0-002 | Reconcile existing PR #1 and PR #2 dependency/merge sequence | BLOCKED | Owner + ChatGPT | Owner decides merge sequence; neither PR is retargeted or merged by an agent without authorization |
-| VAL-P0-003 | Verify Cline's local workspace, Git authentication and project-rule loading | READY_FOR_REVIEW | Cline | Repository verified, submodule pinned, Phase 0 audit complete, Phase 2 CRM domain foundation implemented |
+| VAL-P0-003 | Verify Cline's local workspace, Git authentication and project-rule loading | READY_FOR_REVIEW | Cline | Repository verified, submodule pinned, Phase 0 audit deliverables present, Phase 0 handoff reconciled with live state |
 
 ## P1 — simplify the user-facing product (requires owner approval after P0)
 
@@ -23,9 +23,9 @@ This queue is the product-level source of task priority. Update status only when
 
 | ID | Task | Status | Exit condition |
 |---|---|---|---|
-| VAL-P2-001 | Finalize domain contracts and persistence design | IN_PROGRESS | ChatGPT directs; Cline implements | Company, Opportunity, SourceEvidence, Source, ResearchRun and ReviewDecision contracts plus migration/backup design reviewed; domain models compile; EnsureID before Validate; single Location definition; Windows executable build and CI confirmation pending |
-| VAL-P2-002 | Implement minimum in-process domain API and SQLite persistence | IN_PROGRESS | ChatGPT directs; Cline implements | Validated records, migration tests, deduplication and restart persistence verified; GetOpportunity/GetInboundLead read correct entities; CreateReviewDecision transactional; Windows executable build and CI confirmation pending |
-| VAL-P2-003 | Implement real CRM list/detail/review screens | IN_PROGRESS | ChatGPT directs; Cline implements | Five CRM views included in router and navLayout; API reads from SQLite; manual lead creation form; loading/error/empty states; Windows executable build and CI confirmation pending |
+| VAL-P2-001 | Finalize domain contracts and persistence design | IN_PROGRESS — owner authorized P2 | ChatGPT directs; Cline implements | Company, Opportunity, SourceEvidence, Source, ResearchRun and ReviewDecision contracts plus migration/backup design reviewed; domain models compile; EnsureID before Validate; single Location definition; Windows executable build and CI confirmation pending |
+| VAL-P2-002 | Implement minimum in-process domain API and SQLite persistence | IN_PROGRESS — owner authorized P2 | ChatGPT directs; Cline implements | Validated records, migration tests, deduplication and restart persistence verified; GetOpportunity/GetInboundLead read correct entities; CreateReviewDecision transactional; Windows executable build and CI confirmation pending |
+| VAL-P2-003 | Implement real CRM list/detail/review screens | IN_PROGRESS — owner authorized P2 | ChatGPT directs; Cline implements | Five CRM views included in router and navLayout; API reads from SQLite; manual lead creation form; loading/error/empty states; Windows executable build and CI confirmation pending |
 
 ## P3 — prove one permitted source end to end
 

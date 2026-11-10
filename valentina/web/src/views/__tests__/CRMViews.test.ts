@@ -6,10 +6,10 @@ import LeadsView from '../LeadsView.vue'
 import CompaniesView from '../CompaniesView.vue'
 import SourcesView from '../SourcesView.vue'
 import ResearchView from '../ResearchView.vue'
-import { apiFetch } from '../composables/useApi'
+import { apiFetch } from '../../composables/useApi'
 
 // Mock apiFetch composable
-vi.mock('../composables/useApi', () => ({
+vi.mock('../../composables/useApi', () => ({
   apiFetch: vi.fn(async (path: string) => {
     if (path.includes('/opportunities')) return { opportunities: [], count: 0 }
     if (path.includes('/leads')) return { leads: [], count: 0 }

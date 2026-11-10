@@ -75,6 +75,6 @@ The script is for one task-completion push, not every commit. Do not force-push.
 
 Open or update a PR using .github/pull_request_template.md when GitHub CLI authentication is available. If not, report PR creation as pending. Do not merge PRs or retarget existing PRs without explicit owner approval.
 
-## Phase 0 restriction currently active
+## Phase 0 — complete; P2 implementation authorized
 
-The active task VAL-P0-001 is documentation-only. Do not modify application code, frontend routes, backend packages, permissions, runtime settings or Huginn source. Do not hide, disable or remove any feature. Produce the full feature inventory, cleanup plan and security permission matrix, then hand off to ChatGPT for independent review.
+VAL-P0-001 (Phase 0 documentation audit) is complete: feature inventory, cleanup plan and security permission matrix are committed and reviewed. Owner has explicitly authorized P2 CRM implementation (VAL-P2-001/002/003). Application code, frontend routes, backend packages, and Huginn source may be modified within the P2 scope. P3/P4 remain blocked: no unattended scraping, real lead collection, live NIM requests, automatic external actions, or real personal data.
