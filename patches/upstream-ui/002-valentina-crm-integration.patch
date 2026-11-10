@@ -161,3 +161,55 @@ index 7bdb706..f8d1744 100644
      ],
    },
    {
+diff --git a/web/src/utils/__tests__/navLayout.test.ts b/web/src/utils/__tests__/navLayout.test.ts
+index 0000000..0000000 100644
+--- a/web/src/utils/__tests__/navLayout.test.ts
++++ b/web/src/utils/__tests__/navLayout.test.ts
+@@ -32,6 +32,8 @@
+     expect(sectionFromPath('/agents/atlas')).toBe('agents')
+     expect(sectionFromPath('/connections')).toBe('connections')
+     expect(sectionFromPath('/overview')).toBe('overview')
++    expect(sectionFromPath('/valentina/opportunities')).toBe('crm')
++    expect(sectionFromPath('/valentina/leads/lead-1')).toBe('crm')
+     expect(sectionFromPath('/skills/browse')).toBe('skills')
+     expect(sectionFromPath('/inbox')).toBe('inbox')
+     expect(sectionFromPath('/models')).toBe('models')
+@@ -47,6 +49,11 @@
+     '/logs',
+     '/settings',
+     '/overview',
++    '/valentina/opportunities',
++    '/valentina/leads',
++    '/valentina/companies',
++    '/valentina/sources',
++    '/valentina/research',
+     '/agents',
+     '/agents/atlas',
+     '/connections',
+@@ -79,6 +86,7 @@
+     expect(TOP_LEVEL_SECTIONS).toEqual(expect.arrayContaining([
+       'stats', 'logs', 'settings', 'overview', 'agents', 'connections', 'skills',
+       'automation', 'inbox', 'models', 'memory', 'cloud',
++      'crm',
+     ]))
+     for (const section of TOP_LEVEL_SECTIONS) {
+       expect(showChatSidebar('/' + section)).toBe(false)
+@@ -98,6 +106,10 @@
+   it('puts settings with admin, not between stats and logs', () => {
+     const admin = NAV_GROUPS.find((g) => g.id === 'admin')!.items.map((i) => i.section)
+     const logs = NAV_GROUPS.find((g) => g.id === 'logs')!.items.map((i) => i.section)
++    const crmItems = NAV_GROUPS.find((g) => g.id === 'admin')!.items.filter((i) => i.section === 'crm')
++    expect(crmItems.map((i) => i.path)).toEqual([
++      '/valentina/opportunities', '/valentina/leads', '/valentina/companies', '/valentina/sources', '/valentina/research',
++    ])
+     expect(admin).toContain('settings')
+     expect(admin).not.toEqual(expect.arrayContaining(['stats', 'logs', 'inbox']))
+     expect(logs).toEqual(['stats', 'logs', 'inbox'])
+@@ -108,6 +120,7 @@
+     expect(NAV_ITEMS.map((i) => i.section)).toEqual([
+       'overview', 'chat',
+       'agents', 'memory', 'models', 'automation', 'connections', 'skills', 'settings',
++      'crm', 'crm', 'crm', 'crm', 'crm',
+       'stats', 'logs', 'inbox',
+     ])
+   })
