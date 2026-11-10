@@ -75,7 +75,7 @@ describe('CRM Routes (real application router)', () => {
     const crmPaths = routes.filter(r => r.path.startsWith('/valentina/')).map(r => r.path)
     expect(crmPaths).toHaveLength(5)
     for (const p of crmPaths) {
-      expect(p).toMatch(/^\\/valentina\\/(opportunities|leads|companies|sources|research)$/)
+      expect(p).toMatch(/\/valentina\/(opportunities|leads|companies|sources|research)$/)
     }
     const catchAll = routes.find(r => r.path === '/:pathMatch(.*)*')
     expect(catchAll).toBeDefined()
