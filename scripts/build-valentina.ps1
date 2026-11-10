@@ -129,6 +129,17 @@ try {
         if (-not (Test-Path -LiteralPath $destNavLayout -PathType Leaf)) {
             Throw-BuildError "CRM navLayout copy failed: $destNavLayout"
         }
+
+        # Copy VALENTINA navLayout test (updated expectations with CRM sections)
+        $destNavLayoutTest = Join-Path $copy "web\\src\\utils\\__tests__\\navLayout.test.ts"
+        $sourceNavLayoutTest = Join-Path $Repo "valentina\\web\\src\\utils\\__tests__\\navLayout.test.ts"
+        if (-not (Test-Path -LiteralPath $sourceNavLayoutTest -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout test file is missing: $sourceNavLayoutTest"
+        }
+        Copy-Item -LiteralPath $sourceNavLayoutTest -Destination $destNavLayoutTest -Force
+        if (-not (Test-Path -LiteralPath $destNavLayoutTest -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout test copy failed: $destNavLayoutTest"
+        }
     }
     $webDir = Join-Path $copy "web"
     Write-Host "DEBUG: Step 6 - npm ci" -ForegroundColor Cyan; Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
