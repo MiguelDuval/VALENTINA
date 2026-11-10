@@ -152,7 +152,7 @@ index 7bdb706..f8d1744 100644
 @@ -92,6 +95,11 @@
        { section: 'connections', label: 'Подключения',  path: '/connections',    icon: 'connections' },
        { section: 'skills',      label: 'Навыки',       path: '/skills/browse',  icon: 'skills' },
-       { section: 'settings',    label: 'Настройки',     path: '/settings',       icon: 'settings' },
+       { section: 'settings',    label: 'Настройки',    path: '/settings',       icon: 'settings' },
 +      { section: 'crm',         label: 'Возможности',  path: '/valentina/opportunities', icon: 'crm' },
 +      { section: 'crm',         label: 'Заявки',       path: '/valentina/leads',         icon: 'crm' },
 +      { section: 'crm',         label: 'Компании',     path: '/valentina/companies',     icon: 'crm' },
