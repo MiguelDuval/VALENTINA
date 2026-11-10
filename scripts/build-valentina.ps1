@@ -97,10 +97,15 @@ try {
     if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
         Write-Host "CRM sources copied successfully." -ForegroundColor Green
         $destShims = Join-Path $copy "web\src\shims-vue.d.ts"
+        $sourceShims = Join-Path $Repo "valentina\web\src\shims-vue.d.ts"
         New-Item -ItemType Directory -Path (Split-Path $destShims) -Force | Out-Null
-        & robocopy (Join-Path $Repo "valentina\web\src\shims-vue.d.ts") $destShims /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-        $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+        if (-not (Test-Path -LiteralPath $sourceShims -PathType Leaf)) {
+            Throw-BuildError "CRM Vue shim file is missing: $sourceShims"
+        }
+        Copy-Item -LiteralPath $sourceShims -Destination $destShims -Force
+        if (-not (Test-Path -LiteralPath $destShims -PathType Leaf)) {
+            Throw-BuildError "CRM Vue shim copy failed: $destShims"
+        }
     }
     $webDir = Join-Path $copy "web"
     Write-Host "DEBUG: Step 6 - npm ci" -ForegroundColor Cyan; Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan

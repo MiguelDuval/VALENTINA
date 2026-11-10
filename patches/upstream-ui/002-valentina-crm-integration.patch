@@ -61,7 +61,7 @@ index 7df33d2..cb69d2d 100644
  	"github.com/scrypster/huginn/internal/stats"
  	"github.com/scrypster/huginn/internal/storage"
  	"github.com/scrypster/huginn/internal/symbol"
-@@ -3759,4 +3761,25 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
+@@ -3759,4 +3761,24 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
  	srv.SetVersion(version)
  
  	ctx := context.Background()
@@ -85,7 +85,6 @@ index 7df33d2..cb69d2d 100644
 +		srv.SetValentinaAPI(crmAPI)
 +		cleanupFns = append(cleanupFns, func() { _ = valentinaStore.Close() })
 +	}
-+	if err := srv.Start(ctx); err != nil {
  	if err := srv.Start(ctx); err != nil {
 +		if valentinaStore != nil {
 +			_ = valentinaStore.Close()
