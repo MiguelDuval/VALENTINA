@@ -106,6 +106,29 @@ try {
         if (-not (Test-Path -LiteralPath $destShims -PathType Leaf)) {
             Throw-BuildError "CRM Vue shim copy failed: $destShims"
         }
+
+        // Copy VALENTINA router (complete version with Overview + CRM + Huginn routes)
+        $destRouter = Join-Path $copy "web\\src\\router\\index.ts"
+        $sourceRouter = Join-Path $Repo "valentina\\web\\src\\router\\index.ts"
+        if (-not (Test-Path -LiteralPath $sourceRouter -PathType Leaf)) {
+            Throw-BuildError "CRM router file is missing: $sourceRouter"
+        }
+        Copy-Item -LiteralPath $sourceRouter -Destination $destRouter -Force
+        if (-not (Test-Path -LiteralPath $destRouter -PathType Leaf)) {
+            Throw-BuildError "CRM router copy failed: $destRouter"
+        }
+
+        // Copy VALENTINA navLayout (complete version with CRM navigation groups)
+        $destNavLayout = Join-Path $copy "web\\src\\utils\\navLayout.ts"
+        $sourceNavLayout = Join-Path $Repo "valentina\\web\\src\\utils\\navLayout.ts"
+        New-Item -ItemType Directory -Path (Split-Path $destNavLayout) -Force | Out-Null
+        if (-not (Test-Path -LiteralPath $sourceNavLayout -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout file is missing: $sourceNavLayout"
+        }
+        Copy-Item -LiteralPath $sourceNavLayout -Destination $destNavLayout -Force
+        if (-not (Test-Path -LiteralPath $destNavLayout -PathType Leaf)) {
+            Throw-BuildError "CRM navLayout copy failed: $destNavLayout"
+        }
     }
     $webDir = Join-Path $copy "web"
     Write-Host "DEBUG: Step 6 - npm ci" -ForegroundColor Cyan; Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
