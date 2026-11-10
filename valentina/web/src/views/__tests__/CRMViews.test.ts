@@ -40,8 +40,8 @@ describe('CRM Routes (real application router)', () => {
     const routes = realRouter.getRoutes()
     for (const expected of expectedRoutes) {
       const route = routes.find(r => r.path === expected.path)
-      expect(route, Route  should exist).toBeDefined()
-      expect(route?.components?.default, Route  component should match).toBe(expected.component)
+      expect(route).toBeDefined()
+      expect(route?.components?.default).toBe(expected.component)
     }
   })
 
@@ -53,7 +53,7 @@ describe('CRM Routes (real application router)', () => {
       '/routines', '/workflows/:id?', '/cloud', '/skills/:tab?',
     ]
     for (const p of huginnPaths) {
-      expect(routes.find(r => r.path === p), Huginn route  should exist).toBeDefined()
+      expect(routes.find(r => r.path === p)).toBeDefined()
     }
   })
 
