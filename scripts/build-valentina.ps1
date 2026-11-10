@@ -67,6 +67,8 @@ try {
     if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
     & git -C $copy init --quiet
     if ($LASTEXITCODE -ne 0) { Throw-BuildError "Build step failed" }
+    & git -C $copy config core.autocrlf false
+    & git -C $copy config core.eol lf
     foreach ($patch in $patches) {
         Write-Host "DEBUG: Step 3 - Applying patch: $patch" -ForegroundColor Cyan; Write-Host "Applying patch: $patch" -ForegroundColor Cyan
         & git -C $copy apply --check $patch
