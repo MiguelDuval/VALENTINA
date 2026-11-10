@@ -107,7 +107,7 @@ try {
             Throw-BuildError "CRM Vue shim copy failed: $destShims"
         }
 
-        // Copy VALENTINA router (complete version with Overview + CRM + Huginn routes)
+        # Copy VALENTINA router (complete version with Overview + CRM + Huginn routes)
         $destRouter = Join-Path $copy "web\\src\\router\\index.ts"
         $sourceRouter = Join-Path $Repo "valentina\\web\\src\\router\\index.ts"
         if (-not (Test-Path -LiteralPath $sourceRouter -PathType Leaf)) {
@@ -118,7 +118,7 @@ try {
             Throw-BuildError "CRM router copy failed: $destRouter"
         }
 
-        // Copy VALENTINA navLayout (complete version with CRM navigation groups)
+        # Copy VALENTINA navLayout (complete version with CRM navigation groups)
         $destNavLayout = Join-Path $copy "web\\src\\utils\\navLayout.ts"
         $sourceNavLayout = Join-Path $Repo "valentina\\web\\src\\utils\\navLayout.ts"
         New-Item -ItemType Directory -Path (Split-Path $destNavLayout) -Force | Out-Null
