@@ -75,18 +75,6 @@ try {
         if ($LASTEXITCODE -ne 0) { Throw-BuildError "Build step failed" }
     }
     $validationResults.patch_application = @{ status = "passed"; command = "git apply --check <patches>"; result = "applied successfully" }
-    # Remove any duplicate consecutive lines introduced by patching (e.g. duplicate return in startServer)
-    $mainGo = Join-Path $copy "main.go"
-    if (Test-Path $mainGo) {
-        $content = Get-Content $mainGo
-        $deduped = @()
-        $prev = $null
-        foreach ($line in $content) {
-            if ($line -ne $prev) { $deduped += $line }
-            $prev = $line
-        }
-        [System.IO.File]::WriteAllLines($mainGo, $deduped)
-    }
     $validationResults.upstream_pin_verification = @{ status = "passed"; command = "git -C upstream/huginn rev-parse HEAD"; result = "matched pinned SHA" }
     if ($Profile -eq "Full") {
         Write-Host "DEBUG: Step 5 - Copying CRM sources" -ForegroundColor Cyan; Write-Host "Copying CRM Go source and Vue views for Full profile" -ForegroundColor Cyan
@@ -108,11 +96,6 @@ try {
         $rc = $LASTEXITCODE
     if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
         Write-Host "CRM sources copied successfully." -ForegroundColor Green
-        $destUtils = Join-Path $copy "web\\src\\utils"
-        New-Item -ItemType Directory -Path $destUtils -Force | Out-Null
-        & robocopy (Join-Path $Repo "valentina\\web\\src\\utils") $destUtils /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-        $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
     }
     $webDir = Join-Path $copy "web"
     Write-Host "DEBUG: Step 6 - npm ci" -ForegroundColor Cyan; Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan

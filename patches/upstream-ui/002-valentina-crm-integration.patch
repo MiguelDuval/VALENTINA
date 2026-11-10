@@ -47,7 +47,7 @@ index 7df33d2..cb69d2d 100644
  	"github.com/scrypster/huginn/internal/stats"
  	"github.com/scrypster/huginn/internal/storage"
  	"github.com/scrypster/huginn/internal/symbol"
-@@ -3759,7 +3761,32 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
+@@ -3759,7 +3761,31 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
  	srv.SetVersion(version)
  
  	ctx := context.Background()
@@ -76,7 +76,6 @@ index 7df33d2..cb69d2d 100644
 +		if valentinaStore != nil {
 +			_ = valentinaStore.Close()
 +		}
-+		return nil, "", nil, fmt.Errorf("server start: %w", err)
  		return nil, "", nil, fmt.Errorf("server start: %w", err)
  	}
  	orch.StartSessionCleanup(ctx)
@@ -120,7 +119,15 @@ index 7bdb706..f8d1744 100644
    | string
  
  /** First path segment, with aliases folded onto the icon-rail section. */
-@@ -57,6 +58,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
+@@ -27,7 +28,8 @@ export function sectionFromPath(path: string): AppSection {
+   const raw = (path.split('?')[0] || '').trim()
+   const seg = (raw.replace(/^#/, '').split('/').filter(Boolean)[0] || 'chat').toLowerCase()
+   if (seg === 'routines' || seg === 'workflows') return 'automation'
+   if (seg === 'space') return 'chat'
++  if (seg === 'valentina') return 'crm'
+   return seg
+ }
+@@ -57,6 +59,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
    'models',
    'memory',
    'cloud',
@@ -128,3 +135,13 @@ index 7bdb706..f8d1744 100644
  ]
  
  export type NavGroupId = 'chat' | 'admin' | 'logs'
+@@ -88,4 +91,9 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
+       { section: 'automation',  label: 'Automation',   path: '/workflows',      icon: 'automation' },
+       { section: 'connections', label: 'Connections',  path: '/connections',    icon: 'connections' },
+       { section: 'skills',      label: 'Skills',       path: '/skills/browse',  icon: 'skills' },
+       { section: 'settings',    label: 'Settings',     path: '/settings',       icon: 'settings' },
++      { section: 'crm',         label: 'Возможности', path: '/valentina/opportunities', icon: 'crm' },
++      { section: 'crm',         label: 'Заявки',      path: '/valentina/leads',      icon: 'crm' },
++      { section: 'crm',         label: 'Компании',    path: '/valentina/companies',  icon: 'crm' },
++      { section: 'crm',         label: 'Источники',   path: '/valentina/sources',    icon: 'crm' },
++      { section: 'crm',         label: 'Исследования',path: '/valentina/research',   icon: 'crm' },

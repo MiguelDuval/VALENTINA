@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import realRouter from '../../router'
 import OpportunitiesView from '../OpportunitiesView.vue'
@@ -9,22 +9,24 @@ import SourcesView from '../SourcesView.vue'
 import ResearchView from '../ResearchView.vue'
 import { apiFetch } from '../../composables/useApi'
 
-const mockedApiFetch = vi.mocked(apiFetch)
+// Vitest hoists vi.mock() above normal module declarations; keep its factory dependencies in vi.hoisted().
+const { apiFetchMock, baseMock } = vi.hoisted(() => {
+  const baseMock = async (path: string) => {
+    if (path.includes('/opportunities')) return { opportunities: [], count: 0 }
+    if (path.includes('/leads')) return { leads: [], count: 0 }
+    if (path.includes('/companies')) return { companies: [], count: 0 }
+    if (path.includes('/sources')) return { sources: [], count: 0 }
+    if (path.includes('/research-runs')) return { runs: [], count: 0 }
+    return {}
+  }
+  return { apiFetchMock: vi.fn(baseMock), baseMock }
+})
 
-// Base mock: all GET list endpoints return empty arrays
-const baseMock = async (path: string) => {
-  if (path.includes('/opportunities')) return { opportunities: [], count: 0 }
-  if (path.includes('/leads')) return { leads: [], count: 0 }
-  if (path.includes('/companies')) return { companies: [], count: 0 }
-  if (path.includes('/sources')) return { sources: [], count: 0 }
-  if (path.includes('/research-runs')) return { runs: [], count: 0 }
-  return {}
-}
-
-// Mock apiFetch composable
 vi.mock('../../composables/useApi', () => ({
-  apiFetch: vi.fn(baseMock),
+  apiFetch: apiFetchMock,
 }))
+
+const mockedApiFetch = vi.mocked(apiFetch)
 
 // Mount tests use a separate memory router; route-existence tests use the real app router.
 const mountRouter = createRouter({
@@ -111,8 +113,12 @@ describe('LeadsView', () => {
     expect(wrapper.find('form').exists()).toBe(true)
   })
 
-  it('creates a lead via POST API, shows success, resets form, disables button during submit, and handles API error', async () => {
-    // POST succeeds
+  it('creates a lead via POST API, shows success, and resets the form', async () => {
+    const wrapper = mount(LeadsView, {
+      global: { plugins: [mountRouter] },
+    })
+    // Let onMounted() consume the initial GET before configuring the POST mock.
+    await flushPromises()
     mockedApiFetch.mockResolvedValueOnce({
       lead_id: 'lead-123',
       request_summary: 'Test lead',
@@ -121,26 +127,11 @@ describe('LeadsView', () => {
       received_at: new Date().toISOString(),
     })
 
-    const wrapper = mount(LeadsView, {
-      global: { plugins: [mountRouter] },
-    })
-
-    // Fill form
     await wrapper.find('#lead-summary').setValue('Test lead')
     await wrapper.find('#lead-channel').setValue('web')
-
-    // Button should be enabled initially
-    const btn = wrapper.find('button[type="submit"]')
-    expect(btn.attributes('disabled')).toBeUndefined()
-
-    // Submit
     await wrapper.find('form').trigger('submit.prevent')
-    await wrapper.vm.$nextTick()
+    await flushPromises()
 
-    // Button should be disabled during submit
-    expect(btn.attributes('disabled')).toBeDefined()
-
-    // Verify POST API called with correct payload
     expect(mockedApiFetch).toHaveBeenCalledWith(
       '/api/v1/valentina/leads',
       expect.objectContaining({
@@ -149,41 +140,59 @@ describe('LeadsView', () => {
         body: JSON.stringify({ request_summary: 'Test lead', inbound_channel: 'web' }),
       })
     )
-
-    // Wait for async completion
-    await new Promise(resolve => setTimeout(resolve, 0))
-    await wrapper.vm.$nextTick()
-
-    // Success state shown
     expect(wrapper.text()).toContain('создана')
     expect(wrapper.text()).toContain('Test lead')
-
-    // Form reset
     expect((wrapper.vm as any).newLead.request_summary).toBe('')
     expect((wrapper.vm as any).newLead.inbound_channel).toBe('')
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
+  })
 
-    // Button re-enabled
-    expect(btn.attributes('disabled')).toBeUndefined()
+  it('disables the submit button until the POST request settles', async () => {
+    const wrapper = mount(LeadsView, {
+      global: { plugins: [mountRouter] },
+    })
+    await flushPromises()
+
+    let resolvePost!: (value: unknown) => void
+    const pendingPost = new Promise<unknown>((resolve) => {
+      resolvePost = resolve
+    })
+    mockedApiFetch.mockImplementationOnce(() => pendingPost)
+
+    await wrapper.find('#lead-summary').setValue('Pending lead')
+    await wrapper.find('#lead-channel').setValue('web')
+    await wrapper.find('form').trigger('submit.prevent')
+    await wrapper.vm.$nextTick()
+
+    const button = wrapper.find('button[type="submit"]')
+    expect(button.attributes('disabled')).toBeDefined()
+
+    resolvePost({
+      lead_id: 'lead-pending',
+      request_summary: 'Pending lead',
+      inbound_channel: 'web',
+      status: 'new',
+      received_at: new Date().toISOString(),
+    })
+    await flushPromises()
+    expect(button.attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).toContain('создана')
   })
 
   it('shows error when POST API call fails', async () => {
     const wrapper = mount(LeadsView, {
       global: { plugins: [mountRouter] },
     })
-
-    // Mount already resolved GET via baseMock. Now reject the upcoming POST.
+    await flushPromises()
     mockedApiFetch.mockRejectedValueOnce(new Error('API down'))
 
     await wrapper.find('#lead-summary').setValue('Test lead')
     await wrapper.find('#lead-channel').setValue('web')
     await wrapper.find('form').trigger('submit.prevent')
-
-    await new Promise(resolve => setTimeout(resolve, 0))
-    await wrapper.vm.$nextTick()
+    await flushPromises()
 
     expect(wrapper.text()).toContain('Не удалось создать заявку')
-    const btn = wrapper.find('button[type="submit"]')
-    expect(btn.attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
   })
 })
 
