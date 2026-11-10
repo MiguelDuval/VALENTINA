@@ -20,7 +20,7 @@ index 6ee6359..b4ceb7c 100644
  	// vaultProberFn probes MCP vault connectivity for handleVaultTest.
  	// When nil the production implementation (agent.ProbeVaultConnectivity) is used.
  	// Tests override this to avoid real network connections.
-@@ -975,6 +979,13 @@ func (s *Server) SetVersion(v string) {
+@@ -976,6 +980,13 @@ func (s *Server) SetVersion(v string) {
  	s.mu.Lock()
  	defer s.mu.Unlock()
  	s.version = v
@@ -34,7 +34,7 @@ index 6ee6359..b4ceb7c 100644
 +}
 +
  // SetMuninnConfigPath sets the path to the muninn.json global config.
-@@ -1439,6 +1449,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
+@@ -1439,6 +1450,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
  	// WebSocket
  	mux.HandleFunc("GET /ws", s.handleWebSocket)
  
@@ -125,7 +125,7 @@ diff --git a/web/src/utils/navLayout.ts b/web/src/utils/navLayout.ts
 index 7bdb706..f8d1744 100644
 --- a/web/src/utils/navLayout.ts
 +++ b/web/src/utils/navLayout.ts
-@@ -22,6 +22,7 @@ export type AppSection =
+@@ -21,6 +21,7 @@ export type AppSection =
    | 'logs'
    | 'inbox'
    | 'cloud'
