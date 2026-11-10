@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import realRouter from '../../router'
@@ -9,16 +9,21 @@ import SourcesView from '../SourcesView.vue'
 import ResearchView from '../ResearchView.vue'
 import { apiFetch } from '../../composables/useApi'
 
+const mockedApiFetch = vi.mocked(apiFetch)
+
+// Base mock: all GET list endpoints return empty arrays
+const baseMock = async (path: string) => {
+  if (path.includes('/opportunities')) return { opportunities: [], count: 0 }
+  if (path.includes('/leads')) return { leads: [], count: 0 }
+  if (path.includes('/companies')) return { companies: [], count: 0 }
+  if (path.includes('/sources')) return { sources: [], count: 0 }
+  if (path.includes('/research-runs')) return { runs: [], count: 0 }
+  return {}
+}
+
 // Mock apiFetch composable
 vi.mock('../../composables/useApi', () => ({
-  apiFetch: vi.fn(async (path: string) => {
-    if (path.includes('/opportunities')) return { opportunities: [], count: 0 }
-    if (path.includes('/leads')) return { leads: [], count: 0 }
-    if (path.includes('/companies')) return { companies: [], count: 0 }
-    if (path.includes('/sources')) return { sources: [], count: 0 }
-    if (path.includes('/research-runs')) return { runs: [], count: 0 }
-    return {}
-  }),
+  apiFetch: vi.fn(baseMock),
 }))
 
 // Mount tests use a separate memory router; route-existence tests use the real app router.
@@ -58,7 +63,8 @@ describe('CRM Routes (real application router)', () => {
 describe('OpportunitiesView', () => {
   beforeEach(() => {
     mountRouter.push('/')
-    vi.resetAllMocks()
+    mockedApiFetch.mockReset()
+    mockedApiFetch.mockImplementation(baseMock)
   })
 
   it('renders opportunities title', () => {
@@ -79,7 +85,8 @@ describe('OpportunitiesView', () => {
 describe('LeadsView', () => {
   beforeEach(() => {
     mountRouter.push('/')
-    vi.resetAllMocks()
+    mockedApiFetch.mockReset()
+    mockedApiFetch.mockImplementation(baseMock)
   })
 
   it('renders leads title', () => {
@@ -105,7 +112,8 @@ describe('LeadsView', () => {
   })
 
   it('creates a lead via POST API, shows success, resets form, disables button during submit, and handles API error', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({
+    // POST succeeds
+    mockedApiFetch.mockResolvedValueOnce({
       lead_id: 'lead-123',
       request_summary: 'Test lead',
       inbound_channel: 'web',
@@ -133,7 +141,7 @@ describe('LeadsView', () => {
     expect(btn.attributes('disabled')).toBeDefined()
 
     // Verify POST API called with correct payload
-    expect(vi.mocked(apiFetch)).toHaveBeenCalledWith(
+    expect(mockedApiFetch).toHaveBeenCalledWith(
       '/api/v1/valentina/leads',
       expect.objectContaining({
         method: 'POST',
@@ -158,12 +166,13 @@ describe('LeadsView', () => {
     expect(btn.attributes('disabled')).toBeUndefined()
   })
 
-  it('shows error when API call fails', async () => {
-    vi.mocked(apiFetch).mockRejectedValueOnce(new Error('API down'))
-
+  it('shows error when POST API call fails', async () => {
     const wrapper = mount(LeadsView, {
       global: { plugins: [mountRouter] },
     })
+
+    // Mount already resolved GET via baseMock. Now reject the upcoming POST.
+    mockedApiFetch.mockRejectedValueOnce(new Error('API down'))
 
     await wrapper.find('#lead-summary').setValue('Test lead')
     await wrapper.find('#lead-channel').setValue('web')
@@ -181,7 +190,8 @@ describe('LeadsView', () => {
 describe('CompaniesView', () => {
   beforeEach(() => {
     mountRouter.push('/')
-    vi.resetAllMocks()
+    mockedApiFetch.mockReset()
+    mockedApiFetch.mockImplementation(baseMock)
   })
 
   it('renders companies title', () => {
@@ -195,7 +205,8 @@ describe('CompaniesView', () => {
 describe('SourcesView', () => {
   beforeEach(() => {
     mountRouter.push('/')
-    vi.resetAllMocks()
+    mockedApiFetch.mockReset()
+    mockedApiFetch.mockImplementation(baseMock)
   })
 
   it('renders sources title', () => {
@@ -206,7 +217,7 @@ describe('SourcesView', () => {
   })
 
   it('shows pending review approval state', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({
+    mockedApiFetch.mockResolvedValueOnce({
       sources: [{ source_id: 's1', name: 'Test', source_type: 'public', base_url: 'https://example.com', publisher: 'Pub', approval_status: 'pending_review' }],
       count: 1
     })
@@ -225,7 +236,8 @@ describe('SourcesView', () => {
 describe('ResearchView', () => {
   beforeEach(() => {
     mountRouter.push('/')
-    vi.resetAllMocks()
+    mockedApiFetch.mockReset()
+    mockedApiFetch.mockImplementation(baseMock)
   })
 
   it('renders research title', () => {

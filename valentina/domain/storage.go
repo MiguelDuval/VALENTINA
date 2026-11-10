@@ -962,20 +962,18 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 	if err := l.Validate(); err != nil {
 		return fmt.Errorf("validation: %w", err)
 	}
-		return fmt.Errorf("validation: %w", err)
-	}
 	if l.RetentionState == "" {
 		l.RetentionState = "active"
 	}
 
 	services, err := json.Marshal(l.RequestedServices)
-		if err != nil {
-			return fmt.Errorf("marshal requested services: %w", err)
-		}
+	if err != nil {
+		return fmt.Errorf("marshal requested services: %w", err)
+	}
 	missingInfoJSON, err := json.Marshal(l.MissingInformation)
-		if err != nil {
-			return fmt.Errorf("marshal missing information: %w", err)
-		}
+	if err != nil {
+		return fmt.Errorf("marshal missing information: %w", err)
+	}
 	var factsJSON []byte
 	if l.AIAssessment != nil {
 		factsJSON, err = json.Marshal(l.AIAssessment.MissingDetails)

@@ -48,10 +48,11 @@ func withJSON(r *http.Request, target interface{}) error {
 	// Reject a second JSON value after the first.
 // Try decoding another value; if it succeeds (not io.EOF), there's trailing data.
 	var extra json.RawMessage
-	if err := dec.Decode(&extra); err != nil && err != io.EOF {
+	decodeErr := dec.Decode(&extra)
+	if decodeErr != nil && decodeErr != io.EOF {
 		return errors.New("request body contains trailing data after JSON object")
 	}
-	if err == nil {
+	if decodeErr == nil {
 		return errors.New("request body contains multiple JSON objects")
 	}
 	return nil
