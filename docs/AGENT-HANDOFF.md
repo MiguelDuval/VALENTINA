@@ -21,17 +21,17 @@ All three are tracked on the live branch `feature/valentina-dual-pipeline-crm-20
 | Repository | MiguelDuval/VALENTINA |
 | Origin | https://github.com/MiguelDuval/VALENTINA.git |
 | Active branch | feature/valentina-dual-pipeline-crm-20261106 (in sync with origin) |
-| HEAD (live, local + remote) | 5756ba769a383c6e87b101a0aa6133974f5c1950 |
+| HEAD (live, local + remote) | 747f270 (commit: docs: remove Phase 0 restriction, authorize P2 CRM, fix CRM test import path) |
 | HEAD in prior handoff (stale) | a1d628bf2ac4cc38b0272225ab897a2709f095f4 — superseded |
 | Intended PR base | audit/valentina-phase0-feature-inventory-20261106 (remote: 204c88dfb6e6386d0b37c488289cc3f5ceef085f, PR #4 head) |
 | Huginn upstream pin | f01c1d84c08b1de972d8cc268da25602598adff8 — verified matches `docs/UPSTREAM-INTEGRATION.md` |
 | Working tree | 20 untracked user files present (`??`, scripts/logs/ZIP/checks); no modified tracked files; preserved untouched, not committed |
-| Modified tracked files | docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md, .clinerules/00-valentina-project.md, valentina/web/src/views/__tests__/CRMViews.test.ts |
+| Modified tracked files | docs/AGENT-HANDOFF.md, docs/WORK-QUEUE.md, .clinerules/00-valentina-project.md, valentina/web/src/views/__tests__/CRMViews.test.ts (committed as 747f270, pushed to origin) |
 | PR #4 | Open — base `chore/agent-collaboration-ci-20261106`, head `audit/valentina-phase0-feature-inventory-20261106` (204c88d...); do not modify, merge, or close |
 | PR #5 | Does not exist (HTTP 404) — will be created only after successful Full build + Windows artifact |
 | CI evidence (PR #4 page) | Run #39 push completed/success; run #40 PR completed/success; Windows artifact `VALENTINA-windows-x64-f266c735b8379e770c103af3559f9da6b8530f55`, 95,542,273 bytes, present and not expired |
 | Submodule `upstream/huginn` | `git rev-parse HEAD` = f01c1d84c08b1de972d8cc268da25602598adff8 — pin intact |
-| CI blocker fixed | CRMViews.test.ts import `../composables/useApi` → `../../composables/useApi` (test at `views/__tests__/`, composable at `web/src/composables/`) |
+| CI blocker fixed | CRMViews.test.ts import `../composables/useApi` → `../../composables/useApi` (test at `views/__tests__/`, composable at `web/src/composables/`) — committed and pushed as 747f270; GitHub Actions Windows test build (Full profile) triggered by push |
 
 ## 2. Active assignment — documentation-only reconciliation (VAL-P0-001)
 
@@ -66,8 +66,8 @@ Not in scope (blocked): P3/P4 — no unattended scraping, real lead collection, 
 
 ## 4. Next steps
 
-1. Commit the documentation fixes + test import fix on `feature/valentina-dual-pipeline-crm-20261106` (exclude 20 untracked user files).
-2. Push the branch — GitHub Actions Windows test build (Full profile) triggers automatically.
+1. Committed 747f270 on `feature/valentina-dual-pipeline-crm-20261106` (exclude 20 untracked user files) — pushed to origin.
+2. GitHub Actions Windows test build (Full profile) triggered by push — new Actions run ID to be captured.
 3. Capture new Actions run ID, jobs, job logs; verify frontend tests pass (114/114 suites).
 4. Verify Go domain/API tests pass, Windows EXE builds, SHA256 + manifest verified.
 5. After successful artifact publication, create PR #5 (head `feature/...`, base `audit/...`).
