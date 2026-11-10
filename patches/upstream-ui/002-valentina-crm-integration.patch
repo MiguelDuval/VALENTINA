@@ -125,7 +125,7 @@ diff --git a/web/src/utils/navLayout.ts b/web/src/utils/navLayout.ts
 index 7bdb706..f8d1744 100644
 --- a/web/src/utils/navLayout.ts
 +++ b/web/src/utils/navLayout.ts
-@@ -21,6 +21,7 @@ export type AppSection =
+@@ -22,6 +22,7 @@
    | 'logs'
    | 'inbox'
    | 'cloud'
@@ -133,15 +133,15 @@ index 7bdb706..f8d1744 100644
    | string
  
  /** First path segment, with aliases folded onto the icon-rail section. */
-@@ -28,6 +29,7 @@ export function sectionFromPath(path: string): AppSection {
-   const raw = (path.split('?')[0] || '').trim()
+@@ -30,6 +31,7 @@
    const seg = (raw.replace(/^#/, '').split('/').filter(Boolean)[0] || 'chat').toLowerCase()
    if (seg === 'routines' || seg === 'workflows') return 'automation'
    if (seg === 'space') return 'chat'
 +  if (seg === 'valentina') return 'crm'
    return seg
  }
-@@ -55,6 +57,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
+ 
+@@ -57,6 +59,7 @@
    'models',
    'memory',
    'cloud',
@@ -149,13 +149,15 @@ index 7bdb706..f8d1744 100644
  ]
  
  export type NavGroupId = 'chat' | 'admin' | 'logs'
-@@ -88,4 +91,9 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
-       { section: 'automation',  label: 'Automation',   path: '/workflows',      icon: 'automation' },
-       { section: 'connections', label: 'Connections',  path: '/connections',    icon: 'connections' },
-       { section: 'skills',      label: 'Skills',       path: '/skills/browse',  icon: 'skills' },
-       { section: 'settings',    label: 'Settings',     path: '/settings',       icon: 'settings' },
-+      { section: 'crm',         label: 'Возможности', path: '/valentina/opportunities', icon: 'crm' },
-+      { section: 'crm',         label: 'Заявки',      path: '/valentina/leads',      icon: 'crm' },
-+      { section: 'crm',         label: 'Компании',    path: '/valentina/companies',  icon: 'crm' },
-+      { section: 'crm',         label: 'Источники',   path: '/valentina/sources',    icon: 'crm' },
-+      { section: 'crm',         label: 'Исследования',path: '/valentina/research',   icon: 'crm' },
+@@ -92,6 +95,11 @@
+       { section: 'connections', label: 'Подключения',  path: '/connections',    icon: 'connections' },
+       { section: 'skills',      label: 'Навыки',       path: '/skills/browse',  icon: 'skills' },
+       { section: 'settings',    label: 'Настройки',     path: '/settings',       icon: 'settings' },
++      { section: 'crm',         label: 'Возможности',  path: '/valentina/opportunities', icon: 'crm' },
++      { section: 'crm',         label: 'Заявки',       path: '/valentina/leads',         icon: 'crm' },
++      { section: 'crm',         label: 'Компании',     path: '/valentina/companies',     icon: 'crm' },
++      { section: 'crm',         label: 'Источники',    path: '/valentina/sources',       icon: 'crm' },
++      { section: 'crm',         label: 'Исследования', path: '/valentina/research',      icon: 'crm' },
+     ],
+   },
+   {
