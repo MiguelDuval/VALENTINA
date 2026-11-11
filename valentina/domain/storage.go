@@ -607,7 +607,7 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 			o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 		}
 	}
-	if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
+	if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
 		return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 	}
 	o.FirstSeenAt = parseTime(firstSeen)
@@ -674,7 +674,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 		src.SourceID, src.Name, src.Publisher, src.SourceType, src.BaseURL, string(allowedHosts),
 		string(allowedPaths), src.TermsURL, timePtr(src.TermsReviewedAt), timePtr(src.RobotsReviewedAt),
 		src.ApprovalStatus, src.ApprovalReason, src.RetrievalMethod, src.AdapterID, src.AdapterVersion,
-		boolToInt(\&src.AuthenticationRequired), src.CredentialReference, src.RateLimits.MinimumIntervalSeconds,
+		boolToInt(&src.AuthenticationRequired), src.CredentialReference, src.RateLimits.MinimumIntervalSeconds,
 		src.RateLimits.MaxParallelRequests, src.RateLimits.DailyRequestLimit, src.RateLimits.TimeoutSeconds,
 		src.RateLimits.MaxResponseBytes, string(allowedFields), string(prohibitedFields),
 		string(languages), src.ExpectedUpdateFrequency, timePtr(src.LastReviewedAt), src.Notes)
@@ -1079,7 +1079,7 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 				o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 			}
 		}
-		if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
+		if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
 			return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 		}
 		o.FirstSeenAt = parseTime(firstSeen)
@@ -1454,8 +1454,8 @@ c.Domain = ptrStrFromNull(domain)
 if industryTags.Valid {
 json.Unmarshal([]byte(industryTags.String), &c.IndustryTags)
 }
-c.Location = \&Location{Municipality: ptrStrFromNull(muni), Province: ptrStrFromNull(prov), AutonomousCommunity: ptrStrFromNull(autoComm), CountryCode: ptrStrFromNull(country), LocationText: ptrStrFromNull(locText)}
-if err := json.Unmarshal([]byte(srcEvid), &c.SourceEvidenceIDs); err != nil {
+c.Location = &Location{Municipality: ptrStrFromNull(muni), Province: ptrStrFromNull(prov), AutonomousCommunity: ptrStrFromNull(autoComm), CountryCode: ptrStrFromNull(country), LocationText: ptrStrFromNull(locText)}
+if err := json.Unmarshal([]byte(srcEvid.String), &c.SourceEvidenceIDs); err != nil {
 return nil, err
 }
 c.FirstSeenAt = parseTime(firstSeen)
@@ -1552,6 +1552,7 @@ func ptrStrFromNull(s sql.NullString) *string {
 	}
 	return &s.String
 }
+
 
 
 
