@@ -607,7 +607,7 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 			o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 		}
 	}
-	if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
+	if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
 		return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 	}
 	o.FirstSeenAt = parseTime(firstSeen)
@@ -1079,7 +1079,7 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 				o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 			}
 		}
-		if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
+		if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
 			return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 		}
 		o.FirstSeenAt = parseTime(firstSeen)
