@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import {
   sectionFromPath,
   showChatSidebar,
@@ -177,3 +177,5 @@ describe('NAV_GROUPS', () => {
     ])
   })
 })
+
+

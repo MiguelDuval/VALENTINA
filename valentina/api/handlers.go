@@ -1,12 +1,14 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/scrypster/huginn/internal/valentina/domain"
 )
@@ -46,7 +48,7 @@ func withJSON(r *http.Request, target interface{}) error {
 		return err
 	}
 	// Reject a second JSON value after the first.
-// Try decoding another value; if it succeeds (not io.EOF), there's trailing data.
+	// Try decoding another value; if it succeeds (not io.EOF), there's trailing data.
 	var extra json.RawMessage
 	decodeErr := dec.Decode(&extra)
 	if decodeErr != nil && decodeErr != io.EOF {
@@ -71,24 +73,41 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }
+
+// writeDomainError maps expected domain errors to client responses and hides storage internals.
+func writeDomainError(w http.ResponseWriter, err error) {
+	if err == nil {
+		return
+	}
+	message := strings.ToLower(err.Error())
+	switch {
+	case errors.Is(err, sql.ErrNoRows), strings.Contains(message, "not found"):
+		writeError(w, http.StatusNotFound, "resource not found")
+	case strings.Contains(message, "validation:"), strings.Contains(message, "invalid status transition"), strings.Contains(message, "unsupported entity type"), strings.Contains(message, "required"):
+		writeError(w, http.StatusBadRequest, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, "internal server error")
+	}
+}
+
 // Routes returns a map of HTTP method+path to handler for VALENTINA API routes.
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
-		"GET /api/v1/valentina/opportunities":            s.handleListOpportunities,
-		"POST /api/v1/valentina/opportunities":           s.handleCreateOpportunity,
-		"GET /api/v1/valentina/opportunities/{id}":       s.handleGetOpportunity,
-		"GET /api/v1/valentina/leads":                    s.handleListLeads,
-		"POST /api/v1/valentina/leads":                   s.handleCreateLead,
-		"GET /api/v1/valentina/leads/{id}":               s.handleGetLead,
-		"GET /api/v1/valentina/companies":                s.handleListCompanies,
-		"POST /api/v1/valentina/companies":               s.handleCreateCompany,
-		"GET /api/v1/valentina/sources":                  s.handleListSources,
-		"POST /api/v1/valentina/sources":                 s.handleCreateSource,
-		"GET /api/v1/valentina/research-runs":            s.handleListResearchRuns,
-		"POST /api/v1/valentina/research-runs":           s.handleCreateResearchRun,
-		"GET /api/v1/valentina/review-decisions":         s.handleListReviewDecisions,
-		"POST /api/v1/valentina/review-decisions":        s.handleCreateReviewDecision,
-		"GET /api/v1/valentina/health":                   s.handleHealth,
+		"GET /api/v1/valentina/opportunities":      s.handleListOpportunities,
+		"POST /api/v1/valentina/opportunities":     s.handleCreateOpportunity,
+		"GET /api/v1/valentina/opportunities/{id}": s.handleGetOpportunity,
+		"GET /api/v1/valentina/leads":              s.handleListLeads,
+		"POST /api/v1/valentina/leads":             s.handleCreateLead,
+		"GET /api/v1/valentina/leads/{id}":         s.handleGetLead,
+		"GET /api/v1/valentina/companies":          s.handleListCompanies,
+		"POST /api/v1/valentina/companies":         s.handleCreateCompany,
+		"GET /api/v1/valentina/sources":            s.handleListSources,
+		"POST /api/v1/valentina/sources":           s.handleCreateSource,
+		"GET /api/v1/valentina/research-runs":      s.handleListResearchRuns,
+		"POST /api/v1/valentina/research-runs":     s.handleCreateResearchRun,
+		"GET /api/v1/valentina/review-decisions":   s.handleListReviewDecisions,
+		"POST /api/v1/valentina/review-decisions":  s.handleCreateReviewDecision,
+		"GET /api/v1/valentina/health":             s.handleHealth,
 	}
 }
 
@@ -96,6 +115,7 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "valentina-domain"})
 }
+
 // handleListOpportunities lists opportunities with optional status filter.
 func (s *Server) handleListOpportunities(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
@@ -103,7 +123,7 @@ func (s *Server) handleListOpportunities(w http.ResponseWriter, r *http.Request)
 	offset := parseInt(r.URL.Query().Get("offset"), 0)
 	opps, err := s.store.ListOpportunities(r.Context(), status, limit, offset)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"opportunities": opps, "count": len(opps)})
@@ -117,7 +137,7 @@ func (s *Server) handleCreateOpportunity(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := s.store.CreateOpportunity(r.Context(), &body); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, body)
@@ -132,7 +152,7 @@ func (s *Server) handleGetOpportunity(w http.ResponseWriter, r *http.Request) {
 	}
 	opp, err := s.store.GetOpportunity(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "opportunity not found")
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, opp)
@@ -145,7 +165,7 @@ func (s *Server) handleListLeads(w http.ResponseWriter, r *http.Request) {
 	offset := parseInt(r.URL.Query().Get("offset"), 0)
 	leads, err := s.store.ListInboundLeads(r.Context(), status, limit, offset)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"leads": leads, "count": len(leads)})
@@ -159,7 +179,7 @@ func (s *Server) handleCreateLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.CreateInboundLead(r.Context(), &body); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, body)
@@ -174,7 +194,7 @@ func (s *Server) handleGetLead(w http.ResponseWriter, r *http.Request) {
 	}
 	lead, err := s.store.GetInboundLead(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "lead not found")
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, lead)
@@ -198,7 +218,7 @@ func (s *Server) handleCreateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.CreateCompany(r.Context(), &body); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, body)
@@ -222,7 +242,7 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.CreateSource(r.Context(), &body); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, body)
@@ -246,7 +266,7 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := s.store.CreateResearchRun(r.Context(), &body); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, body)
@@ -270,7 +290,7 @@ func (s *Server) handleCreateReviewDecision(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if err := s.store.CreateReviewDecision(r.Context(), &body); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, body)
@@ -287,5 +307,3 @@ func parseInt(s string, def int) int {
 	}
 	return v
 }
-
-

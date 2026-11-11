@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 	"reflect"
+	"time"
 
 	// modernc.org/sqlite is the pure-Go SQLite driver used by Store.
 	_ "modernc.org/sqlite"
@@ -467,6 +467,7 @@ CREATE INDEX IF NOT EXISTS idx_source_evidence_source ON source_evidence(source_
 CREATE INDEX IF NOT EXISTS idx_review_decisions_entity ON review_decisions(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_research_runs_started ON research_runs(started_at);
 `
+
 // locStr extracts a string field from a Location pointer by field name.
 func locStr(l *Location, field string) *string {
 	if l == nil {
@@ -513,8 +514,8 @@ func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
 	if o.OpportunityID == "" {
 		o.OpportunityID = NewOpportunityID()
 	}
-        var err error
-        if err = o.Validate(); err != nil {
+	var err error
+	if err = o.Validate(); err != nil {
 		return fmt.Errorf("validation: %w", err)
 	}
 	now := time.Now().UTC()
@@ -548,9 +549,9 @@ func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
 			published_at, deadline_at, valid_from, valid_until,
 			value_amount, value_currency, value_basis,
 			fit_profile_version, fit_status, fit_evaluated_at,
-			source_evidence_ids, first_seen_at, last_seen_at,
+			source_evidence_ids, first_seen_at, last_seen_at, duplicate_group_id,
 			review_note, demand_evidence_type, demand_evidence_note)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		o.OpportunityID, o.CompanyID, o.Title, o.Summary, o.OpportunityType, o.Status,
 		locStr(o.Geography, "municipality"), locStr(o.Geography, "province"),
 		locStr(o.Geography, "autonomous_community"), locStr(o.Geography, "country_code"), locStr(o.Geography, "location_text"),
@@ -558,9 +559,10 @@ func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
 		valAmount, valCurr, valBasis,
 		fitProf, fitStatus, fitEval,
 		string(srcEvid), o.FirstSeenAt.Format(time.RFC3339), o.LastSeenAt.Format(time.RFC3339),
-		o.ReviewNote, o.DemandEvidenceType, o.DemandEvidenceNote)
+		o.DuplicateGroupID, o.ReviewNote, o.DemandEvidenceType, o.DemandEvidenceNote)
 	return err
 }
+
 // GetOpportunity returns a single opportunity by ID.
 func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, error) {
 	var o Opportunity
@@ -576,7 +578,7 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 		&o.OpportunityID, &o.CompanyID, &o.Title, &o.Summary, &o.OpportunityType, &o.Status,
 		locScan(&o.Geography, "municipality"), locScan(&o.Geography, "province"),
 		locScan(&o.Geography, "autonomous_community"), locScan(&o.Geography, "country_code"), locScan(&o.Geography, "location_text"),
-		timeScan(&pubAt), timeScan(&deadAt), timeScan(&vf), timeScan(&vu),
+		&pubAt, &deadAt, &vf, &vu,
 		&valAmount, &valCurr, &valBasis,
 		&fitProf, &fitStatus, &fitEval,
 		&srcEvid, &firstSeen, &lastSeen,
@@ -627,6 +629,7 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 	}
 	return &o, nil
 }
+
 // CreateSourceEvidence inserts a new source evidence record.
 func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) error {
 	if e.EvidenceID == "" {
@@ -636,9 +639,9 @@ func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) err
 		e.ObservedAt = time.Now().UTC()
 	}
 	facts, err := json.Marshal(e.Facts)
-		if err != nil {
-			return fmt.Errorf("marshal facts: %w", err)
-		}
+	if err != nil {
+		return fmt.Errorf("marshal facts: %w", err)
+	}
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO source_evidence (evidence_id, source_id, canonical_url, publisher, page_title,
@@ -652,9 +655,7 @@ func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) err
 
 // CreateSource inserts a new source record.
 func (s *Store) CreateSource(ctx context.Context, src *Source) error {
-	if src.SourceID == "" {
-		return errors.New("source_id is required")
-	}
+	src.EnsureID()
 	if src.ApprovalStatus == "" {
 		src.ApprovalStatus = "pending_review"
 	}
@@ -663,7 +664,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 	allowedFields, _ := json.Marshal(src.AllowedFields)
 	prohibitedFields, _ := json.Marshal(src.ProhibitedFields)
 	languages, _ := json.Marshal(src.Languages)
-        var err error
+	var err error
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO sources (source_id, name, publisher, source_type, base_url, allowed_hosts,
@@ -672,7 +673,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 			credential_reference, minimum_interval_seconds, max_parallel_requests, daily_request_limit,
 			timeout_seconds, max_response_bytes, allowed_fields, prohibited_fields, languages,
 			expected_update_frequency, last_reviewed_at, notes)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		src.SourceID, src.Name, src.Publisher, src.SourceType, src.BaseURL, string(allowedHosts),
 		string(allowedPaths), src.TermsURL, timePtr(src.TermsReviewedAt), timePtr(src.RobotsReviewedAt),
 		src.ApprovalStatus, src.ApprovalReason, src.RetrievalMethod, src.AdapterID, src.AdapterVersion,
@@ -708,26 +709,46 @@ func (s *Store) ListSources(ctx context.Context) ([]*Source, error) {
 		var credRef, expectedFreq, lastReviewed, notes sql.NullString
 		err := rows.Scan(
 			&s.SourceID, &s.Name, &s.Publisher, &s.SourceType, &s.BaseURL, &allowedHosts,
-				&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,
-				&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,
-				&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,
-				&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,
-				&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,
-				&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,
+			&allowedPaths, &termsURL, &termsReviewed, &robotsReviewed, &s.ApprovalStatus,
+			&approvalReason, &s.RetrievalMethod, &adapterID, &adapterVersion,
+			&s.AuthenticationRequired, &credRef, &s.RateLimits.MinimumIntervalSeconds,
+			&s.RateLimits.MaxParallelRequests, &s.RateLimits.DailyRequestLimit,
+			&s.RateLimits.TimeoutSeconds, &s.RateLimits.MaxResponseBytes,
+			&allowedFields, &prohibitedFields, &languages, &expectedFreq, &lastReviewed, &notes,
 		)
 		if err != nil {
 			return nil, err
 		}
-		if termsURL.Valid { s.TermsURL = ptrStrFromNull(termsURL) }
-		if termsReviewed.Valid { s.TermsReviewedAt = parseTimePtr(termsReviewed) }
-		if robotsReviewed.Valid { s.RobotsReviewedAt = parseTimePtr(robotsReviewed) }
-		if approvalReason.Valid { s.ApprovalReason = ptrStrFromNull(approvalReason) }
-		if adapterID.Valid { s.AdapterID = ptrStrFromNull(adapterID) }
-		if adapterVersion.Valid { s.AdapterVersion = ptrStrFromNull(adapterVersion) }
-		if credRef.Valid { s.CredentialReference = ptrStrFromNull(credRef) }
-		if expectedFreq.Valid { s.ExpectedUpdateFrequency = ptrStrFromNull(expectedFreq) }
-		if lastReviewed.Valid { s.LastReviewedAt = parseTimePtr(lastReviewed) }
-		if notes.Valid { s.Notes = ptrStrFromNull(notes) }
+		if termsURL.Valid {
+			s.TermsURL = ptrStrFromNull(termsURL)
+		}
+		if termsReviewed.Valid {
+			s.TermsReviewedAt = parseTimePtr(termsReviewed)
+		}
+		if robotsReviewed.Valid {
+			s.RobotsReviewedAt = parseTimePtr(robotsReviewed)
+		}
+		if approvalReason.Valid {
+			s.ApprovalReason = ptrStrFromNull(approvalReason)
+		}
+		if adapterID.Valid {
+			s.AdapterID = ptrStrFromNull(adapterID)
+		}
+		if adapterVersion.Valid {
+			s.AdapterVersion = ptrStrFromNull(adapterVersion)
+		}
+		if credRef.Valid {
+			s.CredentialReference = ptrStrFromNull(credRef)
+		}
+		if expectedFreq.Valid {
+			s.ExpectedUpdateFrequency = ptrStrFromNull(expectedFreq)
+		}
+		if lastReviewed.Valid {
+			s.LastReviewedAt = parseTimePtr(lastReviewed)
+		}
+		if notes.Valid {
+			s.Notes = ptrStrFromNull(notes)
+		}
 
 		// Parse JSON arrays
 		if allowedHosts.Valid {
@@ -769,7 +790,7 @@ func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 		r.StartedAt = time.Now().UTC()
 	}
 	srcIDs, _ := json.Marshal(r.SourceIDs)
-        var err error
+	var err error
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO research_runs (run_id, started_at, completed_at, status, source_ids,
 			candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes)
@@ -795,14 +816,16 @@ func (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {
 	for rows.Next() {
 		var r ResearchRun
 		var srcIDs, completed, notes sql.NullString
+		var started string
 		err := rows.Scan(
-			&r.RunID, &r.StartedAt, &completed, &r.Status, &srcIDs,
-				&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,
-				&r.AcceptedCount, &r.RejectedCount, &notes,
+			&r.RunID, &started, &completed, &r.Status, &srcIDs,
+			&r.CandidateCount, &r.VerifiedCount, &r.DuplicateCount,
+			&r.AcceptedCount, &r.RejectedCount, &notes,
 		)
 		if err != nil {
 			return nil, err
 		}
+		r.StartedAt = parseTime(started)
 		r.CompletedAt = parseTimePtr(completed)
 		if srcIDs.Valid {
 			if err := json.Unmarshal([]byte(srcIDs.String), &r.SourceIDs); err != nil {
@@ -848,8 +871,6 @@ func validTransition(entityType, prevStatus, newStatus string) bool {
 		default:
 			return newStatus == "archived"
 		}
-	case "company":
-		return newStatus == "active" || newStatus == "archived"
 	default:
 		return false
 	}
@@ -857,69 +878,65 @@ func validTransition(entityType, prevStatus, newStatus string) bool {
 
 // CreateReviewDecision inserts a new review decision record.
 func (s *Store) CreateReviewDecision(ctx context.Context, d *ReviewDecision) error {
-        if d.DecisionID == "" {
-                d.DecisionID = NewDecisionID()
-        }
-        if d.DecisionTime.IsZero() {
-                d.DecisionTime = time.Now().UTC()
-        }
+	if d.DecisionID == "" {
+		d.DecisionID = NewDecisionID()
+	}
+	if d.DecisionTime.IsZero() {
+		d.DecisionTime = time.Now().UTC()
+	}
 
-        tx, err := s.db.BeginTx(ctx, nil)
-        if err != nil {
-                return fmt.Errorf("begin transaction: %w", err)
-        }
-        defer tx.Rollback()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
 
-        // Verify entity exists and read previous status.
-        var prevStatus string
-        switch d.EntityType {
-        case "opportunity":
-                err = tx.QueryRowContext(ctx, "SELECT status FROM opportunities WHERE opportunity_id = ?", d.EntityID).Scan(&prevStatus)
-        case "inbound_lead":
-                err = tx.QueryRowContext(ctx, "SELECT status FROM inbound_leads WHERE lead_id = ?", d.EntityID).Scan(&prevStatus)
-        case "company":
-                err = tx.QueryRowContext(ctx, "SELECT status FROM companies WHERE company_id = ?", d.EntityID).Scan(&prevStatus)
-        default:
-                return fmt.Errorf("unsupported entity type: %q", d.EntityType)
-        }
-        if err != nil {
-                return fmt.Errorf("entity not found: %w", err)
-        }
-        d.PreviousStatus = prevStatus
+	// Verify entity exists and read previous status.
+	var prevStatus string
+	switch d.EntityType {
+	case "opportunity":
+		err = tx.QueryRowContext(ctx, "SELECT status FROM opportunities WHERE opportunity_id = ?", d.EntityID).Scan(&prevStatus)
+	case "inbound_lead":
+		err = tx.QueryRowContext(ctx, "SELECT status FROM inbound_leads WHERE lead_id = ?", d.EntityID).Scan(&prevStatus)
+	default:
+		return fmt.Errorf("unsupported entity type: %q", d.EntityType)
+	}
+	if err != nil {
+		return fmt.Errorf("entity not found: %w", err)
+	}
+	d.PreviousStatus = prevStatus
 
-        // Validate status transition.
-        if !validTransition(d.EntityType, prevStatus, d.NewStatus) {
-                return fmt.Errorf("invalid status transition for %s: %q -> %q", d.EntityType, prevStatus, d.NewStatus)
-        }
+	// Validate status transition.
+	if !validTransition(d.EntityType, prevStatus, d.NewStatus) {
+		return fmt.Errorf("invalid status transition for %s: %q -> %q", d.EntityType, prevStatus, d.NewStatus)
+	}
 
-        // Write the review decision.
-        _, err = tx.ExecContext(ctx, `
+	// Write the review decision.
+	_, err = tx.ExecContext(ctx, `
                 INSERT INTO review_decisions (decision_id, entity_type, entity_id, previous_status,
                         new_status, decision_time, decision_reason, profile_version, operator_ref)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                d.DecisionID, d.EntityType, d.EntityID, d.PreviousStatus, d.NewStatus,
-                d.DecisionTime.Format(time.RFC3339), d.DecisionReason, d.ProfileVersion, d.OperatorRef)
-        if err != nil {
-                return fmt.Errorf("insert review decision: %w", err)
-        }
+		d.DecisionID, d.EntityType, d.EntityID, d.PreviousStatus, d.NewStatus,
+		d.DecisionTime.Format(time.RFC3339), d.DecisionReason, d.ProfileVersion, d.OperatorRef)
+	if err != nil {
+		return fmt.Errorf("insert review decision: %w", err)
+	}
 
-        // Change the entity status.
-        switch d.EntityType {
-        case "opportunity":
-                _, err = tx.ExecContext(ctx, "UPDATE opportunities SET status = ? WHERE opportunity_id = ?", d.NewStatus, d.EntityID)
-        case "inbound_lead":
-                _, err = tx.ExecContext(ctx, "UPDATE inbound_leads SET status = ? WHERE lead_id = ?", d.NewStatus, d.EntityID)
-        case "company":
-                _, err = tx.ExecContext(ctx, "UPDATE companies SET status = ? WHERE company_id = ?", d.NewStatus, d.EntityID)
-        }
-        if err != nil {
-                return fmt.Errorf("update entity status: %w", err)
-        }
+	// Change the entity status.
+	switch d.EntityType {
+	case "opportunity":
+		_, err = tx.ExecContext(ctx, "UPDATE opportunities SET status = ? WHERE opportunity_id = ?", d.NewStatus, d.EntityID)
+	case "inbound_lead":
+		_, err = tx.ExecContext(ctx, "UPDATE inbound_leads SET status = ? WHERE lead_id = ?", d.NewStatus, d.EntityID)
+	}
+	if err != nil {
+		return fmt.Errorf("update entity status: %w", err)
+	}
 
-        if err := tx.Commit(); err != nil {
-                return fmt.Errorf("commit transaction: %w", err)
-        }
-        return nil
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
 }
 
 // ListReviewDecisions returns all review decisions.
@@ -934,14 +951,16 @@ func (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, err
 	for rows.Next() {
 		var d ReviewDecision
 		var opRef sql.NullString
+		var decisionTime string
 		err := rows.Scan(
 			&d.DecisionID, &d.EntityType, &d.EntityID, &d.PreviousStatus,
-			&d.NewStatus, &d.DecisionTime, &d.DecisionReason,
+			&d.NewStatus, &decisionTime, &d.DecisionReason,
 			&d.ProfileVersion, &opRef,
 		)
 		if err != nil {
 			return nil, err
 		}
+		d.DecisionTime = parseTime(decisionTime)
 		if opRef.Valid {
 			d.OperatorRef = ptrStrFromNull(opRef)
 		}
@@ -949,6 +968,7 @@ func (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, err
 	}
 	return out, rows.Err()
 }
+
 // CreateInboundLead inserts a new inbound lead record.
 func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 	if l.LeadID == "" {
@@ -1010,6 +1030,7 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), l.RetentionState)
 	return err
 }
+
 // ListOpportunities returns opportunities with optional status filter and pagination.
 func (s *Store) ListOpportunities(ctx context.Context, status string, limit, offset int) ([]*Opportunity, error) {
 	query := `SELECT opportunity_id, company_id, title, summary, opportunity_type, status,
@@ -1017,7 +1038,7 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 		published_at, deadline_at, valid_from, valid_until,
 		value_amount, value_currency, value_basis,
 		fit_profile_version, fit_status, fit_evaluated_at,
-		source_evidence_ids, first_seen_at, last_seen_at,
+		source_evidence_ids, first_seen_at, last_seen_at, duplicate_group_id,
 		review_note, demand_evidence_type, demand_evidence_note
 		FROM opportunities`
 	var args []interface{}
@@ -1049,10 +1070,10 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 			&o.OpportunityID, &o.CompanyID, &o.Title, &o.Summary, &o.OpportunityType, &o.Status,
 			locScan(&o.Geography, "municipality"), locScan(&o.Geography, "province"),
 			locScan(&o.Geography, "autonomous_community"), locScan(&o.Geography, "country_code"), locScan(&o.Geography, "location_text"),
-			timeScan(&pubAt), timeScan(&deadAt), timeScan(&validFrom), timeScan(&validUntil),
+			&pubAt, &deadAt, &validFrom, &validUntil,
 			&valAmount, &valCurr, &valBasis,
 			&fitProf, &fitStatus, &fitEval,
-			&srcEvid, &firstSeen, &lastSeen,
+			&srcEvid, &firstSeen, &lastSeen, &dupGroup,
 			&reviewNote, &demType, &demNote,
 		)
 		if err != nil {
@@ -1131,90 +1152,90 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		var aiBudget sql.NullFloat64
 		var burC sql.NullString
 
-				var contactName, contactEmail, contactPhone, contactPurpose sql.NullString
+		var contactName, contactEmail, contactPhone, contactPurpose sql.NullString
 		var aiServiceCat, aiProjectScope, aiLocationVal, aiTimingUrgency, aiCompanyMatch, aiResponseDraft, aiProfileVersion sql.NullString
 		err := rows.Scan(
-				&l.LeadID, &received, &l.InboundChannel, &l.ChannelMessageRef,
-				&l.RequestSummary, &l.OriginalContent, &services,
-				locScan(&l.ProjectLocation, "municipality"), locScan(&l.ProjectLocation, "province"),
-				locScan(&l.ProjectLocation, "autonomous_community"), locScan(&l.ProjectLocation, "country_code"),
-				locScan(&l.ProjectLocation, "location_text"),
-				&budget, &burC, &l.DesiredTiming,
-				&l.CompanyID, &contactName, &contactEmail, &contactPhone, &contactPurpose,
-				&aiServiceCat, &aiProjectScope, &aiLocationVal, &aiBudget, &aiTimingUrgency, &aiMissingDetails,
-				&aiCompanyMatch, &aiResponseDraft, &aiEval, &aiProfileVersion,
-				&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &l.RetentionState,
-			)
+			&l.LeadID, &received, &l.InboundChannel, &l.ChannelMessageRef,
+			&l.RequestSummary, &l.OriginalContent, &services,
+			locScan(&l.ProjectLocation, "municipality"), locScan(&l.ProjectLocation, "province"),
+			locScan(&l.ProjectLocation, "autonomous_community"), locScan(&l.ProjectLocation, "country_code"),
+			locScan(&l.ProjectLocation, "location_text"),
+			&budget, &burC, &l.DesiredTiming,
+			&l.CompanyID, &contactName, &contactEmail, &contactPhone, &contactPurpose,
+			&aiServiceCat, &aiProjectScope, &aiLocationVal, &aiBudget, &aiTimingUrgency, &aiMissingDetails,
+			&aiCompanyMatch, &aiResponseDraft, &aiEval, &aiProfileVersion,
+			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &l.RetentionState,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
-				l.ReceivedAt = parseTime(received)
-				if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
-					return nil, fmt.Errorf("unmarshal requested_services: %w", err)
-				}
-				l.Budget = ptrF64(budget)
-				if burC.Valid {
-					l.BudgetCurrency = &burC.String
-				}
+		l.ReceivedAt = parseTime(received)
+		if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
+			return nil, fmt.Errorf("unmarshal requested_services: %w", err)
+		}
+		l.Budget = ptrF64(budget)
+		if burC.Valid {
+			l.BudgetCurrency = &burC.String
+		}
 
-				// Rebuild nested structs only when data is present.
-				if contactName.Valid || contactEmail.Valid || contactPhone.Valid || contactPurpose.Valid {
-					l.ContactInfo = &ContactInfo{}
-					if contactName.Valid {
-						l.ContactInfo.Name = &contactName.String
-					}
-					if contactEmail.Valid {
-						l.ContactInfo.Email = &contactEmail.String
-					}
-					if contactPhone.Valid {
-						l.ContactInfo.Phone = &contactPhone.String
-					}
-					if contactPurpose.Valid {
-						l.ContactInfo.Purpose = &contactPurpose.String
-					}
+		// Rebuild nested structs only when data is present.
+		if contactName.Valid || contactEmail.Valid || contactPhone.Valid || contactPurpose.Valid {
+			l.ContactInfo = &ContactInfo{}
+			if contactName.Valid {
+				l.ContactInfo.Name = &contactName.String
+			}
+			if contactEmail.Valid {
+				l.ContactInfo.Email = &contactEmail.String
+			}
+			if contactPhone.Valid {
+				l.ContactInfo.Phone = &contactPhone.String
+			}
+			if contactPurpose.Valid {
+				l.ContactInfo.Purpose = &contactPurpose.String
+			}
+		}
+		if aiServiceCat.Valid || aiProjectScope.Valid || aiLocationVal.Valid || aiTimingUrgency.Valid || aiCompanyMatch.Valid || aiResponseDraft.Valid || aiProfileVersion.Valid || aiBudget.Valid || aiEval.Valid || aiMissingDetails != "" {
+			l.AIAssessment = &InboundAIAssessment{}
+			if aiServiceCat.Valid {
+				l.AIAssessment.ServiceCategory = &aiServiceCat.String
+			}
+			if aiProjectScope.Valid {
+				l.AIAssessment.ProjectScope = &aiProjectScope.String
+			}
+			if aiLocationVal.Valid {
+				l.AIAssessment.Location = &aiLocationVal.String
+			}
+			if aiBudget.Valid {
+				v := aiBudget.Float64
+				l.AIAssessment.Budget = &v
+			}
+			if aiTimingUrgency.Valid {
+				l.AIAssessment.TimingUrgency = &aiTimingUrgency.String
+			}
+			if aiCompanyMatch.Valid {
+				l.AIAssessment.CompanyMatch = &aiCompanyMatch.String
+			}
+			if aiResponseDraft.Valid {
+				l.AIAssessment.ResponseDraft = &aiResponseDraft.String
+			}
+			if aiProfileVersion.Valid {
+				l.AIAssessment.ProfileVersion = aiProfileVersion.String
+			}
+			if aiEval.Valid {
+				l.AIAssessment.EvaluatedAt = parseTime(aiEval.String)
+			}
+			if aiMissingDetails != "" {
+				var missing []string
+				if err := json.Unmarshal([]byte(aiMissingDetails), &missing); err != nil {
+					return nil, fmt.Errorf("unmarshal ai missing details: %w", err)
 				}
-				if aiServiceCat.Valid || aiProjectScope.Valid || aiLocationVal.Valid || aiTimingUrgency.Valid || aiCompanyMatch.Valid || aiResponseDraft.Valid || aiProfileVersion.Valid || aiBudget.Valid || aiEval.Valid || aiMissingDetails != "" {
-					l.AIAssessment = &InboundAIAssessment{}
-					if aiServiceCat.Valid {
-						l.AIAssessment.ServiceCategory = &aiServiceCat.String
-					}
-					if aiProjectScope.Valid {
-						l.AIAssessment.ProjectScope = &aiProjectScope.String
-					}
-					if aiLocationVal.Valid {
-						l.AIAssessment.Location = &aiLocationVal.String
-					}
-					if aiBudget.Valid {
-						v := aiBudget.Float64
-						l.AIAssessment.Budget = &v
-					}
-					if aiTimingUrgency.Valid {
-						l.AIAssessment.TimingUrgency = &aiTimingUrgency.String
-					}
-					if aiCompanyMatch.Valid {
-						l.AIAssessment.CompanyMatch = &aiCompanyMatch.String
-					}
-					if aiResponseDraft.Valid {
-						l.AIAssessment.ResponseDraft = &aiResponseDraft.String
-					}
-					if aiProfileVersion.Valid {
-						l.AIAssessment.ProfileVersion = aiProfileVersion.String
-					}
-					if aiEval.Valid {
-						l.AIAssessment.EvaluatedAt = parseTime(aiEval.String)
-					}
-					if aiMissingDetails != "" {
-						var missing []string
-						if err := json.Unmarshal([]byte(aiMissingDetails), &missing); err != nil {
-							return nil, fmt.Errorf("unmarshal ai missing details: %w", err)
-						}
-						l.AIAssessment.MissingDetails = missing
-					}
-				}
-				if err := json.Unmarshal([]byte(missingInfo), &l.MissingInformation); err != nil {
-					return nil, fmt.Errorf("unmarshal missing_information: %w", err)
-				}
-				// PrivacyNotice is already *bool, no conversion needed
+				l.AIAssessment.MissingDetails = missing
+			}
+		}
+		if err := json.Unmarshal([]byte(missingInfo), &l.MissingInformation); err != nil {
+			return nil, fmt.Errorf("unmarshal missing_information: %w", err)
+		}
+		// PrivacyNotice is already *bool, no conversion needed
 		out = append(out, &l)
 	}
 	return out, rows.Err()
@@ -1287,7 +1308,6 @@ func ptrF64(n sql.NullFloat64) *float64 {
 	v := n.Float64
 	return &v
 }
-
 
 // ptrF64Obj extracts a *float64 field from a struct by name using reflection.
 // Returns nil if obj is nil, field is missing, or the field is not a *float64.
@@ -1387,86 +1407,86 @@ func ptrToIface(obj interface{}, field string) interface{} {
 
 // locStrPtr extracts a string pointer from a Location pointer using a selector func.
 func locStrPtr(l *Location, field string) *string {
-if l == nil {
-return nil
-}
-switch field {
-case "municipality":
-return l.Municipality
-case "province":
-return l.Province
-case "autonomous_community":
-return l.AutonomousCommunity
-case "country_code":
-return l.CountryCode
-case "location_text":
-return l.LocationText
-}
-return nil
+	if l == nil {
+		return nil
+	}
+	switch field {
+	case "municipality":
+		return l.Municipality
+	case "province":
+		return l.Province
+	case "autonomous_community":
+		return l.AutonomousCommunity
+	case "country_code":
+		return l.CountryCode
+	case "location_text":
+		return l.LocationText
+	}
+	return nil
 }
 
 // ptrStrPtr extracts a string pointer using a selector function.
 func ptrStrPtr(obj interface{}, sel func(interface{}) *string) *string {
-if obj == nil {
-return nil
-}
-return sel(obj)
+	if obj == nil {
+		return nil
+	}
+	return sel(obj)
 }
 
 // boolToIntPtr converts a *bool to *int (1/0), handling nil.
 func boolToIntPtr(b *bool) *int {
-if b == nil {
-return nil
-}
-if *b {
-v := 1
-return &v
-}
-v := 0
-return &v
+	if b == nil {
+		return nil
+	}
+	if *b {
+		v := 1
+		return &v
+	}
+	v := 0
+	return &v
 }
 
 // GetOpportunity returns a single opportunity by ID.
 
 func (s *Store) ListCompanies(ctx context.Context) ([]*Company, error) {
-rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 SELECT company_id, name, normalized_name, website, domain, industry_tags,
 municipality, province, autonomous_community, country_code, location_text,
 source_evidence_ids, first_seen_at, last_seen_at, notes
 FROM companies ORDER BY name`)
-if err != nil {
-return nil, err
-}
-defer rows.Close()
-var out []*Company
-for rows.Next() {
-var c Company
-var industryTags, srcEvid sql.NullString
-var firstSeen, lastSeen string
-var web, domain, muni, prov, autoComm, country, locText, notes sql.NullString
-err := rows.Scan(
-&c.CompanyID, &c.Name, &c.NormalizedName, &web, &domain, &industryTags,
-&muni, &prov, &autoComm, &country, &locText,
-&srcEvid, &firstSeen, &lastSeen, &notes,
-)
-if err != nil {
-return nil, err
-}
-c.Website = ptrStrFromNull(web)
-c.Domain = ptrStrFromNull(domain)
-if industryTags.Valid {
-json.Unmarshal([]byte(industryTags.String), &c.IndustryTags)
-}
-c.Location = &Location{Municipality: ptrStrFromNull(muni), Province: ptrStrFromNull(prov), AutonomousCommunity: ptrStrFromNull(autoComm), CountryCode: ptrStrFromNull(country), LocationText: ptrStrFromNull(locText)}
-if err := json.Unmarshal([]byte(srcEvid.String), &c.SourceEvidenceIDs); err != nil {
-return nil, err
-}
-c.FirstSeenAt = parseTime(firstSeen)
-c.LastSeenAt = parseTime(lastSeen)
-c.Notes = ptrStrFromNull(notes)
-out = append(out, &c)
-}
-return out, rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Company
+	for rows.Next() {
+		var c Company
+		var industryTags, srcEvid sql.NullString
+		var firstSeen, lastSeen string
+		var web, domain, muni, prov, autoComm, country, locText, notes sql.NullString
+		err := rows.Scan(
+			&c.CompanyID, &c.Name, &c.NormalizedName, &web, &domain, &industryTags,
+			&muni, &prov, &autoComm, &country, &locText,
+			&srcEvid, &firstSeen, &lastSeen, &notes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		c.Website = ptrStrFromNull(web)
+		c.Domain = ptrStrFromNull(domain)
+		if industryTags.Valid {
+			json.Unmarshal([]byte(industryTags.String), &c.IndustryTags)
+		}
+		c.Location = &Location{Municipality: ptrStrFromNull(muni), Province: ptrStrFromNull(prov), AutonomousCommunity: ptrStrFromNull(autoComm), CountryCode: ptrStrFromNull(country), LocationText: ptrStrFromNull(locText)}
+		if err := json.Unmarshal([]byte(srcEvid.String), &c.SourceEvidenceIDs); err != nil {
+			return nil, err
+		}
+		c.FirstSeenAt = parseTime(firstSeen)
+		c.LastSeenAt = parseTime(lastSeen)
+		c.Notes = ptrStrFromNull(notes)
+		out = append(out, &c)
+	}
+	return out, rows.Err()
 }
 
 // aiTime returns the EvaluatedAt time from an InboundAIAssessment.
@@ -1477,10 +1497,9 @@ func aiTime(a *InboundAIAssessment) *time.Time {
 	return &a.EvaluatedAt
 }
 
-
 // GetInboundLead returns a single inbound lead by ID.
 func (s *Store) GetInboundLead(ctx context.Context, id string) (*InboundLead, error) {
-	leads, err := s.ListInboundLeads(ctx, "", 1, 0)
+	leads, err := s.ListInboundLeads(ctx, "", -1, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1555,21 +1574,3 @@ func ptrStrFromNull(s sql.NullString) *string {
 	}
 	return &s.String
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

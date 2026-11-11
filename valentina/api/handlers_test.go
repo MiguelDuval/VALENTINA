@@ -56,10 +56,11 @@ func TestHandleCreateAndGetOpportunity(t *testing.T) {
 		t.Fatal("OpportunityID should be generated")
 	}
 	req = httptest.NewRequest("GET", "/api/v1/valentina/opportunities/"+created.OpportunityID, nil)
+	req.SetPathValue("id", created.OpportunityID)
 	w = httptest.NewRecorder()
 	s.handleGetOpportunity(w, req)
 	if w.Code != http.StatusOK {
-		t.Fatalf("Expected 200, got %d", w.Code)
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 	var got domain.Opportunity
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
@@ -83,6 +84,7 @@ func TestHandleGetOpportunityMissingID(t *testing.T) {
 func TestHandleGetOpportunityNotFound(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest("GET", "/api/v1/valentina/opportunities/nonexistent", nil)
+	req.SetPathValue("id", "nonexistent")
 	w := httptest.NewRecorder()
 	s.handleGetOpportunity(w, req)
 	if w.Code != http.StatusNotFound {
@@ -133,6 +135,7 @@ func TestHandleCreateAndGetLead(t *testing.T) {
 		t.Fatal("LeadID should be generated")
 	}
 	req = httptest.NewRequest("GET", "/api/v1/valentina/leads/"+created.LeadID, nil)
+	req.SetPathValue("id", created.LeadID)
 	w = httptest.NewRecorder()
 	s.handleGetLead(w, req)
 	if w.Code != http.StatusOK {
@@ -173,7 +176,7 @@ func TestHandleCreateLeadSecondJSONRejected(t *testing.T) {
 func TestHandleListCompanies(t *testing.T) {
 	s := testServer(t)
 	s.store.CreateCompany(context.Background(), &domain.Company{
-		Name:          "Test Co",
+		Name:           "Test Co",
 		NormalizedName: "test co",
 	})
 	req := httptest.NewRequest("GET", "/api/v1/valentina/companies", nil)
@@ -196,21 +199,23 @@ func TestHandleListCompanies(t *testing.T) {
 
 func TestHandleListSources(t *testing.T) {
 	s := testServer(t)
-	s.store.CreateSource(context.Background(), &domain.Source{
-		Name:          "Test Source",
-		Publisher:     "Pub",
-		SourceType:    "public",
-		BaseURL:       "https://example.com",
-		AllowedHosts:  []string{"example.com"},
-		ApprovalStatus: "pending_review",
+	if err := s.store.CreateSource(context.Background(), &domain.Source{
+		Name:            "Test Source",
+		Publisher:       "Pub",
+		SourceType:      "public",
+		BaseURL:         "https://example.com",
+		AllowedHosts:    []string{"example.com"},
+		ApprovalStatus:  "pending_review",
 		RetrievalMethod: "manual",
 		RateLimits: domain.SourceRateLimits{
 			MinimumIntervalSeconds: 60,
-			MaxParallelRequests: 1,
-			TimeoutSeconds: 30,
-			MaxResponseBytes: 1024,
+			MaxParallelRequests:    1,
+			TimeoutSeconds:         30,
+			MaxResponseBytes:       1024,
 		},
-	})
+	}); err != nil {
+		t.Fatalf("CreateSource: %v", err)
+	}
 	req := httptest.NewRequest("GET", "/api/v1/valentina/sources", nil)
 	w := httptest.NewRecorder()
 	s.handleListSources(w, req)
@@ -231,11 +236,13 @@ func TestHandleListSources(t *testing.T) {
 
 func TestHandleListResearchRuns(t *testing.T) {
 	s := testServer(t)
-	s.store.CreateResearchRun(context.Background(), &domain.ResearchRun{
-		StartedAt:   time.Now().UTC(),
-		Status:      "completed",
-		SourceIDs:   []string{"s1"},
-	})
+	if err := s.store.CreateResearchRun(context.Background(), &domain.ResearchRun{
+		StartedAt: time.Now().UTC(),
+		Status:    "completed",
+		SourceIDs: []string{"s1"},
+	}); err != nil {
+		t.Fatalf("CreateResearchRun: %v", err)
+	}
 	req := httptest.NewRequest("GET", "/api/v1/valentina/research-runs", nil)
 	w := httptest.NewRecorder()
 	s.handleListResearchRuns(w, req)
@@ -256,15 +263,18 @@ func TestHandleListReviewDecisions(t *testing.T) {
 
 func TestHandleCreateReviewDecision(t *testing.T) {
 	s := testServer(t)
-	s.store.CreateOpportunity(context.Background(), &domain.Opportunity{
-		Title:               "Opp",
-		Summary:             "S",
-		OpportunityType:     "direct_request",
-		Status:              domain.OpportunityStatusNeedsReview,
-		DemandEvidenceType:  domain.DemandEvidenceUnknown,
-		SourceEvidenceIDs:   []string{"ev"},
-	})
-	body := `{"entity_type":"opportunity","new_status":"qualified","decision_reason":"Good"}`
+	opportunity := &domain.Opportunity{
+		Title:              "Opp",
+		Summary:            "S",
+		OpportunityType:    "direct_request",
+		Status:             domain.OpportunityStatusNeedsReview,
+		DemandEvidenceType: domain.DemandEvidenceUnknown,
+		SourceEvidenceIDs:  []string{"ev"},
+	}
+	if err := s.store.CreateOpportunity(context.Background(), opportunity); err != nil {
+		t.Fatalf("CreateOpportunity: %v", err)
+	}
+	body := `{"entity_type":"opportunity","entity_id":"` + opportunity.OpportunityID + `","new_status":"qualified","decision_reason":"Good"}`
 	req := httptest.NewRequest("POST", "/api/v1/valentina/review-decisions", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

@@ -38,47 +38,47 @@ const (
 type InboundLeadStatus string
 
 const (
-	InboundLeadStatusNew      InboundLeadStatus = "new"
-	InboundLeadStatusTriage   InboundLeadStatus = "triage"
+	InboundLeadStatusNew       InboundLeadStatus = "new"
+	InboundLeadStatusTriage    InboundLeadStatus = "triage"
 	InboundLeadStatusNeedsInfo InboundLeadStatus = "needs_information"
 	InboundLeadStatusQualified InboundLeadStatus = "qualified"
 	InboundLeadStatusConverted InboundLeadStatus = "converted"
-	InboundLeadStatusDeclined InboundLeadStatus = "declined"
-	InboundLeadStatusSpam     InboundLeadStatus = "spam"
-	InboundLeadStatusArchived InboundLeadStatus = "archived"
+	InboundLeadStatusDeclined  InboundLeadStatus = "declined"
+	InboundLeadStatusSpam      InboundLeadStatus = "spam"
+	InboundLeadStatusArchived  InboundLeadStatus = "archived"
 )
 
 // Location represents a geographic location.
 type Location struct {
-	Municipality         *string `json:"municipality,omitempty"`
-	Province             *string `json:"province,omitempty"`
-	AutonomousCommunity  *string `json:"autonomous_community,omitempty"`
-	CountryCode          *string `json:"country_code,omitempty"`
-	LocationText         *string `json:"location_text,omitempty"`
+	Municipality        *string `json:"municipality,omitempty"`
+	Province            *string `json:"province,omitempty"`
+	AutonomousCommunity *string `json:"autonomous_community,omitempty"`
+	CountryCode         *string `json:"country_code,omitempty"`
+	LocationText        *string `json:"location_text,omitempty"`
 }
 
 // OpportunityValue represents a published value/budget/rate.
 type OpportunityValue struct {
 	Amount   *float64 `json:"amount,omitempty"`
-	Currency *string   `json:"currency,omitempty"`
-	Basis    *string   `json:"basis,omitempty"`
+	Currency *string  `json:"currency,omitempty"`
+	Basis    *string  `json:"basis,omitempty"`
 }
 
 // FitCriterion is a single criterion evaluation.
 type FitCriterion struct {
-	CriterionID  string   `json:"criterion_id"`
-	Outcome      string   `json:"outcome"`
-	Reason       string   `json:"reason"`
-	EvidenceIDs  []string `json:"evidence_ids,omitempty"`
+	CriterionID string   `json:"criterion_id"`
+	Outcome     string   `json:"outcome"`
+	Reason      string   `json:"reason"`
+	EvidenceIDs []string `json:"evidence_ids,omitempty"`
 }
 
 // FitAssessment records an owner-profile fit evaluation.
 type FitAssessment struct {
-	ProfileVersion     string        `json:"profile_version"`
-	FitStatus          string        `json:"fit_status"`
-	EvaluatedAt        time.Time     `json:"evaluated_at"`
+	ProfileVersion     string         `json:"profile_version"`
+	FitStatus          string         `json:"fit_status"`
+	EvaluatedAt        time.Time      `json:"evaluated_at"`
 	Criteria           []FitCriterion `json:"criteria"`
-	MissingInformation []string      `json:"missing_information,omitempty"`
+	MissingInformation []string       `json:"missing_information,omitempty"`
 }
 
 // EvidenceFact is a single extracted fact with provenance.
@@ -93,11 +93,11 @@ type EvidenceFact struct {
 
 // SourceRateLimits defines request constraints for a source.
 type SourceRateLimits struct {
-	MinimumIntervalSeconds int    `json:"minimum_interval_seconds"`
-	MaxParallelRequests    int    `json:"max_parallel_requests"`
-	DailyRequestLimit      *int   `json:"daily_request_limit,omitempty"`
-	TimeoutSeconds         int    `json:"timeout_seconds"`
-	MaxResponseBytes       int64  `json:"max_response_bytes"`
+	MinimumIntervalSeconds int   `json:"minimum_interval_seconds"`
+	MaxParallelRequests    int   `json:"max_parallel_requests"`
+	DailyRequestLimit      *int  `json:"daily_request_limit,omitempty"`
+	TimeoutSeconds         int   `json:"timeout_seconds"`
+	MaxResponseBytes       int64 `json:"max_response_bytes"`
 }
 
 // ContactInfo is minimal contact information for an inbound customer.
@@ -124,41 +124,41 @@ type InboundAIAssessment struct {
 
 // Company represents a public-facing organization or publisher.
 type Company struct {
-	CompanyID         string     `json:"company_id"`
-	Name              string     `json:"name"`
-	NormalizedName    string     `json:"normalized_name"`
-	Website           *string    `json:"website,omitempty"`
-	Domain            *string    `json:"domain,omitempty"`
-	IndustryTags      []string   `json:"industry_tags,omitempty"`
-	Location          *Location  `json:"location,omitempty"`
-	SourceEvidenceIDs []string   `json:"source_evidence_ids"`
-	FirstSeenAt       time.Time  `json:"first_seen_at"`
-	LastSeenAt        time.Time  `json:"last_seen_at"`
-	Notes             *string    `json:"notes,omitempty"`
+	CompanyID         string    `json:"company_id"`
+	Name              string    `json:"name"`
+	NormalizedName    string    `json:"normalized_name"`
+	Website           *string   `json:"website,omitempty"`
+	Domain            *string   `json:"domain,omitempty"`
+	IndustryTags      []string  `json:"industry_tags,omitempty"`
+	Location          *Location `json:"location,omitempty"`
+	SourceEvidenceIDs []string  `json:"source_evidence_ids"`
+	FirstSeenAt       time.Time `json:"first_seen_at"`
+	LastSeenAt        time.Time `json:"last_seen_at"`
+	Notes             *string   `json:"notes,omitempty"`
 }
 
 // Opportunity represents a publicly discovered commercial opportunity.
 type Opportunity struct {
-	OpportunityID       string             `json:"opportunity_id"`
-	CompanyID           *string            `json:"company_id,omitempty"`
-	Title               string             `json:"title"`
-	Summary             string             `json:"summary"`
-	OpportunityType     string             `json:"opportunity_type"`
-	Status              OpportunityStatus  `json:"status"`
-	Geography           *Location          `json:"geography,omitempty"`
-	PublishedAt         *time.Time         `json:"published_at,omitempty"`
-	DeadlineAt          *time.Time         `json:"deadline_at,omitempty"`
-	ValidFrom           *time.Time         `json:"valid_from,omitempty"`
-	ValidUntil          *time.Time         `json:"valid_until,omitempty"`
-	Value               *OpportunityValue  `json:"value,omitempty"`
-	FitAssessment       *FitAssessment     `json:"fit_assessment,omitempty"`
-	SourceEvidenceIDs   []string           `json:"source_evidence_ids"`
-	FirstSeenAt         time.Time          `json:"first_seen_at"`
-	LastSeenAt          time.Time          `json:"last_seen_at"`
-	DuplicateGroupID    *string            `json:"duplicate_group_id,omitempty"`
-	ReviewNote          *string            `json:"review_note,omitempty"`
-	DemandEvidenceType  DemandEvidenceType `json:"demand_evidence_type"`
-	DemandEvidenceNote  *string            `json:"demand_evidence_note,omitempty"`
+	OpportunityID      string             `json:"opportunity_id"`
+	CompanyID          *string            `json:"company_id,omitempty"`
+	Title              string             `json:"title"`
+	Summary            string             `json:"summary"`
+	OpportunityType    string             `json:"opportunity_type"`
+	Status             OpportunityStatus  `json:"status"`
+	Geography          *Location          `json:"geography,omitempty"`
+	PublishedAt        *time.Time         `json:"published_at,omitempty"`
+	DeadlineAt         *time.Time         `json:"deadline_at,omitempty"`
+	ValidFrom          *time.Time         `json:"valid_from,omitempty"`
+	ValidUntil         *time.Time         `json:"valid_until,omitempty"`
+	Value              *OpportunityValue  `json:"value,omitempty"`
+	FitAssessment      *FitAssessment     `json:"fit_assessment,omitempty"`
+	SourceEvidenceIDs  []string           `json:"source_evidence_ids"`
+	FirstSeenAt        time.Time          `json:"first_seen_at"`
+	LastSeenAt         time.Time          `json:"last_seen_at"`
+	DuplicateGroupID   *string            `json:"duplicate_group_id,omitempty"`
+	ReviewNote         *string            `json:"review_note,omitempty"`
+	DemandEvidenceType DemandEvidenceType `json:"demand_evidence_type"`
+	DemandEvidenceNote *string            `json:"demand_evidence_note,omitempty"`
 }
 
 // SourceEvidence records one observation of one page/document.
@@ -179,30 +179,30 @@ type SourceEvidence struct {
 
 // Source represents an approved public-source collection profile.
 type Source struct {
-	SourceID           string           `json:"source_id"`
-	Name               string           `json:"name"`
-	Publisher          string           `json:"publisher"`
-	SourceType         string           `json:"source_type"`
-	BaseURL            string           `json:"base_url"`
-	AllowedHosts       []string         `json:"allowed_hosts"`
-	AllowedPathPrefixes []string         `json:"allowed_path_prefixes,omitempty"`
-	TermsURL           *string          `json:"terms_url,omitempty"`
-	TermsReviewedAt    *time.Time       `json:"terms_reviewed_at,omitempty"`
-	RobotsReviewedAt   *time.Time       `json:"robots_reviewed_at,omitempty"`
-	ApprovalStatus     string           `json:"approval_status"`
-	ApprovalReason     *string          `json:"approval_reason,omitempty"`
-	RetrievalMethod    string           `json:"retrieval_method"`
-	AdapterID          *string          `json:"adapter_id,omitempty"`
-	AdapterVersion     *string          `json:"adapter_version,omitempty"`
-	AuthenticationRequired bool          `json:"authentication_required"`
-	CredentialReference *string         `json:"credential_reference,omitempty"`
-	RateLimits         SourceRateLimits `json:"rate_limits"`
-	AllowedFields      []string         `json:"allowed_fields"`
-	ProhibitedFields   []string         `json:"prohibited_fields,omitempty"`
-	Languages          []string         `json:"languages,omitempty"`
-	ExpectedUpdateFrequency *string       `json:"expected_update_frequency,omitempty"`
-	LastReviewedAt     *time.Time       `json:"last_reviewed_at,omitempty"`
-	Notes              *string          `json:"notes,omitempty"`
+	SourceID                string           `json:"source_id"`
+	Name                    string           `json:"name"`
+	Publisher               string           `json:"publisher"`
+	SourceType              string           `json:"source_type"`
+	BaseURL                 string           `json:"base_url"`
+	AllowedHosts            []string         `json:"allowed_hosts"`
+	AllowedPathPrefixes     []string         `json:"allowed_path_prefixes,omitempty"`
+	TermsURL                *string          `json:"terms_url,omitempty"`
+	TermsReviewedAt         *time.Time       `json:"terms_reviewed_at,omitempty"`
+	RobotsReviewedAt        *time.Time       `json:"robots_reviewed_at,omitempty"`
+	ApprovalStatus          string           `json:"approval_status"`
+	ApprovalReason          *string          `json:"approval_reason,omitempty"`
+	RetrievalMethod         string           `json:"retrieval_method"`
+	AdapterID               *string          `json:"adapter_id,omitempty"`
+	AdapterVersion          *string          `json:"adapter_version,omitempty"`
+	AuthenticationRequired  bool             `json:"authentication_required"`
+	CredentialReference     *string          `json:"credential_reference,omitempty"`
+	RateLimits              SourceRateLimits `json:"rate_limits"`
+	AllowedFields           []string         `json:"allowed_fields"`
+	ProhibitedFields        []string         `json:"prohibited_fields,omitempty"`
+	Languages               []string         `json:"languages,omitempty"`
+	ExpectedUpdateFrequency *string          `json:"expected_update_frequency,omitempty"`
+	LastReviewedAt          *time.Time       `json:"last_reviewed_at,omitempty"`
+	Notes                   *string          `json:"notes,omitempty"`
 }
 
 // ResearchRun records a manual research action and its results.
@@ -235,26 +235,26 @@ type ReviewDecision struct {
 
 // InboundLead represents a customer-initiated enquiry.
 type InboundLead struct {
-	LeadID            string              `json:"lead_id"`
-	ReceivedAt        time.Time           `json:"received_at"`
-	InboundChannel    string              `json:"inbound_channel"`
-	ChannelMessageRef *string             `json:"channel_message_ref,omitempty"`
-	RequestSummary    string              `json:"request_summary"`
-	OriginalContent   *string             `json:"original_content,omitempty"`
-	RequestedServices []string            `json:"requested_services,omitempty"`
-	ProjectLocation   *Location           `json:"project_location,omitempty"`
-	Budget            *float64            `json:"budget,omitempty"`
-	BudgetCurrency    *string             `json:"budget_currency,omitempty"`
-	DesiredTiming     *string             `json:"desired_timing,omitempty"`
-	CompanyID         *string             `json:"company_id,omitempty"`
-	ContactInfo       *ContactInfo        `json:"contact_info,omitempty"`
-	AIAssessment      *InboundAIAssessment `json:"ai_assessment,omitempty"`
-	MissingInformation []string            `json:"missing_information,omitempty"`
-	DuplicateGroupID  *string             `json:"duplicate_group_id,omitempty"`
-	Status            InboundLeadStatus   `json:"status"`
-	DecisionHistory   []ReviewDecision    `json:"decision_history,omitempty"`
-	PrivacyNotice     *bool               `json:"privacy_notice,omitempty"`
-	RetentionState    string              `json:"retention_state"`
+	LeadID             string               `json:"lead_id"`
+	ReceivedAt         time.Time            `json:"received_at"`
+	InboundChannel     string               `json:"inbound_channel"`
+	ChannelMessageRef  *string              `json:"channel_message_ref,omitempty"`
+	RequestSummary     string               `json:"request_summary"`
+	OriginalContent    *string              `json:"original_content,omitempty"`
+	RequestedServices  []string             `json:"requested_services,omitempty"`
+	ProjectLocation    *Location            `json:"project_location,omitempty"`
+	Budget             *float64             `json:"budget,omitempty"`
+	BudgetCurrency     *string              `json:"budget_currency,omitempty"`
+	DesiredTiming      *string              `json:"desired_timing,omitempty"`
+	CompanyID          *string              `json:"company_id,omitempty"`
+	ContactInfo        *ContactInfo         `json:"contact_info,omitempty"`
+	AIAssessment       *InboundAIAssessment `json:"ai_assessment,omitempty"`
+	MissingInformation []string             `json:"missing_information,omitempty"`
+	DuplicateGroupID   *string              `json:"duplicate_group_id,omitempty"`
+	Status             InboundLeadStatus    `json:"status"`
+	DecisionHistory    []ReviewDecision     `json:"decision_history,omitempty"`
+	PrivacyNotice      *bool                `json:"privacy_notice,omitempty"`
+	RetentionState     string               `json:"retention_state"`
 }
 
 // NewOpportunityID generates a stable opportunity ID.
@@ -421,8 +421,12 @@ func IsDuplicateLead(a, b *InboundLead) bool {
 func ValidateDuplicateCandidate(newOpp *Opportunity, existing []*Opportunity) error {
 	for _, existing := range existing {
 		if IsDuplicate(newOpp, existing) {
+			groupID := ""
+			if existing.DuplicateGroupID != nil {
+				groupID = *existing.DuplicateGroupID
+			}
 			return fmt.Errorf("potential duplicate of opportunity %s (duplicate group: %s)",
-				existing.OpportunityID, existing.DuplicateGroupID)
+				existing.OpportunityID, groupID)
 		}
 	}
 	return nil
@@ -435,4 +439,3 @@ func fmtDate(t *time.Time) string {
 	}
 	return t.Format("2006-01-02")
 }
-

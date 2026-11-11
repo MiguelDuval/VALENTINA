@@ -49,12 +49,12 @@ func TestSourceEnsureID(t *testing.T) {
 
 func TestOpportunityValidateBeforeEnsureID(t *testing.T) {
 	o := &Opportunity{
-		Title:               "Test",
-		Summary:             "Test summary",
-		OpportunityType:     "test",
-		Status:              OpportunityStatusCandidate,
-		DemandEvidenceType:  DemandEvidenceUnknown,
-		SourceEvidenceIDs:   []string{"ev1"},
+		Title:              "Test",
+		Summary:            "Test summary",
+		OpportunityType:    "test",
+		Status:             OpportunityStatusCandidate,
+		DemandEvidenceType: DemandEvidenceUnknown,
+		SourceEvidenceIDs:  []string{"ev1"},
 	}
 	err := o.Validate()
 	if err == nil {
@@ -71,6 +71,7 @@ func TestInboundLeadValidateBeforeEnsureID(t *testing.T) {
 	l := &InboundLead{
 		RequestSummary: "Test",
 		InboundChannel: "web",
+		Status:         InboundLeadStatusNew,
 	}
 	err := l.Validate()
 	if err == nil {
@@ -85,13 +86,13 @@ func TestInboundLeadValidateBeforeEnsureID(t *testing.T) {
 
 func TestOpportunityValidateInvalidStatus(t *testing.T) {
 	o := &Opportunity{
-		OpportunityID:       "test-id",
-		Title:               "Test",
-		Summary:             "Test",
-		OpportunityType:     "test",
-		Status:              OpportunityStatus("invalid"),
-		DemandEvidenceType:  DemandEvidenceUnknown,
-		SourceEvidenceIDs:   []string{"ev1"},
+		OpportunityID:      "test-id",
+		Title:              "Test",
+		Summary:            "Test",
+		OpportunityType:    "test",
+		Status:             OpportunityStatus("invalid"),
+		DemandEvidenceType: DemandEvidenceUnknown,
+		SourceEvidenceIDs:  []string{"ev1"},
 	}
 	err := o.Validate()
 	if err == nil {
@@ -101,10 +102,10 @@ func TestOpportunityValidateInvalidStatus(t *testing.T) {
 
 func TestInboundLeadValidateInvalidStatus(t *testing.T) {
 	l := &InboundLead{
-		LeadID:            "test-id",
-		RequestSummary:    "Test",
-		InboundChannel:    "web",
-		Status:            InboundLeadStatus("invalid"),
+		LeadID:         "test-id",
+		RequestSummary: "Test",
+		InboundChannel: "web",
+		Status:         InboundLeadStatus("invalid"),
 	}
 	err := l.Validate()
 	if err == nil {
@@ -123,12 +124,12 @@ func TestLocationSingleDefinition(t *testing.T) {
 
 func TestOpportunityValueNilSafety(t *testing.T) {
 	o := &Opportunity{
-		OpportunityID:       "test-id",
-		Title:               "Test",
-		Summary:             "Test",
-		Status:              OpportunityStatusCandidate,
-		DemandEvidenceType:  DemandEvidenceUnknown,
-		SourceEvidenceIDs:   []string{"ev1"},
+		OpportunityID:      "test-id",
+		Title:              "Test",
+		Summary:            "Test",
+		Status:             OpportunityStatusCandidate,
+		DemandEvidenceType: DemandEvidenceUnknown,
+		SourceEvidenceIDs:  []string{"ev1"},
 	}
 	if o.Value != nil {
 		t.Fatal("Value should be nil when not set")
@@ -141,11 +142,11 @@ func TestOpportunityValueNilSafety(t *testing.T) {
 
 func TestInboundLeadNilNestedStructs(t *testing.T) {
 	l := &InboundLead{
-		LeadID:          "test-id",
-		RequestSummary:  "Test",
-		InboundChannel:  "web",
-		ContactInfo:     nil,
-		AIAssessment:    nil,
+		LeadID:         "test-id",
+		RequestSummary: "Test",
+		InboundChannel: "web",
+		ContactInfo:    nil,
+		AIAssessment:   nil,
 	}
 	if l.ContactInfo != nil {
 		t.Fatal("ContactInfo should be nil")
@@ -170,7 +171,7 @@ func TestValidateDuplicateCandidate(t *testing.T) {
 	}
 }
 
-func strPtr(s string) *string { return &s }
+func strPtr(s string) *string       { return &s }
 func float64Ptr(f float64) *float64 { return &f }
 
 var _ = errors.New
