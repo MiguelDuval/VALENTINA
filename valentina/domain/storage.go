@@ -607,7 +607,7 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 			o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 		}
 	}
-	if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
+	if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
 		return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 	}
 	o.FirstSeenAt = parseTime(firstSeen)
@@ -1079,7 +1079,7 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 				o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 			}
 		}
-		if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
+		if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
 			return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 		}
 		o.FirstSeenAt = parseTime(firstSeen)
@@ -1455,7 +1455,7 @@ if industryTags.Valid {
 json.Unmarshal([]byte(industryTags.String), &c.IndustryTags)
 }
 c.Location = \&Location{Municipality: ptrStrFromNull(muni), Province: ptrStrFromNull(prov), AutonomousCommunity: ptrStrFromNull(autoComm), CountryCode: ptrStrFromNull(country), LocationText: ptrStrFromNull(locText)}
-if err := json.Unmarshal([]byte(srcEvid.String), &c.SourceEvidenceIDs); err != nil {
+if err := json.Unmarshal([]byte(srcEvid), &c.SourceEvidenceIDs); err != nil {
 return nil, err
 }
 c.FirstSeenAt = parseTime(firstSeen)
@@ -1552,6 +1552,10 @@ func ptrStrFromNull(s sql.NullString) *string {
 	}
 	return &s.String
 }
+
+
+
+
 
 
 
