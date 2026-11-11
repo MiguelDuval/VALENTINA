@@ -1,4 +1,4 @@
-﻿package domain
+package domain
 
 import (
 	"context"
@@ -513,7 +513,8 @@ func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
 	if o.OpportunityID == "" {
 		o.OpportunityID = NewOpportunityID()
 	}
-	if err := o.Validate(); err != nil {
+        var err error
+        if err = o.Validate(); err != nil {
 		return fmt.Errorf("validation: %w", err)
 	}
 	now := time.Now().UTC()
@@ -662,6 +663,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 	allowedFields, _ := json.Marshal(src.AllowedFields)
 	prohibitedFields, _ := json.Marshal(src.ProhibitedFields)
 	languages, _ := json.Marshal(src.Languages)
+        var err error
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO sources (source_id, name, publisher, source_type, base_url, allowed_hosts,
@@ -767,6 +769,7 @@ func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 		r.StartedAt = time.Now().UTC()
 	}
 	srcIDs, _ := json.Marshal(r.SourceIDs)
+        var err error
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO research_runs (run_id, started_at, completed_at, status, source_ids,
 			candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes)
@@ -1552,6 +1555,7 @@ func ptrStrFromNull(s sql.NullString) *string {
 	}
 	return &s.String
 }
+
 
 
 
