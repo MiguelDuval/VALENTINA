@@ -1,4 +1,4 @@
-package domain
+﻿package domain
 
 import (
 	"context"
@@ -613,16 +613,16 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 	o.FirstSeenAt = parseTime(firstSeen)
 	o.LastSeenAt = parseTime(lastSeen)
 	if dupGroup.Valid {
-		o.DuplicateGroupID = dupGroup.String
+		o.DuplicateGroupID = ptrStrFromNull(dupGroup)
 	}
 	if reviewNote.Valid {
-		o.ReviewNote = reviewNote.String
+		o.ReviewNote = ptrStrFromNull(reviewNote)
 	}
 	if demType.Valid {
 		o.DemandEvidenceType = DemandEvidenceType(demType.String)
 	}
 	if demNote.Valid {
-		o.DemandEvidenceNote = demNote.String
+		o.DemandEvidenceNote = ptrStrFromNull(demNote)
 	}
 	return &o, nil
 }
@@ -674,7 +674,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 		src.SourceID, src.Name, src.Publisher, src.SourceType, src.BaseURL, string(allowedHosts),
 		string(allowedPaths), src.TermsURL, timePtr(src.TermsReviewedAt), timePtr(src.RobotsReviewedAt),
 		src.ApprovalStatus, src.ApprovalReason, src.RetrievalMethod, src.AdapterID, src.AdapterVersion,
-		boolToInt(src.AuthenticationRequired), src.CredentialReference, src.RateLimits.MinimumIntervalSeconds,
+		boolToInt(\&src.AuthenticationRequired), src.CredentialReference, src.RateLimits.MinimumIntervalSeconds,
 		src.RateLimits.MaxParallelRequests, src.RateLimits.DailyRequestLimit, src.RateLimits.TimeoutSeconds,
 		src.RateLimits.MaxResponseBytes, string(allowedFields), string(prohibitedFields),
 		string(languages), src.ExpectedUpdateFrequency, timePtr(src.LastReviewedAt), src.Notes)
@@ -716,16 +716,16 @@ func (s *Store) ListSources(ctx context.Context) ([]*Source, error) {
 		if err != nil {
 			return nil, err
 		}
-		if termsURL.Valid { s.TermsURL = termsURL }
-		if termsReviewed.Valid { s.TermsReviewedAt = parseTime(termsReviewed.String) }
-		if robotsReviewed.Valid { s.RobotsReviewedAt = parseTime(robotsReviewed.String) }
-		if approvalReason.Valid { s.ApprovalReason = approvalReason }
-		if adapterID.Valid { s.AdapterID = adapterID }
-		if adapterVersion.Valid { s.AdapterVersion = adapterVersion }
-		if credRef.Valid { s.CredentialReference = credRef.String }
-		if expectedFreq.Valid { s.ExpectedUpdateFrequency = expectedFreq.String }
+		if termsURL.Valid { s.TermsURL = ptrStrFromNull(termsURL) }
+		if termsReviewed.Valid { s.TermsReviewedAt = parseTimePtr(termsReviewed) }
+		if robotsReviewed.Valid { s.RobotsReviewedAt = parseTimePtr(robotsReviewed) }
+		if approvalReason.Valid { s.ApprovalReason = ptrStrFromNull(approvalReason) }
+		if adapterID.Valid { s.AdapterID = ptrStrFromNull(adapterID) }
+		if adapterVersion.Valid { s.AdapterVersion = ptrStrFromNull(adapterVersion) }
+		if credRef.Valid { s.CredentialReference = ptrStrFromNull(credRef) }
+		if expectedFreq.Valid { s.ExpectedUpdateFrequency = ptrStrFromNull(expectedFreq) }
 		if lastReviewed.Valid { s.LastReviewedAt = parseTimePtr(lastReviewed) }
-		if notes.Valid { s.Notes = notes.String }
+		if notes.Valid { s.Notes = ptrStrFromNull(notes) }
 
 		// Parse JSON arrays
 		if allowedHosts.Valid {
@@ -807,7 +807,7 @@ func (s *Store) ListResearchRuns(ctx context.Context) ([]*ResearchRun, error) {
 			}
 		}
 		if notes.Valid {
-			r.Notes = notes.String
+			r.Notes = ptrStrFromNull(notes)
 		}
 		out = append(out, &r)
 	}
@@ -940,7 +940,7 @@ func (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, err
 			return nil, err
 		}
 		if opRef.Valid {
-			d.OperatorRef = opRef
+			d.OperatorRef = ptrStrFromNull(opRef)
 		}
 		out = append(out, &d)
 	}
@@ -1084,10 +1084,10 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 		}
 		o.FirstSeenAt = parseTime(firstSeen)
 		o.LastSeenAt = parseTime(lastSeen)
-		o.DuplicateGroupID = dupGroup
-		o.ReviewNote = reviewNote
+		o.DuplicateGroupID = ptrStrFromNull(dupGroup)
+		o.ReviewNote = ptrStrFromNull(reviewNote)
 		o.DemandEvidenceType = DemandEvidenceType(demType.String)
-		o.DemandEvidenceNote = demNote
+		o.DemandEvidenceNote = ptrStrFromNull(demNote)
 		out = append(out, &o)
 	}
 	return out, rows.Err()
@@ -1449,8 +1449,8 @@ err := rows.Scan(
 if err != nil {
 return nil, err
 }
-c.Website = web
-c.Domain = domain
+c.Website = ptrStrFromNull(web)
+c.Domain = ptrStrFromNull(domain)
 if industryTags.Valid {
 json.Unmarshal([]byte(industryTags.String), &c.IndustryTags)
 }
@@ -1460,7 +1460,7 @@ return nil, err
 }
 c.FirstSeenAt = parseTime(firstSeen)
 c.LastSeenAt = parseTime(lastSeen)
-c.Notes = notes
+c.Notes = ptrStrFromNull(notes)
 out = append(out, &c)
 }
 return out, rows.Err()
@@ -1544,3 +1544,13 @@ func (s *Store) GetReviewDecision(ctx context.Context, id string) (*ReviewDecisi
 	}
 	return nil, fmt.Errorf("review decision not found: %s", id)
 }
+
+// ptrStrFromNull converts a sql.NullString to *string, returning nil if not valid.
+func ptrStrFromNull(s sql.NullString) *string {
+	if !s.Valid {
+		return nil
+	}
+	return &s.String
+}
+
+
