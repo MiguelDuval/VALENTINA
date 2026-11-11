@@ -33,6 +33,7 @@ $Upstream = Join-Path $Repo "upstream\huginn"
 $Patch1 = Join-Path $Repo "patches\upstream-ui\001-valentina-ui-foundation.patch"
 $Patch2 = Join-Path $Repo "patches\upstream-ui\002-valentina-crm-integration.patch"
 $Patch3 = Join-Path $Repo "patches\upstream-ui\003-stable-number-formatting.patch"
+$Patch4 = Join-Path $Repo "patches\upstream-ui\004-valentina-route-registration.patch"
 $ExpectedUpstreamSha = "f01c1d84c08b1de972d8cc268da25602598adff8"
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $Repo "dist" }
 elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $Repo $OutputDirectory }
@@ -59,7 +60,8 @@ $patches = @($Patch1)
 if ($Profile -eq "Full") {
     if (-not (Test-Path $Patch2)) { Throw-BuildError "Build step failed" }
     if (-not (Test-Path $Patch3)) { Throw-BuildError "Build step failed" }
-    $patches = @($Patch1, $Patch2, $Patch3)
+    if (-not (Test-Path $Patch4)) { Throw-BuildError "Build step failed" }
+    $patches = @($Patch1, $Patch2, $Patch3, $Patch4)
 }
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGuid().ToString("N"))
 $copy = Join-Path $tmp "source"

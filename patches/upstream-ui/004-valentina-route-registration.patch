@@ -1,0 +1,26 @@
+diff --git a/internal/server/server.go b/internal/server/server.go
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -1182,10 +1182,22 @@
+ 
+ 	// Unauthenticated endpoints — safe because server binds to 127.0.0.1 only.
+ 	mux.HandleFunc("GET /api/v1/token", loggingMiddleware(s.handleGetToken))
+ 	mux.HandleFunc("GET /api/v1/health", loggingMiddleware(requestIDMiddleware(s.handleHealth)))
+ 
++	// VALENTINA CRM API. Keep its health endpoint unauthenticated like the
++	// host health endpoint; all data mutations and reads use the normal auth wrapper.
++	if s.valentinaAPI != nil {
++		for pattern, handler := range s.valentinaAPI.Routes() {
++			if pattern == "GET /api/v1/valentina/health" {
++				mux.HandleFunc(pattern, loggingMiddleware(requestIDMiddleware(handler)))
++				continue
++			}
++			mux.HandleFunc(pattern, api(handler))
++		}
++	}
++
+ 	// REST API (auth required)
+ 	mux.HandleFunc("POST /api/v1/restart", api(s.handleRestart))
+ 	mux.HandleFunc("GET /api/v1/sessions", api(s.handleListSessions))
+ 	mux.HandleFunc("GET /api/v1/sessions/search", api(s.handleSearchSessions))
+ 	mux.HandleFunc("POST /api/v1/sessions", api(s.rateLimitMiddleware(func() *endpointRateLimiter { return s.sessionCreateLimiter }, s.handleCreateSession)))
