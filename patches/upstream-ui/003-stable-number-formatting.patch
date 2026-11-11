@@ -1,0 +1,51 @@
+diff --git a/web/src/views/StatsView.vue b/web/src/views/StatsView.vue
+--- a/web/src/views/StatsView.vue
++++ b/web/src/views/StatsView.vue
+@@ -40,7 +40,7 @@
+             </div>
+             <div class="rounded-xl border border-huginn-border bg-huginn-surface/50 px-4 py-4">
+               <p class="text-[11px] font-semibold text-huginn-muted uppercase tracking-widest mb-1">Total Messages</p>
+-              <p class="text-2xl font-semibold text-huginn-text">{{ totalMessages.toLocaleString() }}</p>
++              <p class="text-2xl font-semibold text-huginn-text">{{ totalMessages.toLocaleString('en-US') }}</p>
+             </div>
+             <div class="rounded-xl border border-huginn-border bg-huginn-surface/50 px-4 py-4">
+               <p class="text-[11px] font-semibold text-huginn-muted uppercase tracking-widest mb-1">Session Cost</p>
+@@ -120,7 +120,7 @@
+               <span class="text-huginn-muted font-mono w-16 flex-shrink-0 text-[10px]">{{ new Date(row.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+               <span class="text-huginn-muted truncate flex-1 text-[10px]">{{ row.session_id }}</span>
+               <span class="text-huginn-text font-mono flex-shrink-0">${{ row.cost_usd.toFixed(4) }}</span>
+-              <span class="text-huginn-muted text-[10px] flex-shrink-0">{{ (row.prompt_tokens + row.completion_tokens).toLocaleString() }} tok</span>
++              <span class="text-huginn-muted text-[10px] flex-shrink-0">{{ (row.prompt_tokens + row.completion_tokens).toLocaleString('en-US') }} tok</span>
+             </div>
+             <div v-if="costHistory.length > 10" class="text-huginn-muted text-[10px] pt-1">
+               + {{ costHistory.length - 10 }} more
+@@ -218,7 +218,7 @@
+     const prompt = c.prompt_tokens_total ?? 0
+     const completion = c.completion_tokens_total ?? 0
+     if (prompt === 0 && completion === 0) return 'n/a (local)'
+-    return `n/a (local) · ${(prompt + completion).toLocaleString()} tok`
++    return `n/a (local) · ${(prompt + completion).toLocaleString('en-US')} tok`
+   }
+   if (!c.session_total_usd) return '—'
+   return `$${c.session_total_usd.toFixed(4)}`
+@@ -226,7 +226,7 @@
+ 
+ function formatTokens(n: number | null | undefined): string {
+   if (typeof n !== 'number') return '—'
+-  return n.toLocaleString()
++  return n.toLocaleString('en-US')
+ }
+ 
+ function groupBy(field: keyof SessionManifest): RankedItem[] {
+diff --git a/web/src/components/ThreadPanel/ThreadPanel.vue b/web/src/components/ThreadPanel/ThreadPanel.vue
+--- a/web/src/components/ThreadPanel/ThreadPanel.vue
++++ b/web/src/components/ThreadPanel/ThreadPanel.vue
+@@ -73,7 +73,7 @@
+       class="flex items-center gap-3 px-3 py-2 border-t border-huginn-border flex-shrink-0"
+       style="background:rgba(22,27,34,0.4)">
+       <span class="text-[10px] text-huginn-muted/40 font-mono">
+-        {{ totalTokens.toLocaleString() }} total tokens
++        {{ totalTokens.toLocaleString('en-US') }} total tokens
+       </span>
+       <span v-if="doneCount > 0" class="text-[10px] text-huginn-green/50 ml-auto">
+         {{ doneCount }}/{{ threads.length }} done
