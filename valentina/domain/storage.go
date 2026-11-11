@@ -541,7 +541,7 @@ func (s *Store) CreateOpportunity(ctx context.Context, o *Opportunity) error {
 		valBasis = o.Value.Basis
 	}
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO opportunities (opportunity_id, company_id, title, summary, opportunity_type, status,
 			municipality, province, autonomous_community, country_code, location_text,
 			published_at, deadline_at, valid_from, valid_until,
@@ -607,7 +607,7 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 			o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 		}
 	}
-	if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
+	if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
 		return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 	}
 	o.FirstSeenAt = parseTime(firstSeen)
@@ -639,7 +639,7 @@ func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) err
 			return fmt.Errorf("marshal facts: %w", err)
 		}
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO source_evidence (evidence_id, source_id, canonical_url, publisher, page_title,
 			observed_at, published_at, content_hash, retrieval_status, extractor_id, extractor_version, facts)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -663,7 +663,7 @@ func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 	prohibitedFields, _ := json.Marshal(src.ProhibitedFields)
 	languages, _ := json.Marshal(src.Languages)
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO sources (source_id, name, publisher, source_type, base_url, allowed_hosts,
 			allowed_path_prefixes, terms_url, terms_reviewed_at, robots_reviewed_at, approval_status,
 			approval_reason, retrieval_method, adapter_id, adapter_version, authentication_required,
@@ -767,7 +767,7 @@ func (s *Store) CreateResearchRun(ctx context.Context, r *ResearchRun) error {
 		r.StartedAt = time.Now().UTC()
 	}
 	srcIDs, _ := json.Marshal(r.SourceIDs)
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO research_runs (run_id, started_at, completed_at, status, source_ids,
 			candidate_count, verified_count, duplicate_count, accepted_count, rejected_count, notes)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -982,7 +982,7 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 		}
 	}
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO inbound_leads (lead_id, received_at, inbound_channel, channel_message_ref,
 			request_summary, original_content, requested_services,
 			municipality, province, autonomous_community, country_code, location_text,
@@ -1079,7 +1079,7 @@ func (s *Store) ListOpportunities(ctx context.Context, status string, limit, off
 				o.FitAssessment.EvaluatedAt = parseTime(fitEval.String)
 			}
 		}
-		if err := json.Unmarshal([]byte(srcEvid), &o.SourceEvidenceIDs); err != nil {
+		if err := json.Unmarshal([]byte(srcEvid.String), &o.SourceEvidenceIDs); err != nil {
 			return nil, fmt.Errorf("unmarshal source_evidence_ids: %w", err)
 		}
 		o.FirstSeenAt = parseTime(firstSeen)
@@ -1454,8 +1454,8 @@ c.Domain = ptrStrFromNull(domain)
 if industryTags.Valid {
 json.Unmarshal([]byte(industryTags.String), &c.IndustryTags)
 }
-c.Location = &Location{Municipality: muni, Province: prov, AutonomousCommunity: autoComm, CountryCode: country, LocationText: locText}
-if err := json.Unmarshal([]byte(srcEvid), &c.SourceEvidenceIDs); err != nil {
+c.Location = \&Location{Municipality: ptrStrFromNull(muni), Province: ptrStrFromNull(prov), AutonomousCommunity: ptrStrFromNull(autoComm), CountryCode: ptrStrFromNull(country), LocationText: ptrStrFromNull(locText)}
+if err := json.Unmarshal([]byte(srcEvid.String), &c.SourceEvidenceIDs); err != nil {
 return nil, err
 }
 c.FirstSeenAt = parseTime(firstSeen)
@@ -1552,5 +1552,7 @@ func ptrStrFromNull(s sql.NullString) *string {
 	}
 	return &s.String
 }
+
+
 
 
