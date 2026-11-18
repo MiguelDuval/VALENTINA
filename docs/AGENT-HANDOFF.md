@@ -1,7 +1,7 @@
 # VALENTINA — active agent handoff
 
 **Updated:** 2026-11-18
-**Status:** READY_FOR_REVIEW — research + inbound-intake milestone implemented
+**Status:** READY_FOR_REVIEW — research + inbound-intake milestone implemented and pushed
 **Task:** VAL-P3/INTAKE-001 — controlled multi-source discovery and hot-lead intake vertical slice
 **Owner authorization:** The owner explicitly authorized implementation of internet-wide opportunity discovery and intake of hot leads. This authorizes building the P3 source-policy/search pipeline and P2 inbound-lead workflow. It does NOT authorize bypassing site terms, CAPTCHA/login restrictions, unrestricted crawling, external outreach, form submission, or public exposure of the local app.
 
@@ -145,5 +145,7 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 - Frontend typecheck, Vitest, Vite production build
 - Full Windows build (scripts/build-valentina.ps1)
 - Isolated runtime smoke test
-- Diff review and staging
-- Commit and push
+- Diff review and staging — DONE (17 files staged and committed)
+- Commit — DONE (96f52b4)
+- Push — DONE (pushed to origin/feature/valentina-research-intake-engine-20261118)
+- PR — not created (no merge requested)
