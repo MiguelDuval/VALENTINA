@@ -1,17 +1,26 @@
 package sourcepolicy
 
 import (
+	"context"
+	"errors"
+	"io"
 	"net"
+	"net/http"
+	"strings"
 	"testing"
+	"time"
 )
 
 func makeTestRegistry() *Registry {
 	r := NewRegistry()
+	reviewedAt := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
 	_ = r.Register(&SourceProfile{
 		SourceID:            "allowed-src",
 		Name:                "Allowed Source",
 		Publisher:           "Test Pub",
 		ApprovalStatus:      ApprovalApproved,
+		ApprovalReason:      "Terms and public API scope reviewed for test.",
+		TermsReviewedAt:     &reviewedAt,
 		AllowedHosts:        []string{"example.com", "api.valencia.es"},
 		AllowedPathPrefixes: []string{"/api/", "/public/"},
 		AllowedSchemes:      []string{"https"},
@@ -199,11 +208,8 @@ func TestCanonicalURL(t *testing.T) {
 		t.Fatalf("unexpected canonical URL: %s", d.CanonicalURL)
 	}
 	d = g.Evaluate("allowed-src", "https://example.com:80/api/")
-	if !d.Allowed {
-		t.Fatalf("expected allowed: %s", d.Reason)
-	}
-	if d.CanonicalURL != "https://example.com:80/api/" {
-		t.Fatalf("unexpected canonical URL: %s", d.CanonicalURL)
+	if d.Allowed || d.Reason != "port not allowed" {
+		t.Fatalf("non-standard HTTPS port must be rejected, got allowed=%v reason=%q", d.Allowed, d.Reason)
 	}
 	d = g.Evaluate("allowed-src", "https://example.com/api/")
 	if !d.Allowed {
@@ -271,6 +277,10 @@ func TestIsBlockedIP(t *testing.T) {
 		{"multicast IPv4", "224.0.0.1", true},
 		{"multicast IPv6", "ff02::1", true},
 		{"unspecified 0.0.0.0", "0.0.0.0", true},
+		{"documentation 192.0.2", "192.0.2.1", true},
+		{"documentation 198.51.100", "198.51.100.1", true},
+		{"documentation 203.0.113", "203.0.113.1", true},
+		{"reserved 192.0.0", "192.0.0.1", true},
 		{"public IP", "9.9.9.9", false},
 		{"public IP 2", "1.1.1.1", false},
 		{"documentation IPv6 2001:db8", "2001:db8::1", true},
@@ -314,5 +324,128 @@ func TestForbidden(t *testing.T) {
 	err := NewForbidden("internal reason")
 	if err.Error() != "forbidden: internal reason" {
 		t.Fatalf("unexpected Forbidden error: %v", err)
+	}
+}
+
+func TestGatewayRejectsURLUserInfoAndEncodedTraversal(t *testing.T) {
+	g := NewPolicyGateway(makeTestRegistry())
+	for _, raw := range []string{
+		"https://user:pass@example.com/api/v1/tenders",
+		"https://example.com/api/%2e%2e/private",
+		"https://example.com/api/%252e%252e/private",
+		"https://example.com:8443/api/",
+		"https://example.com:0443/api/",
+		"https://example.com/apix/private",
+	} {
+		d := g.Evaluate("allowed-src", raw)
+		if d.Allowed {
+			t.Fatalf("expected URL to be rejected: %s", raw)
+		}
+	}
+}
+
+func TestValidatedDialerRejectsMixedPublicAndPrivateDNSAnswers(t *testing.T) {
+	profile := makeTestRegistry().Get("allowed-src")
+	dialCalled := false
+	dialer := makeValidatedDialerWith(profile, func(string) ([]net.IP, error) {
+		return []net.IP{net.ParseIP("9.9.9.9"), net.ParseIP("127.0.0.1")}, nil
+	}, func(context.Context, string, string) (net.Conn, error) {
+		dialCalled = true
+		return nil, nil
+	})
+	_, err := dialer(context.Background(), "tcp", "example.com:443")
+	if err != ErrPrivateIP {
+		t.Fatalf("expected mixed DNS answer to be blocked, got %v", err)
+	}
+	if dialCalled {
+		t.Fatal("dial must not be called when any DNS answer is blocked")
+	}
+}
+
+func TestValidatedDialerPinsConnectionToValidatedIP(t *testing.T) {
+	profile := makeTestRegistry().Get("allowed-src")
+	var dialAddress string
+	dialer := makeValidatedDialerWith(profile, func(string) ([]net.IP, error) {
+		return []net.IP{net.ParseIP("9.9.9.9")}, nil
+	}, func(_ context.Context, network, address string) (net.Conn, error) {
+		dialAddress = address
+		client, server := net.Pipe()
+		_ = server.Close()
+		return client, nil
+	})
+	conn, err := dialer(context.Background(), "tcp", "example.com:443")
+	if err != nil {
+		t.Fatalf("validated dial failed: %v", err)
+	}
+	_ = conn.Close()
+	if dialAddress != "9.9.9.9:443" {
+		t.Fatalf("expected dial to pinned IP, got %q", dialAddress)
+	}
+}
+
+func TestValidatedTransportDoesNotUseEnvironmentProxy(t *testing.T) {
+	transport := newValidatedTransport(makeTestRegistry().Get("allowed-src"))
+	if transport.Proxy != nil {
+		t.Fatal("validated transport must not use environment proxies")
+	}
+}
+
+func TestValidatedHTTPClientEnforcesInitialPathPolicy(t *testing.T) {
+	gateway := NewPolicyGateway(makeTestRegistry())
+	client, err := NewValidatedHTTPClient(gateway, "allowed-src", makeTestRegistry().Get("allowed-src"))
+	if err != nil {
+		t.Fatalf("NewValidatedHTTPClient: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/private/data", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	_, err = client.Do(req)
+	if err == nil || !strings.Contains(err.Error(), "path not allowed") {
+		t.Fatalf("expected initial request to be rejected by path policy, got %v", err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestPolicyRoundTripperEnforcesResponseSizeLimit(t *testing.T) {
+	registry := NewRegistry()
+	reviewedAt := time.Now().UTC()
+	profile := &SourceProfile{SourceID: "allowed-src", ApprovalStatus: ApprovalApproved, ApprovalReason: "terms reviewed for test", TermsReviewedAt: &reviewedAt, AllowedHosts: []string{"example.com"}, AllowedPathPrefixes: []string{"/api/"}, AllowedSchemes: []string{"https"}, MaxResponseBytes: 4}
+	if err := registry.Register(profile); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	body := io.NopCloser(strings.NewReader("12345"))
+	rt := &policyRoundTripper{
+		gateway: NewPolicyGateway(registry), sourceID: "allowed-src",
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: body, ContentLength: -1, Request: req}, nil
+		}),
+	}
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/api/test", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip: %v", err)
+	}
+	defer resp.Body.Close()
+	_, err = io.ReadAll(resp.Body)
+	if !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("expected response size limit error, got %v", err)
+	}
+}
+
+func TestApprovedSourceWithoutTermsReviewCannotFetch(t *testing.T) {
+	registry := NewRegistry()
+	if err := registry.Register(&SourceProfile{SourceID: "unreviewed", ApprovalStatus: ApprovalApproved, ApprovalReason: "owner clicked approve", AllowedHosts: []string{"example.com"}, AllowedPathPrefixes: []string{"/"}, AllowedSchemes: []string{"https"}}); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	decision := NewPolicyGateway(registry).Evaluate("unreviewed", "https://example.com/")
+	if decision.Allowed {
+		t.Fatal("source must not fetch until terms review timestamp is recorded")
 	}
 }

@@ -17,11 +17,11 @@ This queue is the product-level source of task priority. Status changes require 
 - VAL-P2-001 Domain contracts/persistence — DONE; backup/restore and deduplication verified.
 - VAL-P2-002 In-process API/SQLite — PARTIAL; opportunity evidence/history and inbound lead detail/review are implemented; external intake security acceptance remains open.
 - VAL-P2-003 CRM UI — DONE for opportunity detail and inbound lead detail/review.
-- VAL-INTAKE-001 Secure hot-lead intake vertical slice — BLOCKED; HMAC is now fail-closed and intake remains disabled without a configured secret. Durable atomic idempotency and rate limiting are not implemented; do not expose or advertise the webhook as production-ready. CSV import deferred.
+- VAL-INTAKE-001 Secure hot-lead intake vertical slice — BLOCKED pending secret configuration and consent audit metadata. HMAC is fail-closed; durable SQLite idempotency (30-day key retention) and per-IP rate limiting are implemented. The endpoint remains disabled until a secret of at least 32 bytes is configured. Consent is validated and its server-side timestamp is persisted; the privacy-policy version is not yet persisted. Do not expose or advertise the webhook as production-ready.
 
 ## P3 — internet opportunity discovery (owner explicitly authorized 2026-11-18)
-- VAL-P3-001 Source registry and technical policy gateway — PARTIAL; allowlist, redirects and basic SSRF checks exist, but all-address DNS validation and connection pinning still require review. No source is pre-approved.
-- VAL-P3-002 Search/provider and public-source adapters — PARTIAL; RSS/Atom, sitemap, bounded HTML and official API adapter scaffolding exist, but they are not connected to the research-run API.
+- VAL-P3-001 Source registry and technical policy gateway — PARTIAL; source approval gate (approved status + terms review timestamp + human reason), scheme/host/path/standard-port policy, redirect hop revalidation, all-address DNS checks, direct IP-pinned dialing, no environment proxy, bounded response bodies, and registry deep-copy isolation have regression tests. Per-source minimum-interval, daily and concurrency quotas are not yet enforced. No source is pre-approved.
+- VAL-P3-002 Search/provider and public-source adapters — PARTIAL; RSS/Atom and official API adapters exist, parse Atom alternate links, reject non-2xx responses, and fail closed without a policy HTTP client. They are not connected to the research-run API; no public source is fetched.
 - VAL-P3-003 Manual research pipeline — BLOCKED; API returns 501 until a real policy-gateway-backed runner retrieves, classifies, deduplicates and persists evidence. It must not create fake running records.
 - VAL-P3-004 Research operations UI — PARTIAL; source approval, query packs and geography controls exist; run execution is visibly disabled until the runner is implemented.
 

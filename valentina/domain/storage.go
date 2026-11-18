@@ -195,6 +195,15 @@ var migrations = []migration{
 		CREATE INDEX IF NOT EXISTS idx_source_evidence_source ON source_evidence(source_id);
 		CREATE INDEX IF NOT EXISTS idx_review_decisions_entity ON review_decisions(entity_type, entity_id);
 		CREATE INDEX IF NOT EXISTS idx_research_runs_started ON research_runs(started_at);`},
+	{version: 9, stmt: `
+                CREATE TABLE IF NOT EXISTS idempotency_keys (
+                    idempotency_key TEXT PRIMARY KEY,
+                    lead_id TEXT,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_idempotency_keys_lead ON idempotency_keys(lead_id);`},
+	{version: 10, stmt: `
+                ALTER TABLE inbound_leads ADD COLUMN consent_at TEXT;`},
 }
 
 // companiesTable is the CREATE TABLE statement for the companies table.
@@ -1103,8 +1112,16 @@ func (s *Store) ListReviewDecisionsForEntity(ctx context.Context, entityType, en
 	return out, nil
 }
 
+type inboundLeadExecer interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // CreateInboundLead inserts a new inbound lead record.
 func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
+	return createInboundLead(ctx, s.db, l)
+}
+
+func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *InboundLead) error {
 	if l.LeadID == "" {
 		l.LeadID = NewLeadID()
 	}
@@ -1139,7 +1156,7 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 		}
 	}
 
-	_, err = s.db.ExecContext(ctx, `
+	_, err = execer.ExecContext(ctx, `
 		INSERT INTO inbound_leads (lead_id, received_at, inbound_channel, channel_message_ref,
 			request_summary, original_content, requested_services,
 			municipality, province, autonomous_community, country_code, location_text,
@@ -1147,7 +1164,7 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 			company_id, contact_name, contact_email, contact_phone, contact_purpose,
 			ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 			ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
-			missing_information, duplicate_group_id, status, privacy_notice, retention_state)
+			missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.LeadID, l.ReceivedAt.Format(time.RFC3339), l.InboundChannel, l.ChannelMessageRef,
 		l.RequestSummary, l.OriginalContent, string(services),
@@ -1161,8 +1178,53 @@ func (s *Store) CreateInboundLead(ctx context.Context, l *InboundLead) error {
 		ptrStr(l.AIAssessment, "Location"), ptrF64Obj(l.AIAssessment, "Budget"),
 		ptrStr(l.AIAssessment, "TimingUrgency"), string(factsJSON), ptrStr(l.AIAssessment, "CompanyMatch"),
 		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), ptrStr(l.AIAssessment, "ProfileVersion"),
-		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), l.RetentionState)
+		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), timePtr(l.ConsentAt), l.RetentionState)
 	return err
+}
+
+// CreateInboundLeadIdempotent atomically records an idempotency key and its lead.
+// Replays return the original lead ID and never create a second lead.
+func (s *Store) CreateInboundLeadIdempotent(ctx context.Context, l *InboundLead, key string) (bool, string, error) {
+	key = strings.TrimSpace(key)
+	if len(key) < 8 || len(key) > 200 {
+		return false, "", errors.New("idempotency key must be between 8 and 200 characters")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, "", fmt.Errorf("begin intake transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	expiredBefore := time.Now().UTC().Add(-30 * 24 * time.Hour).Format(time.RFC3339)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM idempotency_keys WHERE created_at < ?`, expiredBefore); err != nil {
+		return false, "", fmt.Errorf("expire idempotency keys: %w", err)
+	}
+	createdAt := time.Now().UTC().Format(time.RFC3339)
+	result, err := tx.ExecContext(ctx, `INSERT INTO idempotency_keys (idempotency_key, lead_id, created_at) VALUES (?, '', ?) ON CONFLICT(idempotency_key) DO NOTHING`, key, createdAt)
+	if err != nil {
+		return false, "", fmt.Errorf("reserve idempotency key: %w", err)
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return false, "", fmt.Errorf("read idempotency reservation: %w", err)
+	}
+	if inserted == 0 {
+		var existingLeadID string
+		if err := tx.QueryRowContext(ctx, `SELECT lead_id FROM idempotency_keys WHERE idempotency_key = ?`, key).Scan(&existingLeadID); err != nil {
+			return false, "", fmt.Errorf("load idempotent lead: %w", err)
+		}
+		return true, existingLeadID, nil
+	}
+	if err := createInboundLead(ctx, tx, l); err != nil {
+		return false, "", err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE idempotency_keys SET lead_id = ? WHERE idempotency_key = ?`, l.LeadID, key); err != nil {
+		return false, "", fmt.Errorf("link idempotency key to lead: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return false, "", fmt.Errorf("commit intake transaction: %w", err)
+	}
+	return false, l.LeadID, nil
 }
 
 // ListOpportunities returns opportunities with optional status filter and pagination.
@@ -1260,7 +1322,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		company_id, contact_name, contact_email, contact_phone, contact_purpose,
 		ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 		ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
-		missing_information, duplicate_group_id, status, privacy_notice, retention_state
+		missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state
 		FROM inbound_leads`
 	var args []interface{}
 	if status != "" {
@@ -1282,6 +1344,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		var services, aiMissingDetails, missingInfo string
 		var received string
 		var aiEval sql.NullString
+		var consentAt sql.NullString
 		var budget sql.NullFloat64
 		var aiBudget sql.NullFloat64
 		var burC sql.NullString
@@ -1298,12 +1361,16 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 			&l.CompanyID, &contactName, &contactEmail, &contactPhone, &contactPurpose,
 			&aiServiceCat, &aiProjectScope, &aiLocationVal, &aiBudget, &aiTimingUrgency, &aiMissingDetails,
 			&aiCompanyMatch, &aiResponseDraft, &aiEval, &aiProfileVersion,
-			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &l.RetentionState,
+			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &consentAt, &l.RetentionState,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		l.ReceivedAt = parseTime(received)
+		if consentAt.Valid {
+			consentTime := parseTime(consentAt.String)
+			l.ConsentAt = &consentTime
+		}
 		if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
 			return nil, fmt.Errorf("unmarshal requested_services: %w", err)
 		}
@@ -1709,9 +1776,56 @@ func ptrStrFromNull(s sql.NullString) *string {
 	return &s.String
 }
 
+// validRunTransitions defines allowed status transitions for research runs.
+var validRunTransitions = map[string][]string{
+	"":          {"running"},
+	"running":   {"completed", "failed", "cancelled"},
+	"completed": {},
+	"failed":    {},
+	"cancelled": {},
+}
+
 // UpdateResearchRun updates a research run's status and statistics.
 // Used for start/cancel/progress tracking of manual research runs.
+// Validates status transitions and avoids clobbering stats on cancellation.
 func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount int, notes string) error {
+	// Fetch current run to validate transition and preserve stats.
+	var currentStatus string
+	var currentCandidate, currentVerified, currentDuplicate, currentAccepted, currentRejected int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT status, candidate_count, verified_count, duplicate_count, accepted_count, rejected_count
+		FROM research_runs WHERE run_id = ?`, id).Scan(
+		&currentStatus, &currentCandidate, &currentVerified, &currentDuplicate,
+		&currentAccepted, &currentRejected)
+	if err != nil {
+		return fmt.Errorf("research run not found: %s", id)
+	}
+
+	// Validate transition.
+	allowed, ok := validRunTransitions[currentStatus]
+	if !ok {
+		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, status)
+	}
+	transitionAllowed := false
+	for _, a := range allowed {
+		if a == status {
+			transitionAllowed = true
+			break
+		}
+	}
+	if !transitionAllowed {
+		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, status)
+	}
+
+	// On cancellation, preserve existing stats (don't clobber with zeros).
+	if status == "cancelled" {
+		candidateCount = currentCandidate
+		verifiedCount = currentVerified
+		duplicateCount = currentDuplicate
+		acceptedCount = currentAccepted
+		rejectedCount = currentRejected
+	}
+
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE research_runs
 		SET status = ?, candidate_count = ?, verified_count = ?, duplicate_count = ?,
@@ -1731,8 +1845,39 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 	return nil
 }
 
+// validSourceTransitions defines allowed approval status transitions.
+var validSourceTransitions = map[string][]string{
+	"pending_review": {"approved", "blocked"},
+	"approved":       {"paused", "blocked"},
+	"paused":         {"approved", "blocked"},
+	"blocked":        {},
+}
+
 // UpdateSource updates a source's approval status and related metadata.
+// Validates status transitions.
 func (s *Store) UpdateSource(ctx context.Context, sourceID string, approvalStatus string, approvalReason string, termsReviewedAt *time.Time, lastReviewedAt *time.Time, notes string) error {
+	// Fetch current status to validate transition.
+	var currentStatus string
+	err := s.db.QueryRowContext(ctx, `SELECT approval_status FROM sources WHERE source_id = ?`, sourceID).Scan(&currentStatus)
+	if err != nil {
+		return fmt.Errorf("source not found: %s", sourceID)
+	}
+
+	allowed, ok := validSourceTransitions[currentStatus]
+	if !ok {
+		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, approvalStatus)
+	}
+	transitionAllowed := false
+	for _, a := range allowed {
+		if a == approvalStatus {
+			transitionAllowed = true
+			break
+		}
+	}
+	if !transitionAllowed {
+		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, approvalStatus)
+	}
+
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE sources
 		SET approval_status = ?, approval_reason = ?, terms_reviewed_at = ?, last_reviewed_at = ?, notes = ?

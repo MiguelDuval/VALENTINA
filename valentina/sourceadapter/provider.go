@@ -21,16 +21,16 @@ const (
 
 // FetchResult is the output of a source adapter fetch.
 type FetchResult struct {
-	SourceID      string                 `json:"source_id"`
-	URL           string                 `json:"url"`
-	CanonicalURL  string                 `json:"canonical_url"`
-	Content       []byte                 `json:"-"` // not serialized to JSON
-	ContentType   string                 `json:"content_type"`
-	StatusCode    int                    `json:"status_code"`
-	FetchedAt     time.Time              `json:"fetched_at"`
-	ExtractorID   string                 `json:"extractor_id,omitempty"`
-	ExtractorVersion string              `json:"extractor_version,omitempty"`
-	Metadata      map[string]string      `json:"metadata,omitempty"`
+	SourceID         string            `json:"source_id"`
+	URL              string            `json:"url"`
+	CanonicalURL     string            `json:"canonical_url"`
+	Content          []byte            `json:"-"` // not serialized to JSON
+	ContentType      string            `json:"content_type"`
+	StatusCode       int               `json:"status_code"`
+	FetchedAt        time.Time         `json:"fetched_at"`
+	ExtractorID      string            `json:"extractor_id,omitempty"`
+	ExtractorVersion string            `json:"extractor_version,omitempty"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
 }
 
 // Provider is the interface all source adapters implement.
@@ -48,6 +48,7 @@ type Provider interface {
 // HTTPClient is an interface for making HTTP requests, allowing test injection.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
+	PolicyValidated() bool
 }
 
 // ErrNotConfigured is returned when an adapter requires credentials that are not set.
@@ -69,8 +70,10 @@ type BaseProvider struct {
 
 // NewBaseProvider creates a base provider.
 func NewBaseProvider(adapterType AdapterType, name string, client HTTPClient, timeout time.Duration) *BaseProvider {
-	if client == nil {
-		client = http.DefaultClient
+	// Only a policy-marked client is accepted. A nil or unmarked client fails
+	// closed; never fall back to http.DefaultClient.
+	if client == nil || !client.PolicyValidated() {
+		client = nil
 	}
 	return &BaseProvider{
 		adapterType: adapterType,
@@ -90,6 +93,9 @@ func (bp *BaseProvider) WithTimeout(timeout time.Duration) {
 
 // doRequest performs an HTTP GET with context timeout and returns the response.
 func (bp *BaseProvider) doRequest(ctx context.Context, method, urlStr string, header http.Header) (*http.Response, error) {
+	if bp.client == nil {
+		return nil, ErrFetchBlocked
+	}
 	req, err := http.NewRequestWithContext(ctx, method, urlStr, nil)
 	if err != nil {
 		return nil, err

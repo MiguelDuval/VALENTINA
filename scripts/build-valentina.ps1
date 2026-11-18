@@ -100,7 +100,18 @@ try {
         New-Item -ItemType Directory -Path $destApi -Force | Out-Null
         & robocopy (Join-Path $Repo "valentina\api") $destApi /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
         $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+        if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+
+        foreach ($packageName in @("sourcepolicy", "sourceadapter")) {
+            $sourcePackage = Join-Path $Repo ("valentina\" + $packageName)
+            if (Test-Path -LiteralPath $sourcePackage -PathType Container) {
+                $destPackage = Join-Path $destValentina $packageName
+                New-Item -ItemType Directory -Path $destPackage -Force | Out-Null
+                & robocopy $sourcePackage $destPackage /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
+                $rc = $LASTEXITCODE
+                if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+            }
+        }
         $destViews = Join-Path $copy "web\src\views"
         New-Item -ItemType Directory -Path $destViews -Force | Out-Null
         & robocopy (Join-Path $Repo "valentina\web\src\views") $destViews /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP

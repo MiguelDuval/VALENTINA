@@ -12,14 +12,14 @@ func TestRegistryApprovedAndFetchableCounts(t *testing.T) {
 	}
 
 	p1 := &SourceProfile{
-		SourceID:        "src-1",
-		Name:            "Test Source 1",
-		Publisher:       "Test Publisher",
-		ApprovalStatus:  ApprovalApproved,
-		AllowedHosts:    []string{"example.com"},
+		SourceID:            "src-1",
+		Name:                "Test Source 1",
+		Publisher:           "Test Publisher",
+		ApprovalStatus:      ApprovalApproved,
+		AllowedHosts:        []string{"example.com"},
 		AllowedPathPrefixes: []string{"/"},
-		TimeoutSeconds:  10,
-		MaxResponseBytes: 1024,
+		TimeoutSeconds:      10,
+		MaxResponseBytes:    1024,
 	}
 	if err := r.Register(p1); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -37,14 +37,14 @@ func TestRegistryApprovedAndFetchableCounts(t *testing.T) {
 
 	// Add a pending source.
 	p2 := &SourceProfile{
-		SourceID:        "src-2",
-		Name:            "Test Source 2",
-		Publisher:       "Test Publisher",
-		ApprovalStatus:  ApprovalPending,
-		AllowedHosts:    []string{"example.org"},
+		SourceID:            "src-2",
+		Name:                "Test Source 2",
+		Publisher:           "Test Publisher",
+		ApprovalStatus:      ApprovalPending,
+		AllowedHosts:        []string{"example.org"},
 		AllowedPathPrefixes: []string{"/"},
-		TimeoutSeconds:  10,
-		MaxResponseBytes: 1024,
+		TimeoutSeconds:      10,
+		MaxResponseBytes:    1024,
 	}
 	if err := r.Register(p2); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -77,8 +77,8 @@ func TestRegistryApprovedAndFetchableCounts(t *testing.T) {
 
 func TestSourceProfileDefaults(t *testing.T) {
 	p := &SourceProfile{
-		SourceID:        "src-1",
-		ApprovalStatus:  ApprovalPending,
+		SourceID:       "src-1",
+		ApprovalStatus: ApprovalPending,
 	}
 	// Simulate defaults applied by Register.
 	if p.ApprovalStatus == "" {
@@ -120,10 +120,10 @@ func TestSourceProfileDefaults(t *testing.T) {
 func TestSourceProfileDefaultsWithRegistry(t *testing.T) {
 	r := NewRegistry()
 	p := &SourceProfile{
-		SourceID:        "src-default",
-		Name:            "Default Test",
-		Publisher:       "Pub",
-		AllowedHosts:    []string{"example.com"},
+		SourceID:            "src-default",
+		Name:                "Default Test",
+		Publisher:           "Pub",
+		AllowedHosts:        []string{"example.com"},
 		AllowedPathPrefixes: []string{"/"},
 		// ApprovalStatus intentionally empty -> should default to pending_review
 		// TimeoutSeconds intentionally 0 -> should default to 10
@@ -183,5 +183,39 @@ func TestTimeFields(t *testing.T) {
 	got := r.Get("src-time")
 	if got.TermsReviewedAt == nil || got.LastReviewedAt == nil {
 		t.Fatal("time fields should be preserved")
+	}
+}
+
+func TestRegistryGetAndListReturnDeepCopies(t *testing.T) {
+	registry := makeTestRegistry()
+	got := registry.Get("allowed-src")
+	if got == nil {
+		t.Fatal("expected registered source")
+	}
+	got.AllowedHosts[0] = "attacker.invalid"
+	got.AllowedPathPrefixes[0] = "/private/"
+	listed := registry.List()
+	for _, profile := range listed {
+		if profile.SourceID == "allowed-src" {
+			profile.AllowedHosts[0] = "another.invalid"
+		}
+	}
+	fresh := registry.Get("allowed-src")
+	if fresh.AllowedHosts[0] != "example.com" || fresh.AllowedPathPrefixes[0] != "/api/" {
+		t.Fatalf("caller mutation leaked into registry: hosts=%v paths=%v", fresh.AllowedHosts, fresh.AllowedPathPrefixes)
+	}
+}
+
+func TestRegistryRegisterClonesCallerProfile(t *testing.T) {
+	registry := NewRegistry()
+	input := &SourceProfile{SourceID: "clone-input", AllowedHosts: []string{"example.com"}, AllowedPathPrefixes: []string{"/api/"}}
+	if err := registry.Register(input); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	input.AllowedHosts[0] = "attacker.invalid"
+	input.AllowedPathPrefixes[0] = "/private/"
+	stored := registry.Get("clone-input")
+	if stored.AllowedHosts[0] != "example.com" || stored.AllowedPathPrefixes[0] != "/api/" {
+		t.Fatalf("caller mutation leaked into registry: %+v", stored)
 	}
 }

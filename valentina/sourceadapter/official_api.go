@@ -10,7 +10,7 @@ import (
 // OfficialAPIAdapter fetches from official public APIs using a bearer/API key.
 type OfficialAPIAdapter struct {
 	*BaseProvider
-	apiKey     string
+	apiKey       string
 	apiKeyHeader string
 }
 
@@ -18,9 +18,9 @@ type OfficialAPIAdapter struct {
 // If apiKey is empty, Fetch returns ErrNotConfigured.
 func NewOfficialAPIAdapter(name, apiKey, apiKeyHeader string, client HTTPClient, timeout time.Duration) *OfficialAPIAdapter {
 	return &OfficialAPIAdapter{
-		BaseProvider:   NewBaseProvider(AdapterTypeOfficialAPI, name, client, timeout),
-		apiKey:         apiKey,
-		apiKeyHeader:   apiKeyHeader,
+		BaseProvider: NewBaseProvider(AdapterTypeOfficialAPI, name, client, timeout),
+		apiKey:       apiKey,
+		apiKeyHeader: apiKeyHeader,
 	}
 }
 
@@ -39,6 +39,10 @@ func (a *OfficialAPIAdapter) Fetch(ctx context.Context, sourceID, rawURL string)
 	if err != nil {
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("source returned HTTP %d", resp.StatusCode)
+	}
 	defer resp.Body.Close()
 
 	body, err := readBodyLimit(resp.Body, 10*1024*1024)
@@ -47,14 +51,14 @@ func (a *OfficialAPIAdapter) Fetch(ctx context.Context, sourceID, rawURL string)
 	}
 
 	return &FetchResult{
-		SourceID:     sourceID,
-		URL:          rawURL,
-		Content:      body,
-		ContentType:  resp.Header.Get("Content-Type"),
-		StatusCode:   resp.StatusCode,
-		FetchedAt:    time.Now().UTC(),
-		ExtractorID:  "official_api_adapter",
-		Metadata:     map[string]string{},
+		SourceID:    sourceID,
+		URL:         rawURL,
+		Content:     body,
+		ContentType: resp.Header.Get("Content-Type"),
+		StatusCode:  resp.StatusCode,
+		FetchedAt:   time.Now().UTC(),
+		ExtractorID: "official_api_adapter",
+		Metadata:    map[string]string{},
 	}, nil
 }
 

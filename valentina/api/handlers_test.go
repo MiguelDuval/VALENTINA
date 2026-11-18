@@ -466,14 +466,14 @@ func TestRoutesReturnsAllEndpoints(t *testing.T) {
 }
 
 func TestHandleIntakeLeadSuccess(t *testing.T) {
-	WithIntakeSecret("test-secret")
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
 	defer func() { WithIntakeSecret("") }()
 
 	s := testServer(t)
-	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true}`
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"idempotency_key":"test-key-0001"}`
 	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 	mac.Write([]byte(body))
 	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
 	w := httptest.NewRecorder()
@@ -491,14 +491,14 @@ func TestHandleIntakeLeadSuccess(t *testing.T) {
 }
 
 func TestHandleIntakeLeadMissingConsent(t *testing.T) {
-	WithIntakeSecret("test-secret")
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
 	defer func() { WithIntakeSecret("") }()
 
 	s := testServer(t)
 	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":false,"privacy_notice":true}`
 	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 	mac.Write([]byte(body))
 	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
 	w := httptest.NewRecorder()
@@ -509,7 +509,7 @@ func TestHandleIntakeLeadMissingConsent(t *testing.T) {
 }
 
 func TestHandleIntakeLeadMissingSignature(t *testing.T) {
-	WithIntakeSecret("test-secret")
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
 	defer func() { WithIntakeSecret("") }()
 
 	s := testServer(t)
@@ -524,7 +524,7 @@ func TestHandleIntakeLeadMissingSignature(t *testing.T) {
 }
 
 func TestHandleIntakeLeadInvalidSignature(t *testing.T) {
-	WithIntakeSecret("test-secret")
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
 	defer func() { WithIntakeSecret("") }()
 
 	s := testServer(t)
@@ -540,14 +540,14 @@ func TestHandleIntakeLeadInvalidSignature(t *testing.T) {
 }
 
 func TestHandleIntakeLeadHoneypot(t *testing.T) {
-	WithIntakeSecret("test-secret")
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
 	defer func() { WithIntakeSecret("") }()
 
 	s := testServer(t)
 	body := `{"request_summary":"Need renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"website":"http://evil.com"}`
 	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 	mac.Write([]byte(body))
 	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
 	w := httptest.NewRecorder()
@@ -556,7 +556,6 @@ func TestHandleIntakeLeadHoneypot(t *testing.T) {
 		t.Fatalf("Expected 400 for honeypot, got %d", w.Code)
 	}
 }
-
 
 func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	WithIntakeSecret("")
@@ -577,7 +576,6 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 		t.Fatalf("expected no lead to be created while intake is disabled, got %d", len(leads))
 	}
 }
-
 
 func TestHandleCreateResearchRunDoesNotClaimExecutionWithoutRunner(t *testing.T) {
 	s := testServer(t)
@@ -604,5 +602,83 @@ func TestHandleCreateResearchRunDoesNotClaimExecutionWithoutRunner(t *testing.T)
 	}
 	if len(runs) != 0 {
 		t.Fatalf("expected no fake running record, got %d runs", len(runs))
+	}
+}
+
+func TestHandleIntakeLeadIdempotencyPreventsDuplicateLead(t *testing.T) {
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
+	defer func() { WithIntakeSecret("") }()
+	s := testServer(t)
+	body := `{"request_summary":"Need kitchen renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"idempotency_key":"same-request-key-001"}`
+	request := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
+		_, _ = mac.Write([]byte(body))
+		req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+		w := httptest.NewRecorder()
+		s.handleIntakeLead(w, req)
+		return w
+	}
+	first := request()
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first request: expected 201, got %d: %s", first.Code, first.Body.String())
+	}
+	var firstResp intakeResponse
+	if err := json.Unmarshal(first.Body.Bytes(), &firstResp); err != nil {
+		t.Fatalf("decode first response: %v", err)
+	}
+	second := request()
+	if second.Code != http.StatusOK {
+		t.Fatalf("replay: expected 200, got %d: %s", second.Code, second.Body.String())
+	}
+	var secondResp intakeResponse
+	if err := json.Unmarshal(second.Body.Bytes(), &secondResp); err != nil {
+		t.Fatalf("decode replay response: %v", err)
+	}
+	if !secondResp.Duplicate || secondResp.LeadID != firstResp.LeadID {
+		t.Fatalf("replay did not return original lead: first=%+v second=%+v", firstResp, secondResp)
+	}
+	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListInboundLeads: %v", err)
+	}
+	if len(leads) != 1 {
+		t.Fatalf("expected exactly one lead after replay, got %d", len(leads))
+	}
+	if leads[0].ConsentAt == nil || leads[0].ConsentAt.IsZero() {
+		t.Fatal("consent timestamp must be persisted and returned with the inbound lead")
+	}
+}
+
+func TestIntakeRateLimiterEnforcesBurstLimit(t *testing.T) {
+	limiter := &intakeRateLimiter{buckets: make(map[string]*rateBucket)}
+	for i := 0; i < 20; i++ {
+		if !limiter.checkRateLimit("203.0.113.10") {
+			t.Fatalf("request %d should fit within initial burst", i+1)
+		}
+	}
+	if limiter.checkRateLimit("203.0.113.10") {
+		t.Fatal("21st immediate request should be rate limited")
+	}
+}
+
+func TestNewServerLoadsIntakeSecretFromEnvironment(t *testing.T) {
+	t.Setenv("VALENTINA_INTAKE_HMAC_SECRET", "env-test-secret-0123456789abcdef0123456789")
+	WithIntakeSecret("")
+	t.Cleanup(func() { WithIntakeSecret("") })
+	_ = testServer(t)
+	if intakeSecret != "env-test-secret-0123456789abcdef0123456789" {
+		t.Fatal("NewServer did not load VALENTINA_INTAKE_HMAC_SECRET")
+	}
+}
+
+
+func TestWithIntakeSecretRejectsShortSecrets(t *testing.T) {
+	if err := WithIntakeSecret("short-secret"); err == nil {
+		t.Fatal("expected short HMAC secret to be rejected")
+	}
+	if intakeSecret != "" {
+		t.Fatal("invalid secret must leave intake disabled")
 	}
 }

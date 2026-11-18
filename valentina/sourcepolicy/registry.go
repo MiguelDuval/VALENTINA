@@ -2,6 +2,7 @@ package sourcepolicy
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -36,35 +37,35 @@ const (
 // SourceProfile is the registry entry for one approved source.
 // It defines what may be fetched, how often, and under what conditions.
 type SourceProfile struct {
-	SourceID          string   `json:"source_id"`
-	Name              string   `json:"name"`
-	Publisher         string   `json:"publisher"`
-	SourceType        SourceType `json:"source_type"`
-	BaseURL           string   `json:"base_url"`
-	AllowedHosts      []string `json:"allowed_hosts"`
-	AllowedPathPrefixes []string `json:"allowed_path_prefixes"`
-	AllowedSchemes    []string `json:"allowed_schemes"`
-	TermsURL          string   `json:"terms_url,omitempty"`
-	TermsReviewedAt   *time.Time `json:"terms_reviewed_at,omitempty"`
-	RobotsReviewedAt  *time.Time `json:"robots_reviewed_at,omitempty"`
-	ApprovalStatus    ApprovalStatus `json:"approval_status"`
-	ApprovalReason    string   `json:"approval_reason,omitempty"`
-	RetrievalMethod   string   `json:"retrieval_method"`
-	AdapterID         string   `json:"adapter_id,omitempty"`
-	AdapterVersion    string   `json:"adapter_version,omitempty"`
-	AuthenticationRequired bool   `json:"authentication_required"`
-	CredentialReference string `json:"credential_reference,omitempty"`
-	MinimumIntervalSeconds int   `json:"minimum_interval_seconds"`
-	MaxParallelRequests   int   `json:"max_parallel_requests"`
-	DailyRequestLimit     *int   `json:"daily_request_limit,omitempty"`
-	TimeoutSeconds        int   `json:"timeout_seconds"`
-	MaxResponseBytes      int   `json:"max_response_bytes"`
-	AllowedFields         []string `json:"allowed_fields"`
-	ProhibitedFields      []string `json:"prohibited_fields,omitempty"`
-	Languages             []string `json:"languages,omitempty"`
-	ExpectedUpdateFrequency string `json:"expected_update_frequency,omitempty"`
-	LastReviewedAt        *time.Time `json:"last_reviewed_at,omitempty"`
-	Notes                 string   `json:"notes,omitempty"`
+	SourceID                string         `json:"source_id"`
+	Name                    string         `json:"name"`
+	Publisher               string         `json:"publisher"`
+	SourceType              SourceType     `json:"source_type"`
+	BaseURL                 string         `json:"base_url"`
+	AllowedHosts            []string       `json:"allowed_hosts"`
+	AllowedPathPrefixes     []string       `json:"allowed_path_prefixes"`
+	AllowedSchemes          []string       `json:"allowed_schemes"`
+	TermsURL                string         `json:"terms_url,omitempty"`
+	TermsReviewedAt         *time.Time     `json:"terms_reviewed_at,omitempty"`
+	RobotsReviewedAt        *time.Time     `json:"robots_reviewed_at,omitempty"`
+	ApprovalStatus          ApprovalStatus `json:"approval_status"`
+	ApprovalReason          string         `json:"approval_reason,omitempty"`
+	RetrievalMethod         string         `json:"retrieval_method"`
+	AdapterID               string         `json:"adapter_id,omitempty"`
+	AdapterVersion          string         `json:"adapter_version,omitempty"`
+	AuthenticationRequired  bool           `json:"authentication_required"`
+	CredentialReference     string         `json:"credential_reference,omitempty"`
+	MinimumIntervalSeconds  int            `json:"minimum_interval_seconds"`
+	MaxParallelRequests     int            `json:"max_parallel_requests"`
+	DailyRequestLimit       *int           `json:"daily_request_limit,omitempty"`
+	TimeoutSeconds          int            `json:"timeout_seconds"`
+	MaxResponseBytes        int            `json:"max_response_bytes"`
+	AllowedFields           []string       `json:"allowed_fields"`
+	ProhibitedFields        []string       `json:"prohibited_fields,omitempty"`
+	Languages               []string       `json:"languages,omitempty"`
+	ExpectedUpdateFrequency string         `json:"expected_update_frequency,omitempty"`
+	LastReviewedAt          *time.Time     `json:"last_reviewed_at,omitempty"`
+	Notes                   string         `json:"notes,omitempty"`
 }
 
 // IsApproved returns true only when the source is approved (not pending, paused, or blocked).
@@ -72,15 +73,16 @@ func (p *SourceProfile) IsApproved() bool {
 	return p.ApprovalStatus == ApprovalApproved
 }
 
-// CanFetch returns true when the source is approved, not paused, and not blocked.
+// CanFetch requires explicit approval plus a recorded terms review and reason.
+// Approval status alone is insufficient to authorize an external request.
 func (p *SourceProfile) CanFetch() bool {
-	return p.ApprovalStatus == ApprovalApproved
+	return p != nil && p.ApprovalStatus == ApprovalApproved && p.TermsReviewedAt != nil && !p.TermsReviewedAt.IsZero() && strings.TrimSpace(p.ApprovalReason) != ""
 }
 
 // Registry holds the in-memory source profile registry.
 // All access is guarded by a mutex.
 type Registry struct {
-	mu    sync.RWMutex
+	mu      sync.RWMutex
 	sources map[string]*SourceProfile
 }
 
@@ -93,6 +95,10 @@ func NewRegistry() *Registry {
 
 // Register inserts or updates a source profile. Returns an error if the profile is invalid.
 func (r *Registry) Register(p *SourceProfile) error {
+	if p == nil {
+		return errors.New("source profile is required")
+	}
+	p = cloneProfile(p)
 	if p.SourceID == "" {
 		return errors.New("source_id is required")
 	}
@@ -120,20 +126,53 @@ func (r *Registry) Register(p *SourceProfile) error {
 	return nil
 }
 
-// Get returns a source profile by ID, or nil if not found.
+// cloneProfile returns a deep copy of p so callers cannot mutate registry state.
+func cloneProfile(p *SourceProfile) *SourceProfile {
+	if p == nil {
+		return nil
+	}
+	cp := *p
+	cp.AllowedHosts = append([]string(nil), p.AllowedHosts...)
+	cp.AllowedPathPrefixes = append([]string(nil), p.AllowedPathPrefixes...)
+	cp.AllowedSchemes = append([]string(nil), p.AllowedSchemes...)
+	cp.AllowedFields = append([]string(nil), p.AllowedFields...)
+	cp.ProhibitedFields = append([]string(nil), p.ProhibitedFields...)
+	cp.Languages = append([]string(nil), p.Languages...)
+	if p.TermsReviewedAt != nil {
+		t := *p.TermsReviewedAt
+		cp.TermsReviewedAt = &t
+	}
+	if p.RobotsReviewedAt != nil {
+		t := *p.RobotsReviewedAt
+		cp.RobotsReviewedAt = &t
+	}
+	if p.LastReviewedAt != nil {
+		t := *p.LastReviewedAt
+		cp.LastReviewedAt = &t
+	}
+	if p.DailyRequestLimit != nil {
+		l := *p.DailyRequestLimit
+		cp.DailyRequestLimit = &l
+	}
+	return &cp
+}
+
+// Get returns a deep copy of the source profile by ID, or nil if not found.
+// Callers cannot mutate registry state through the returned pointer.
 func (r *Registry) Get(sourceID string) *SourceProfile {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.sources[sourceID]
+	return cloneProfile(r.sources[sourceID])
 }
 
-// List returns all registered source profiles.
+// List returns deep copies of all registered source profiles.
+// Callers cannot mutate registry state through the returned slice.
 func (r *Registry) List() []*SourceProfile {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := make([]*SourceProfile, 0, len(r.sources))
 	for _, p := range r.sources {
-		out = append(out, p)
+		out = append(out, cloneProfile(p))
 	}
 	return out
 }
@@ -158,7 +197,7 @@ func (r *Registry) ApprovedCount() int {
 	defer r.mu.RUnlock()
 	n := 0
 	for _, p := range r.sources {
-		if p.IsApproved() {
+		if p.CanFetch() {
 			n++
 		}
 	}

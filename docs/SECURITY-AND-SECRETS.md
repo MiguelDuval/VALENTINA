@@ -134,3 +134,20 @@ Required controls for the local Huginn installation:
 - Search and extraction can be automated within the approved read-only scope. Any outbound contact, application, submission, posting or other side-effecting action requires explicit human confirmation.
 
 Huginn's own storage and the VALENTINA opportunity registry are local runtime data, not repository assets. Keep databases, WAL files, backups and actual records ignored by Git and outside public CI artifacts.
+
+
+## 10. VALENTINA inbound intake endpoint
+
+- The external intake handler is disabled unless `VALENTINA_INTAKE_HMAC_SECRET` is set to at least 32 bytes in the local process environment before the server starts. Never commit this value or place it in frontend code.
+- Send `X-Valentina-Signature` as the lowercase hexadecimal HMAC-SHA256 of the exact UTF-8 request body. The request must also include a unique `idempotency_key` (8–200 characters). SQLite stores the key and lead atomically; keys expire after 30 days.
+- The endpoint applies a per-remote-IP token bucket (10 requests/minute, burst 20) and a 1 MiB body limit. It does not trust forwarded-IP headers.
+- Keep the application bound to loopback. A public website must not call this local endpoint directly; a separately reviewed relay/backend is required before any internet exposure.
+- The handler validates consent and privacy-notice acknowledgement and persists the server-side consent timestamp. The exact privacy-policy version is not yet persisted. Treat the intake feature as not production-ready until that policy-version audit metadata is implemented.
+
+
+## 11. Public-source fetch policy
+
+- A source is fetchable only when its registry profile is explicitly `approved`, has a non-zero `terms_reviewed_at`, and records a non-empty human `approval_reason`. Approval status alone is insufficient.
+- Source adapters reject nil or unmarked HTTP clients. They must receive `sourcepolicy.NewValidatedHTTPClient`; never inject `http.DefaultClient` or call `fetch_url` directly.
+- The validated client checks the initial URL and each redirect, restricts standard ports, rejects userinfo and encoded traversal, resolves all A/AAAA answers, rejects the entire answer set if any address is blocked, pins the connection to a validated IP, disables environment proxies, and caps response bytes.
+- Per-source minimum interval, daily request count and concurrency limits are not yet enforced. Automated research remains disabled until these quotas and the evidence-persistence runner are integrated and tested.

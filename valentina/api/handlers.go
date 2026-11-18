@@ -10,9 +10,13 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/scrypster/huginn/internal/valentina/domain"
 )
@@ -25,6 +29,13 @@ type Server struct {
 
 // NewServer creates a new VALENTINA API server.
 func NewServer(store *domain.Store) *Server {
+	if strings.TrimSpace(intakeSecret) == "" {
+		if secret := strings.TrimSpace(os.Getenv("VALENTINA_INTAKE_HMAC_SECRET")); secret != "" {
+			if err := WithIntakeSecret(secret); err != nil {
+				slog.Warn("VALENTINA intake remains disabled: invalid HMAC secret", "reason", err.Error())
+			}
+		}
+	}
 	return &Server{
 		store: store,
 		log:   slog.Default(),
@@ -101,64 +112,101 @@ func writeDomainError(w http.ResponseWriter, err error) {
 }
 
 // intakeSecret is the shared secret for HMAC verification of inbound intake requests.
-// It is set via WithIntakeSecret. Empty means HMAC verification is skipped (local-only dev).
+// It is set via WithIntakeSecret. Empty means the intake endpoint is disabled.
 var intakeSecret string
 
 // WithIntakeSecret configures the HMAC secret used to verify inbound intake requests.
 // Callers must set this before exposing the intake endpoint. An empty secret disables
-// HMAC verification (not recommended for production).
-func WithIntakeSecret(secret string) {
-	intakeSecret = secret
-}
-
-// idempotencyStore stores processed idempotency keys to prevent replay.
-// It is backed by the domain Store but could be a separate cache.
-type idempotencyStore struct {
-	store *domain.Store
-}
-
-func newIdempotencyStore(store *domain.Store) *idempotencyStore {
-	return &idempotencyStore{store: store}
-}
-
-// checkIdempotency returns true if the key is new and has been recorded.
-// It returns false if the key was already processed (replay).
-func (ids *idempotencyStore) checkIdempotency(key string) bool {
-	if key == "" {
-		return true // no key provided, allow (for unauthenticated local intake)
+// the intake endpoint entirely (fail closed).
+func WithIntakeSecret(secret string) error {
+	secret = strings.TrimSpace(secret)
+	if secret == "" {
+		intakeSecret = ""
+		return nil
 	}
-	// Use the store to check if we've seen this idempotency key.
-	// We store idempotency keys in a simple in-memory set for now.
-	// In production this should be backed by a durable store with TTL.
+	if len([]byte(secret)) < 32 {
+		intakeSecret = ""
+		return errors.New("HMAC secret must contain at least 32 bytes")
+	}
+	intakeSecret = secret
+	return nil
+}
+
+// intakeRateLimiter is a simple per-IP token bucket for intake rate limiting.
+type intakeRateLimiter struct {
+	mu      sync.Mutex
+	buckets map[string]*rateBucket
+}
+
+type rateBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+var globalIntakeLimiter = &intakeRateLimiter{
+	buckets: make(map[string]*rateBucket),
+}
+
+// checkRateLimit returns true if the request is allowed under the rate limit.
+// It allows 10 requests per minute per client IP with a burst of 20.
+func (rl *intakeRateLimiter) checkRateLimit(clientIP string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	if len(rl.buckets) >= 4096 {
+		for ip, bucket := range rl.buckets {
+			if now.Sub(bucket.last) > time.Hour {
+				delete(rl.buckets, ip)
+			}
+		}
+		if len(rl.buckets) >= 4096 {
+			return false
+		}
+	}
+	b, ok := rl.buckets[clientIP]
+	if !ok {
+		b = &rateBucket{tokens: 20, last: now}
+		rl.buckets[clientIP] = b
+	}
+	elapsed := now.Sub(b.last).Seconds()
+	b.last = now
+	b.tokens += elapsed * (10.0 / 60.0) // 10 per minute
+	if b.tokens > 20 {
+		b.tokens = 20
+	}
+	if b.tokens < 1.0 {
+		return false
+	}
+	b.tokens--
 	return true
 }
 
 // Routes returns a map of HTTP method+path to handler for VALENTINA API routes.
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
-		"GET /api/v1/valentina/opportunities":      s.handleListOpportunities,
-		"POST /api/v1/valentina/opportunities":     s.handleCreateOpportunity,
-		"GET /api/v1/valentina/opportunities/{id}": s.handleGetOpportunity,
-		"GET /api/v1/valentina/leads":              s.handleListLeads,
-		"POST /api/v1/valentina/leads":             s.handleCreateLead,
-		"GET /api/v1/valentina/leads/{id}":         s.handleGetLead,
-		"GET /api/v1/valentina/companies":          s.handleListCompanies,
-		"POST /api/v1/valentina/companies":         s.handleCreateCompany,
-		"GET /api/v1/valentina/sources":            s.handleListSources,
-		"POST /api/v1/valentina/sources":           s.handleCreateSource,
-		"GET /api/v1/valentina/research-runs":      s.handleListResearchRuns,
-		"GET /api/v1/valentina/source-evidence":    s.handleListSourceEvidence,
-		"POST /api/v1/valentina/research-runs":     s.handleCreateResearchRun,
-		"GET /api/v1/valentina/review-decisions":   s.handleListReviewDecisions,
-		"POST /api/v1/valentina/review-decisions":  s.handleCreateReviewDecision,
-		"GET /api/v1/valentina/health":             s.handleHealth,
-				"POST /api/v1/valentina/intake":            s.handleIntakeLead,
-                                "POST /api/v1/valentina/research-runs/{id}/cancel": s.handleCancelResearchRun,
-                                "POST /api/v1/valentina/sources/{id}/approve":      s.handleApproveSource,
-                                "POST /api/v1/valentina/sources/{id}/pause":        s.handlePauseSource,
-                                "POST /api/v1/valentina/sources/{id}/test":         s.handleTestSource,
-                                "GET /api/v1/valentina/query-packs":                s.handleListQueryPacks,
-                                "GET /api/v1/valentina/geography":                  s.handleGetGeography,
+		"GET /api/v1/valentina/opportunities":              s.handleListOpportunities,
+		"POST /api/v1/valentina/opportunities":             s.handleCreateOpportunity,
+		"GET /api/v1/valentina/opportunities/{id}":         s.handleGetOpportunity,
+		"GET /api/v1/valentina/leads":                      s.handleListLeads,
+		"POST /api/v1/valentina/leads":                     s.handleCreateLead,
+		"GET /api/v1/valentina/leads/{id}":                 s.handleGetLead,
+		"GET /api/v1/valentina/companies":                  s.handleListCompanies,
+		"POST /api/v1/valentina/companies":                 s.handleCreateCompany,
+		"GET /api/v1/valentina/sources":                    s.handleListSources,
+		"POST /api/v1/valentina/sources":                   s.handleCreateSource,
+		"GET /api/v1/valentina/research-runs":              s.handleListResearchRuns,
+		"GET /api/v1/valentina/source-evidence":            s.handleListSourceEvidence,
+		"POST /api/v1/valentina/research-runs":             s.handleCreateResearchRun,
+		"GET /api/v1/valentina/review-decisions":           s.handleListReviewDecisions,
+		"POST /api/v1/valentina/review-decisions":          s.handleCreateReviewDecision,
+		"GET /api/v1/valentina/health":                     s.handleHealth,
+		"POST /api/v1/valentina/intake":                    s.handleIntakeLead,
+		"POST /api/v1/valentina/research-runs/{id}/cancel": s.handleCancelResearchRun,
+		"POST /api/v1/valentina/sources/{id}/approve":      s.handleApproveSource,
+		"POST /api/v1/valentina/sources/{id}/pause":        s.handlePauseSource,
+		"POST /api/v1/valentina/sources/{id}/test":         s.handleTestSource,
+		"GET /api/v1/valentina/query-packs":                s.handleListQueryPacks,
+		"GET /api/v1/valentina/geography":                  s.handleGetGeography,
 	}
 }
 
@@ -336,9 +384,9 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 	}
 	if len(allSources) == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error":   "no sources configured",
-			"detail":  "at least one source must be registered before starting a research run",
-			"status":  "blocked",
+			"error":  "no sources configured",
+			"detail": "at least one source must be registered before starting a research run",
+			"status": "blocked",
 		})
 		return
 	}
@@ -356,9 +404,9 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 		}
 		if approvedCount == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error":   "no approved sources",
-				"detail":  "no sources are approved for fetching; approve a source before starting a research run",
-				"status":  "blocked",
+				"error":  "no approved sources",
+				"detail": "no sources are approved for fetching; approve a source before starting a research run",
+				"status": "blocked",
 			})
 			return
 		}
@@ -384,27 +432,27 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 
 		if len(unregistered) > 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error":      "unregistered sources",
-				"detail":     "the following source IDs are not registered: " + strings.Join(unregistered, ", "),
-				"status":     "blocked",
-				"sources":    unregistered,
+				"error":   "unregistered sources",
+				"detail":  "the following source IDs are not registered: " + strings.Join(unregistered, ", "),
+				"status":  "blocked",
+				"sources": unregistered,
 			})
 			return
 		}
 		if len(notApproved) > 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error":      "sources not approved",
-				"detail":     "the following sources are not approved for fetching: " + strings.Join(notApproved, ", "),
-				"status":     "blocked",
-				"sources":    notApproved,
+				"error":   "sources not approved",
+				"detail":  "the following sources are not approved for fetching: " + strings.Join(notApproved, ", "),
+				"status":  "blocked",
+				"sources": notApproved,
 			})
 			return
 		}
 		if approvedCount == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error":   "no approved sources",
-				"detail":  "none of the requested sources are approved for fetching",
-				"status":  "blocked",
+				"error":  "no approved sources",
+				"detail": "none of the requested sources are approved for fetching",
+				"status": "blocked",
 			})
 			return
 		}
@@ -490,33 +538,33 @@ func parseInt(s string, def int) int {
 
 // intakeRequest is the validated payload for the secure inbound intake endpoint.
 type intakeRequest struct {
-	RequestSummary       string   `json:"request_summary"`
-	InboundChannel       string   `json:"inbound_channel"`
-	RequestedServices    []string `json:"requested_services,omitempty"`
-	Municipality         *string  `json:"municipality,omitempty"`
-	Province             *string  `json:"province,omitempty"`
-	AutonomousCommunity  *string  `json:"autonomous_community,omitempty"`
-	CountryCode          *string  `json:"country_code,omitempty"`
-	LocationText         *string  `json:"location_text,omitempty"`
-	Budget               *float64 `json:"budget,omitempty"`
-	BudgetCurrency       *string  `json:"budget_currency,omitempty"`
-	DesiredTiming        *string  `json:"desired_timing,omitempty"`
-	CompanyID            *string  `json:"company_id,omitempty"`
-	ContactName          *string  `json:"contact_name,omitempty"`
-	ContactEmail         *string  `json:"contact_email,omitempty"`
-	ContactPhone         *string  `json:"contact_phone,omitempty"`
-	ContactPurpose       *string  `json:"contact_purpose,omitempty"`
-	PrivacyNotice        bool     `json:"privacy_notice"`
-	Consent              bool     `json:"consent"`
-	IdempotencyKey       string   `json:"idempotency_key,omitempty"`
-	Website              string   `json:"website,omitempty"`
+	RequestSummary      string   `json:"request_summary"`
+	InboundChannel      string   `json:"inbound_channel"`
+	RequestedServices   []string `json:"requested_services,omitempty"`
+	Municipality        *string  `json:"municipality,omitempty"`
+	Province            *string  `json:"province,omitempty"`
+	AutonomousCommunity *string  `json:"autonomous_community,omitempty"`
+	CountryCode         *string  `json:"country_code,omitempty"`
+	LocationText        *string  `json:"location_text,omitempty"`
+	Budget              *float64 `json:"budget,omitempty"`
+	BudgetCurrency      *string  `json:"budget_currency,omitempty"`
+	DesiredTiming       *string  `json:"desired_timing,omitempty"`
+	CompanyID           *string  `json:"company_id,omitempty"`
+	ContactName         *string  `json:"contact_name,omitempty"`
+	ContactEmail        *string  `json:"contact_email,omitempty"`
+	ContactPhone        *string  `json:"contact_phone,omitempty"`
+	ContactPurpose      *string  `json:"contact_purpose,omitempty"`
+	PrivacyNotice       bool     `json:"privacy_notice"`
+	Consent             bool     `json:"consent"`
+	IdempotencyKey      string   `json:"idempotency_key,omitempty"`
+	Website             string   `json:"website,omitempty"`
 }
 
 type intakeResponse struct {
-	LeadID   string `json:"lead_id"`
-	Status   string `json:"status"`
-	Message  string `json:"message"`
-	Duplicate bool  `json:"duplicate,omitempty"`
+	LeadID    string `json:"lead_id"`
+	Status    string `json:"status"`
+	Message   string `json:"message"`
+	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
 // verifyIntakeHMAC checks the HMAC-SHA256 signature on inbound intake requests.
@@ -546,14 +594,6 @@ func secureCompare(a, b string) bool {
 	return result == 0
 }
 
-// checkIdempotency checks if the idempotency key has already been processed.
-func (s *Server) checkIdempotency(key string) bool {
-	if key == "" {
-		return true
-	}
-	return true
-}
-
 // handleIntakeLead is the secure inbound lead intake endpoint.
 func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -562,6 +602,18 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(intakeSecret) == "" {
 		writeError(w, http.StatusServiceUnavailable, "intake endpoint is disabled: HMAC secret is not configured")
+		return
+	}
+	clientIP := strings.TrimSpace(r.RemoteAddr)
+	if host, _, splitErr := net.SplitHostPort(clientIP); splitErr == nil {
+		clientIP = host
+	}
+	if clientIP == "" {
+		clientIP = "unknown"
+	}
+	if !globalIntakeLimiter.checkRateLimit(clientIP) {
+		w.Header().Set("Retry-After", "6")
+		writeError(w, http.StatusTooManyRequests, "intake rate limit exceeded")
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody+1))
@@ -603,16 +655,19 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "privacy notice must be acknowledged")
 		return
 	}
-	if req.IdempotencyKey != "" {
-		if !s.checkIdempotency(req.IdempotencyKey) {
-			writeError(w, http.StatusConflict, "idempotency key already processed")
-			return
-		}
+	if strings.TrimSpace(req.IdempotencyKey) == "" {
+		writeError(w, http.StatusBadRequest, "idempotency_key is required")
+		return
+	}
+	if len(strings.TrimSpace(req.IdempotencyKey)) < 8 || len(strings.TrimSpace(req.IdempotencyKey)) > 200 {
+		writeError(w, http.StatusBadRequest, "idempotency_key must be between 8 and 200 characters")
+		return
 	}
 	lead := &domain.InboundLead{
-		RequestSummary:   req.RequestSummary,
-		InboundChannel:   req.InboundChannel,
+		RequestSummary:    req.RequestSummary,
+		InboundChannel:    req.InboundChannel,
 		RequestedServices: req.RequestedServices,
+		ConsentAt:         func() *time.Time { t := time.Now().UTC(); return &t }(),
 	}
 	if req.PrivacyNotice {
 		lead.PrivacyNotice = &req.PrivacyNotice
@@ -642,16 +697,20 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 			Purpose: req.ContactPurpose,
 		}
 	}
-	if err := s.store.CreateInboundLead(r.Context(), lead); err != nil {
+	duplicate, leadID, err := s.store.CreateInboundLeadIdempotent(r.Context(), lead, req.IdempotencyKey)
+	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
-	resp := intakeResponse{
-		LeadID:  lead.LeadID,
-		Status:  string(lead.Status),
-		Message: "intake received",
+	if duplicate {
+		writeJSON(w, http.StatusOK, intakeResponse{
+			LeadID: leadID, Status: "duplicate", Message: "request was already received", Duplicate: true,
+		})
+		return
 	}
-	writeJSON(w, http.StatusCreated, resp)
+	writeJSON(w, http.StatusCreated, intakeResponse{
+		LeadID: lead.LeadID, Status: string(lead.Status), Message: "intake received",
+	})
 }
 
 // withJSONFromBytes parses JSON from a byte slice into the given target.

@@ -254,6 +254,7 @@ type InboundLead struct {
 	Status             InboundLeadStatus    `json:"status"`
 	DecisionHistory    []ReviewDecision     `json:"decision_history,omitempty"`
 	PrivacyNotice      *bool                `json:"privacy_notice,omitempty"`
+        ConsentAt          *time.Time      `json:"consent_at,omitempty"`
 	RetentionState     string               `json:"retention_state"`
 }
 

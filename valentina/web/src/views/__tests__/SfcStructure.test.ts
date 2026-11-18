@@ -15,7 +15,7 @@ describe('VALENTINA Vue source regressions', () => {
   })
 
   it('LeadsView pagination serializes the numeric ref value', () => {
-    expect(leadsView).toContain("'&offset=' + offset.value")
-    expect(leadsView).not.toContain("'&offset=' + offset)
+    expect(leadsView).toContain(`'&offset=' + offset.value`)
+    expect(leadsView).not.toContain(`'&offset=' + offset)`)
   })
 })
