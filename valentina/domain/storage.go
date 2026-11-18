@@ -1708,3 +1708,45 @@ func ptrStrFromNull(s sql.NullString) *string {
 	}
 	return &s.String
 }
+
+// UpdateResearchRun updates a research run's status and statistics.
+// Used for start/cancel/progress tracking of manual research runs.
+func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount int, notes string) error {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE research_runs
+		SET status = ?, candidate_count = ?, verified_count = ?, duplicate_count = ?,
+		    accepted_count = ?, rejected_count = ?, notes = ?, updated_at = ?
+		WHERE run_id = ?`,
+		status, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount, notes, time.Now().UTC().Format(time.RFC3339), id)
+	if err != nil {
+		return fmt.Errorf("update research run: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update research run rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("research run not found: %s", id)
+	}
+	return nil
+}
+
+// UpdateSource updates a source's approval status and related metadata.
+func (s *Store) UpdateSource(ctx context.Context, sourceID string, approvalStatus string, approvalReason string, termsReviewedAt *time.Time, lastReviewedAt *time.Time, notes string) error {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE sources
+		SET approval_status = ?, approval_reason = ?, terms_reviewed_at = ?, last_reviewed_at = ?, notes = ?
+		WHERE source_id = ?`,
+		approvalStatus, approvalReason, timePtr(termsReviewedAt), timePtr(lastReviewedAt), notes, sourceID)
+	if err != nil {
+		return fmt.Errorf("update source: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update source rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("source not found: %s", sourceID)
+	}
+	return nil
+}

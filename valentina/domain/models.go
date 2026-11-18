@@ -275,6 +275,16 @@ func NewRunID() string { return ulid.Make().String() }
 // NewSourceID generates a stable source ID.
 func NewSourceID() string { return ulid.Make().String() }
 
+// IsApproved returns true only when the source is approved.
+func (s *Source) IsApproved() bool {
+	return s.ApprovalStatus == "approved"
+}
+
+// CanFetch returns true when the source is approved.
+func (s *Source) CanFetch() bool {
+	return s.ApprovalStatus == "approved"
+}
+
 // NewDecisionID generates a stable review decision ID.
 func NewDecisionID() string { return uuid.New().String() }
 

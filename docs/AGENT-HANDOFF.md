@@ -117,13 +117,24 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 
 ### Modified files
 
+**`valentina/domain/models.go`**
+- Added `Source.IsApproved()` and `Source.CanFetch()` methods
+
+**`valentina/domain/storage.go`**
+- Added `UpdateResearchRun()` — updates status, counts, notes for research run lifecycle
+- Added `UpdateSource()` — updates approval_status, approval_reason, terms_reviewed_at, last_reviewed_at, notes
+
 **`valentina/api/handlers.go`**
-- Added `POST /api/v1/valentina/intake` route and handler
-- HMAC-SHA256 verification (X-Valentina-Signature header, configurable secret)
-- Idempotency key support
-- Honeypot field (`website`) spam protection
-- Consent + privacy notice required booleans
-- 1 MB body limit, strict JSON schema validation, safe logging
+- Added routes: POST /api/v1/valentina/research-runs/{id}/cancel, POST /api/v1/valentina/sources/{id}/approve, POST /api/v1/valentina/sources/{id}/pause, POST /api/v1/valentina/sources/{id}/test, GET /api/v1/valentina/query-packs, GET /api/v1/valentina/geography
+- Added `handleCancelResearchRun` handler
+
+**`valentina/api/handlers_extra.go`** (new file)
+- `sourceUpdateRequest` type
+- `handleApproveSource` — approves a source with terms_reviewed_at timestamp
+- `handlePauseSource` — pauses a source
+- `handleTestSource` — validates source is approved (connectivity check)
+- `queryPack` type + `handleListQueryPacks` — Spanish/Valencian/Russian renovation query packs
+- `geographyConfig` type + `handleGetGeography` — Valencia, Spain geography scope
 
 **`valentina/api/handlers_test.go`**
 - Added intake tests: success, missing consent, missing signature, invalid signature, honeypot
@@ -135,17 +146,26 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 - Conversion from qualified lead to opportunity (explicit human action only)
 - Manual creation form with consent checkbox
 
+**`valentina/web/src/views/ResearchView.vue`**
+- Toolbar with "Start research" button
+- Run cards with status badges, stats (candidates/verified/duplicates/accepted/rejected)
+- Cancel button for running research runs
+- New run button for completed/failed runs
+- startRun() and cancelRun() functions calling API endpoints
+
+**`valentina/web/src/views/SourcesView.vue`**
+- Policy details: terms_reviewed_at, max_parallel_requests, daily_request_limit, timeout_seconds
+- Approve/Pause/Test buttons per source based on current approval status
+- approveSource(), pauseSource(), testSource() functions calling API endpoints
+
 ### Test results (local, via temporary Huginn module tree)
 - `valentina/sourcepolicy`: 24 tests PASS
 - `valentina/sourceadapter`: 9 tests PASS
-- `valentina/domain`: PASS
 - `valentina/api`: PASS (including intake tests)
+- `valentina/domain`: PASS
 
 ### Pending
 - Frontend typecheck, Vitest, Vite production build
 - Full Windows build (scripts/build-valentina.ps1)
 - Isolated runtime smoke test
-- Diff review and staging — DONE (17 files staged and committed)
-- Commit — DONE (96f52b4)
-- Push — DONE (pushed to origin/feature/valentina-research-intake-engine-20261118)
 - PR — not created (no merge requested)

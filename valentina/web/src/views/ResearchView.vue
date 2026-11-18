@@ -4,6 +4,12 @@
       <h1 class="valentina-page-title">Исследования</h1>
       <p class="valentina-page-subtitle">История исследований, прогресс запусков, источники сбоев и результаты проверки</p>
     </div>
+
+    <div class="valentina-toolbar">
+      <button type="button" class="valentina-btn" @click="startRun" :disabled="loading">Запустить исследование</button>
+      <span class="valentina-toolbar-count">{{ runs.length }} запусков</span>
+    </div>
+
     <div v-if="error" class="valentina-error">{{ error }}</div>
     <div class="valentina-research-content">
       <div v-if="loading" class="valentina-loading">Загрузка...</div>
@@ -21,6 +27,12 @@
             <span class="valentina-stat"><strong>{{ r.duplicate_count }}</strong> дубликатов</span>
             <span class="valentina-stat"><strong>{{ r.accepted_count }}</strong> принято</span>
             <span class="valentina-stat"><strong>{{ r.rejected_count }}</strong> отклонено</span>
+          </div>
+          <div v-if="r.status === 'running'" class="valentina-run-actions">
+            <button type="button" class="valentina-btn valentina-btn-danger" @click="cancelRun(r.run_id)">Отмена</button>
+          </div>
+          <div v-else-if="r.status === 'completed' || r.status === 'failed'" class="valentina-run-actions">
+            <button type="button" class="valentina-btn" @click="startRun">Новый запуск</button>
           </div>
           <div v-if="r.notes" class="valentina-card-notes">{{ r.notes }}</div>
         </div>
@@ -52,6 +64,40 @@ const load = async () => {
 }
 
 onMounted(load)
+
+const startRun = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    await apiFetch('/api/v1/valentina/research-runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_ids: [], notes: 'Manual research run' })
+    })
+    await load()
+  } catch (e) {
+    error.value = 'Не удалось запустить исследование'
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+const cancelRun = async (runID) => {
+  loading.value = true
+  error.value = null
+  try {
+    await apiFetch('/api/v1/valentina/research-runs/' + encodeURIComponent(runID) + '/cancel', {
+      method: 'POST'
+    })
+    await load()
+  } catch (e) {
+    error.value = 'Не удалось отменить исследование'
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
+}
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU') : '—'
 </script>
@@ -86,4 +132,8 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU') : '—'
 .valentina-run-status.completed { background: var(--valentina-green); color: #001a14; }
 .valentina-run-status.failed { background: var(--valentina-red); color: #ffffff; }
 .valentina-error { padding: 16px; color: var(--valentina-red); background: rgba(255,126,136,0.1); border-radius: 6px; margin-bottom: 16px; }
+.valentina-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.valentina-toolbar-count { color: var(--valentina-muted); font-size: 13px; }
+.valentina-run-actions { display: flex; gap: 8px; margin-top: 12px; }
+.valentina-btn-danger { background: var(--valentina-red); color: #ffffff; }
 </style>

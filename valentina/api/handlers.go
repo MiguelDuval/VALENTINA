@@ -153,6 +153,12 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"POST /api/v1/valentina/review-decisions":  s.handleCreateReviewDecision,
 		"GET /api/v1/valentina/health":             s.handleHealth,
 				"POST /api/v1/valentina/intake":            s.handleIntakeLead,
+                                "POST /api/v1/valentina/research-runs/{id}/cancel": s.handleCancelResearchRun,
+                                "POST /api/v1/valentina/sources/{id}/approve":      s.handleApproveSource,
+                                "POST /api/v1/valentina/sources/{id}/pause":        s.handlePauseSource,
+                                "POST /api/v1/valentina/sources/{id}/test":         s.handleTestSource,
+                                "GET /api/v1/valentina/query-packs":                s.handleListQueryPacks,
+                                "GET /api/v1/valentina/geography":                  s.handleGetGeography,
 	}
 }
 

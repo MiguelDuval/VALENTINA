@@ -17,6 +17,17 @@
             <span class="valentina-cell-url">{{ s.base_url }}</span>
           </div>
           <div class="valentina-card-publisher">{{ s.publisher }}</div>
+          <div class="valentina-source-policy">
+            <span v-if="s.terms_reviewed_at">Условия проверены: {{ s.terms_reviewed_at }}</span>
+            <span v-if="s.max_parallel_requests !== undefined">Параллельность: {{ s.max_parallel_requests }}</span>
+            <span v-if="s.daily_request_limit !== undefined">Лимит в день: {{ s.daily_request_limit }}</span>
+            <span v-if="s.timeout_seconds !== undefined">Таймаут: {{ s.timeout_seconds }}с</span>
+          </div>
+          <div class="valentina-source-actions">
+            <button v-if="s.approval_status !== 'approved'" type="button" class="valentina-btn valentina-btn-success" @click="approveSource(s.source_id)">Утвердить</button>
+            <button v-if="s.approval_status === 'approved'" type="button" class="valentina-btn valentina-btn-danger" @click="pauseSource(s.source_id)">Пауза</button>
+            <button type="button" class="valentina-btn" @click="testSource(s.source_id)">Проверить</button>
+          </div>
         </div>
       </div>
     </div>
@@ -42,6 +53,46 @@ const load = async () => {
     console.error(e)
   } finally {
     loading.value = false
+  }
+}
+
+const approveSource = async (sourceID) => {
+  try {
+    await apiFetch('/api/v1/valentina/sources/' + encodeURIComponent(sourceID) + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approval_status: 'approved', approval_reason: 'Утверждено через интерфейс VALENTINА' })
+    })
+    await load()
+  } catch (e) {
+    error.value = 'Не удалось утвердить источник'
+    console.error(e)
+  }
+}
+
+const pauseSource = async (sourceID) => {
+  try {
+    await apiFetch('/api/v1/valentina/sources/' + encodeURIComponent(sourceID) + '/pause', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approval_status: 'paused', approval_reason: 'Приостановлено через интерфейс VALENTINА' })
+    })
+    await load()
+  } catch (e) {
+    error.value = 'Не удалось приостановить источник'
+    console.error(e)
+  }
+}
+
+const testSource = async (sourceID) => {
+  try {
+    await apiFetch('/api/v1/valentina/sources/' + encodeURIComponent(sourceID) + '/test', {
+      method: 'POST'
+    })
+    await load()
+  } catch (e) {
+    error.value = 'Проверка источника не прошла'
+    console.error(e)
   }
 }
 
@@ -77,4 +128,8 @@ onMounted(load)
 .valentina-approval-blocked { background: var(--valentina-red); color: #ffffff; }
 .valentina-approval-paused { background: var(--valentina-muted); color: #ffffff; }
 .valentina-error { padding: 16px; color: var(--valentina-red); background: rgba(255,126,136,0.1); border-radius: 6px; margin-bottom: 16px; }
+.valentina-source-policy { font-size: 12px; color: var(--valentina-muted); margin-top: 8px; }
+.valentina-source-policy span { margin-right: 12px; }
+.valentina-source-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.valentina-btn-success { background: var(--valentina-green); color: #001a14; }
 </style>
