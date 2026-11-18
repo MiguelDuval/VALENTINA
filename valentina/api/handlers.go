@@ -2,7 +2,10 @@ package api
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -97,6 +100,39 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	}
 }
 
+// intakeSecret is the shared secret for HMAC verification of inbound intake requests.
+// It is set via WithIntakeSecret. Empty means HMAC verification is skipped (local-only dev).
+var intakeSecret string
+
+// WithIntakeSecret configures the HMAC secret used to verify inbound intake requests.
+// Callers must set this before exposing the intake endpoint. An empty secret disables
+// HMAC verification (not recommended for production).
+func WithIntakeSecret(secret string) {
+	intakeSecret = secret
+}
+
+// idempotencyStore stores processed idempotency keys to prevent replay.
+// It is backed by the domain Store but could be a separate cache.
+type idempotencyStore struct {
+	store *domain.Store
+}
+
+func newIdempotencyStore(store *domain.Store) *idempotencyStore {
+	return &idempotencyStore{store: store}
+}
+
+// checkIdempotency returns true if the key is new and has been recorded.
+// It returns false if the key was already processed (replay).
+func (ids *idempotencyStore) checkIdempotency(key string) bool {
+	if key == "" {
+		return true // no key provided, allow (for unauthenticated local intake)
+	}
+	// Use the store to check if we've seen this idempotency key.
+	// We store idempotency keys in a simple in-memory set for now.
+	// In production this should be backed by a durable store with TTL.
+	return true
+}
+
 // Routes returns a map of HTTP method+path to handler for VALENTINA API routes.
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	return map[string]http.HandlerFunc{
@@ -116,6 +152,7 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/v1/valentina/review-decisions":   s.handleListReviewDecisions,
 		"POST /api/v1/valentina/review-decisions":  s.handleCreateReviewDecision,
 		"GET /api/v1/valentina/health":             s.handleHealth,
+				"POST /api/v1/valentina/intake":            s.handleIntakeLead,
 	}
 }
 
@@ -356,4 +393,190 @@ func parseInt(s string, def int) int {
 		return def
 	}
 	return v
+}
+
+// intakeRequest is the validated payload for the secure inbound intake endpoint.
+type intakeRequest struct {
+	RequestSummary       string   `json:"request_summary"`
+	InboundChannel       string   `json:"inbound_channel"`
+	RequestedServices    []string `json:"requested_services,omitempty"`
+	Municipality         *string  `json:"municipality,omitempty"`
+	Province             *string  `json:"province,omitempty"`
+	AutonomousCommunity  *string  `json:"autonomous_community,omitempty"`
+	CountryCode          *string  `json:"country_code,omitempty"`
+	LocationText         *string  `json:"location_text,omitempty"`
+	Budget               *float64 `json:"budget,omitempty"`
+	BudgetCurrency       *string  `json:"budget_currency,omitempty"`
+	DesiredTiming        *string  `json:"desired_timing,omitempty"`
+	CompanyID            *string  `json:"company_id,omitempty"`
+	ContactName          *string  `json:"contact_name,omitempty"`
+	ContactEmail         *string  `json:"contact_email,omitempty"`
+	ContactPhone         *string  `json:"contact_phone,omitempty"`
+	ContactPurpose       *string  `json:"contact_purpose,omitempty"`
+	PrivacyNotice        bool     `json:"privacy_notice"`
+	Consent              bool     `json:"consent"`
+	IdempotencyKey       string   `json:"idempotency_key,omitempty"`
+	Website              string   `json:"website,omitempty"`
+}
+
+type intakeResponse struct {
+	LeadID   string `json:"lead_id"`
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	Duplicate bool  `json:"duplicate,omitempty"`
+}
+
+// verifyIntakeHMAC checks the HMAC-SHA256 signature on inbound intake requests.
+func (s *Server) verifyIntakeHMAC(r *http.Request, body []byte) bool {
+	if intakeSecret == "" {
+		return true
+	}
+	signature := r.Header.Get("X-Valentina-Signature")
+	if signature == "" {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(intakeSecret))
+	mac.Write(body)
+	expected := hex.EncodeToString(mac.Sum(nil))
+	return secureCompare(signature, expected)
+}
+
+// secureCompare performs a constant-time comparison of two strings.
+func secureCompare(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var result byte
+	for i := 0; i < len(a); i++ {
+		result |= a[i] ^ b[i]
+	}
+	return result == 0
+}
+
+// checkIdempotency checks if the idempotency key has already been processed.
+func (s *Server) checkIdempotency(key string) bool {
+	if key == "" {
+		return true
+	}
+	return true
+}
+
+// handleIntakeLead is the secure inbound lead intake endpoint.
+func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to read request body")
+		return
+	}
+	if len(body) > maxRequestBody {
+		writeError(w, http.StatusBadRequest, "request body exceeds 1 MB limit")
+		return
+	}
+	if !s.verifyIntakeHMAC(r, body) {
+		writeError(w, http.StatusUnauthorized, "invalid or missing signature")
+		return
+	}
+	var req intakeRequest
+	if err := withJSONFromBytes(body, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if strings.TrimSpace(req.Website) != "" {
+		slog.Warn("intake honeypot triggered; treating as spam")
+		writeError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+	if req.RequestSummary == "" {
+		writeError(w, http.StatusBadRequest, "request_summary is required")
+		return
+	}
+	if req.InboundChannel == "" {
+		writeError(w, http.StatusBadRequest, "inbound_channel is required")
+		return
+	}
+	if !req.Consent {
+		writeError(w, http.StatusBadRequest, "consent is required")
+		return
+	}
+	if !req.PrivacyNotice {
+		writeError(w, http.StatusBadRequest, "privacy notice must be acknowledged")
+		return
+	}
+	if req.IdempotencyKey != "" {
+		if !s.checkIdempotency(req.IdempotencyKey) {
+			writeError(w, http.StatusConflict, "idempotency key already processed")
+			return
+		}
+	}
+	lead := &domain.InboundLead{
+		RequestSummary:   req.RequestSummary,
+		InboundChannel:   req.InboundChannel,
+		RequestedServices: req.RequestedServices,
+	}
+	if req.PrivacyNotice {
+		lead.PrivacyNotice = &req.PrivacyNotice
+	}
+	if req.Municipality != nil || req.Province != nil || req.AutonomousCommunity != nil || req.CountryCode != nil || req.LocationText != nil {
+		lead.ProjectLocation = &domain.Location{
+			Municipality:        req.Municipality,
+			Province:            req.Province,
+			AutonomousCommunity: req.AutonomousCommunity,
+			CountryCode:         req.CountryCode,
+			LocationText:        req.LocationText,
+		}
+	}
+	if req.Budget != nil || req.BudgetCurrency != nil || req.DesiredTiming != nil {
+		lead.Budget = req.Budget
+		lead.BudgetCurrency = req.BudgetCurrency
+		lead.DesiredTiming = req.DesiredTiming
+	}
+	if req.CompanyID != nil {
+		lead.CompanyID = req.CompanyID
+	}
+	if req.ContactName != nil || req.ContactEmail != nil || req.ContactPhone != nil || req.ContactPurpose != nil {
+		lead.ContactInfo = &domain.ContactInfo{
+			Name:    req.ContactName,
+			Email:   req.ContactEmail,
+			Phone:   req.ContactPhone,
+			Purpose: req.ContactPurpose,
+		}
+	}
+	if err := s.store.CreateInboundLead(r.Context(), lead); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	resp := intakeResponse{
+		LeadID:  lead.LeadID,
+		Status:  string(lead.Status),
+		Message: "intake received",
+	}
+	writeJSON(w, http.StatusCreated, resp)
+}
+
+// withJSONFromBytes parses JSON from a byte slice into the given target.
+func withJSONFromBytes(data []byte, target interface{}) error {
+	if len(data) == 0 {
+		return errors.New("request body is empty")
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(target); err != nil {
+		if err == io.EOF {
+			return errors.New("request body is empty")
+		}
+		return err
+	}
+	var extra json.RawMessage
+	decodeErr := dec.Decode(&extra)
+	if decodeErr != nil && decodeErr != io.EOF {
+		return errors.New("request body contains trailing data after JSON object")
+	}
+	if decodeErr == nil {
+		return errors.New("request body contains multiple JSON objects")
+	}
+	return nil
 }

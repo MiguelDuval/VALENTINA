@@ -2,6 +2,9 @@ package api
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -447,6 +450,7 @@ func TestRoutesReturnsAllEndpoints(t *testing.T) {
 		"GET /api/v1/valentina/leads",
 		"POST /api/v1/valentina/leads",
 		"GET /api/v1/valentina/leads/{id}",
+		"POST /api/v1/valentina/intake",
 		"GET /api/v1/valentina/companies",
 		"GET /api/v1/valentina/sources",
 		"GET /api/v1/valentina/research-runs",
@@ -458,5 +462,97 @@ func TestRoutesReturnsAllEndpoints(t *testing.T) {
 		if _, ok := routes[e]; !ok {
 			t.Fatalf("Missing route: %s", e)
 		}
+	}
+}
+
+func TestHandleIntakeLeadSuccess(t *testing.T) {
+	WithIntakeSecret("test-secret")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac.Write([]byte(body))
+	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Invalid JSON: %v", err)
+	}
+	if resp["lead_id"] == "" {
+		t.Fatal("Expected lead_id in response")
+	}
+}
+
+func TestHandleIntakeLeadMissingConsent(t *testing.T) {
+	WithIntakeSecret("test-secret")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":false,"privacy_notice":true}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac.Write([]byte(body))
+	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400, got %d", w.Code)
+	}
+}
+
+func TestHandleIntakeLeadMissingSignature(t *testing.T) {
+	WithIntakeSecret("test-secret")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401, got %d", w.Code)
+	}
+}
+
+func TestHandleIntakeLeadInvalidSignature(t *testing.T) {
+	WithIntakeSecret("test-secret")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Valentina-Signature", "invalid-signature")
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401, got %d", w.Code)
+	}
+}
+
+func TestHandleIntakeLeadHoneypot(t *testing.T) {
+	WithIntakeSecret("test-secret")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"website":"http://evil.com"}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mac := hmac.New(sha256.New, []byte("test-secret"))
+	mac.Write([]byte(body))
+	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400 for honeypot, got %d", w.Code)
 	}
 }
