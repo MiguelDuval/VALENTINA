@@ -34,7 +34,7 @@ The EXE and ZIP were produced in a unique temporary output directory. No existin
 - NVIDIA NIM function calling/streaming is not certified; P4 remains blocked.
 - Playwright visual regression and full Windows browser interaction tests remain.
 - NSIS installer remains a later milestone.
-- GitHub Actions has not yet verified this unpushed local checkpoint; the local artifact is not a published release.
+- GitHub Actions run #115 for the pushed checkpoint was in progress at the time of the last handoff update; the local artifact is not a published release.
 
 ## Build
 

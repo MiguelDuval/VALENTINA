@@ -74,4 +74,4 @@ The full build was performed before the final test-only cleanup that added the l
 
 ## Tooling note
 
-Cline 4.1.26 (NVIDIA Nemotron 3.5 Super VL 120B) entered a repeated terminal-command observation loop during the initial audit and was stopped before it changed project files. The implementation in commit `22b0b19` was completed directly through the authorized Remote Desktop Commander tools; the final diff was independently tested and reviewed. No unverified Cline edits are included.
+Cline 4.1.26 (NVIDIA Nemotron 3.5 Super VL 120B) entered a repeated terminal-command observation loop during the initial audit. It made a partial SourceEvidence reader edit in `valentina/domain/storage.go`; I reviewed and corrected its SQL parameter construction and nullable timestamp handling, then added regression tests. The remaining implementation and verification were completed directly through the authorized Remote Desktop Commander tools. No unreviewed agent edits remain.
