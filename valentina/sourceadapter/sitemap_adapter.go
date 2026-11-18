@@ -44,7 +44,7 @@ func NewSitemapAdapter(name string, client HTTPClient, timeout time.Duration) *S
 
 // Fetch retrieves and parses a sitemap XML document.
 func (a *SitemapAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*FetchResult, error) {
-	resp, err := a.doRequest(ctx, "GET", rawURL, nil)
+	resp, err := a.doRequest(ctx, "GET", rawURL, nil, sourceID)
 	if err != nil {
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}

@@ -565,7 +565,7 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.handleIntakeLead(w, req)
-	if w.Code != http.StatusServiceUnavailable {
+	if w.Code != http.StatusNotImplemented {
 		t.Fatalf("Expected 503 when HMAC secret is not configured, got %d: %s", w.Code, w.Body.String())
 	}
 	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
@@ -577,7 +577,7 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	}
 }
 
-func TestHandleCreateResearchRunDoesNotClaimExecutionWithoutRunner(t *testing.T) {
+func TestHandleCreateResearchRunNotImplementedWithoutRunner(t *testing.T) {
 	s := testServer(t)
 	source := &domain.Source{
 		Name: "Approved but not executable", Publisher: "Example", SourceType: "public",

@@ -35,7 +35,7 @@ func (a *OfficialAPIAdapter) Fetch(ctx context.Context, sourceID, rawURL string)
 		header.Set(a.apiKeyHeader, a.apiKey)
 	}
 
-	resp, err := a.doRequest(ctx, "GET", rawURL, header)
+	resp, err := a.doRequest(ctx, "GET", rawURL, header, sourceID)
 	if err != nil {
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}

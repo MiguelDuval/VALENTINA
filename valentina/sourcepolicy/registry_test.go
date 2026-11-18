@@ -11,11 +11,14 @@ func TestRegistryApprovedAndFetchableCounts(t *testing.T) {
 		t.Fatalf("expected 0 sources, got %d", r.Count())
 	}
 
+	reviewedAt := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
 	p1 := &SourceProfile{
 		SourceID:            "src-1",
 		Name:                "Test Source 1",
 		Publisher:           "Test Publisher",
 		ApprovalStatus:      ApprovalApproved,
+		ApprovalReason:      "Terms reviewed for test",
+		TermsReviewedAt:     &reviewedAt,
 		AllowedHosts:        []string{"example.com"},
 		AllowedPathPrefixes: []string{"/"},
 		TimeoutSeconds:      10,
@@ -76,6 +79,7 @@ func TestRegistryApprovedAndFetchableCounts(t *testing.T) {
 }
 
 func TestSourceProfileDefaults(t *testing.T) {
+	reviewedAt := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
 	p := &SourceProfile{
 		SourceID:       "src-1",
 		ApprovalStatus: ApprovalPending,
@@ -99,6 +103,8 @@ func TestSourceProfileDefaults(t *testing.T) {
 	}
 
 	p.ApprovalStatus = ApprovalApproved
+	p.ApprovalReason = "Terms reviewed for test"
+	p.TermsReviewedAt = &reviewedAt
 	if !p.IsApproved() {
 		t.Fatal("approved source should be approved")
 	}

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	"github.com/scrypster/huginn/internal/valentina/sourcepolicy"
 )
 
 // AdapterType identifies the kind of source adapter.
@@ -92,10 +94,12 @@ func (bp *BaseProvider) WithTimeout(timeout time.Duration) {
 }
 
 // doRequest performs an HTTP GET with context timeout and returns the response.
-func (bp *BaseProvider) doRequest(ctx context.Context, method, urlStr string, header http.Header) (*http.Response, error) {
+// It tags the request with the source ID so the policy client can enforce per-source limits.
+func (bp *BaseProvider) doRequest(ctx context.Context, method, urlStr string, header http.Header, sourceID string) (*http.Response, error) {
 	if bp.client == nil {
 		return nil, ErrFetchBlocked
 	}
+	ctx = sourcepolicy.WithSourceIDContext(ctx, sourceID)
 	req, err := http.NewRequestWithContext(ctx, method, urlStr, nil)
 	if err != nil {
 		return nil, err

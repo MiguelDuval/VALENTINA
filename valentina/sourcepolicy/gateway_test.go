@@ -142,11 +142,14 @@ func TestGatewayEvaluateDisallowedSchemeRejected(t *testing.T) {
 func TestGatewayEvaluateHTTPSchemeAllowedForHTTPSource(t *testing.T) {
 	r := makeTestRegistry()
 	g := NewPolicyGateway(r)
+	reviewedAt := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
 	_ = r.Register(&SourceProfile{
 		SourceID:            "http-src",
 		Name:                "HTTP Scheme Source",
 		Publisher:           "Test Pub",
 		ApprovalStatus:      ApprovalApproved,
+		ApprovalReason:      "Terms reviewed for test",
+		TermsReviewedAt:     &reviewedAt,
 		AllowedHosts:        []string{"example.com"},
 		AllowedPathPrefixes: []string{"/"},
 		AllowedSchemes:      []string{"http"},

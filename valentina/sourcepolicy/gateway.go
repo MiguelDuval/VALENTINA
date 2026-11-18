@@ -34,8 +34,6 @@ type FetchDecision struct {
 	InternalReason string `json:"-"`
 }
 
-var ErrResponseTooLarge = errors.New("source response exceeds configured size limit")
-
 // Evaluate checks whether a fetch of the given URL under the given source ID is permitted.
 // Fail-closed: any uncertainty results in Allowed=false.
 func (g *PolicyGateway) Evaluate(sourceID, rawURL string) *FetchDecision {
@@ -409,20 +407,104 @@ func (p *policyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 // ValidatedClient is the only HTTP client type intended for source adapters.
 // It wraps a policy-enforcing client and exposes an explicit marker so adapters
 // cannot accidentally fall back to http.DefaultClient.
-type ValidatedClient struct{ client *http.Client }
+// Per-source rate, daily quota and concurrency limits are enforced on every Do call.
+type ValidatedClient struct {
+	client       *http.Client
+	rateLimiter  *RateLimiter
+	dailyQuota   *DailyQuotaTracker
+	concurrency  *ConcurrencyLimiter
+	acquired     bool
+}
 
 func (c *ValidatedClient) Do(req *http.Request) (*http.Response, error) {
 	if c == nil || c.client == nil {
 		return nil, ErrSourceNotFound
 	}
-	return c.client.Do(req)
+	// Enforce minimum interval between requests (rate limit).
+	if c.rateLimiter != nil {
+		if !c.rateLimiter.Allow() {
+			return nil, ErrRateLimited
+		}
+	}
+	// Enforce daily request quota.
+	if c.dailyQuota != nil {
+		if !c.dailyQuota.CheckAndIncrement(sourceIDFromRequest(req)) {
+			return nil, ErrDailyQuotaExceeded
+		}
+	}
+	// Enforce concurrency limit (non-blocking: returns immediately if at capacity).
+	if c.concurrency != nil {
+		if !c.concurrency.TryAcquire() {
+			return nil, ErrConcurrencyLimit
+		}
+		c.acquired = true
+	}
+	resp, err := c.client.Do(req)
+	if c.acquired && c.concurrency != nil {
+		c.concurrency.Release()
+		c.acquired = false
+	}
+	return resp, err
 }
 
 func (c *ValidatedClient) PolicyValidated() bool { return c != nil && c.client != nil }
 
+// sourceIDFromRequest extracts the source ID from a request context or URL.
+// It is used for quota tracking when the source ID is not directly available.
+func sourceIDFromRequest(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+	if sid := req.Context().Value(sourceIDKey{}); sid != nil {
+		if s, ok := sid.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// sourceIDKey is a context key for passing the source ID through the request.
+type sourceIDKey struct{}
+
+// WithSourceIDContext returns a context carrying the given source ID.
+func WithSourceIDContext(ctx context.Context, sourceID string) context.Context {
+	return context.WithValue(ctx, sourceIDKey{}, sourceID)
+}
+
+// WithSourceID returns a request with the source ID in its context.
+func WithSourceID(req *http.Request, sourceID string) *http.Request {
+	if req == nil {
+		return nil
+	}
+	return req.WithContext(WithSourceIDContext(req.Context(), sourceID))
+}
+
+// TryAcquire attempts to acquire a concurrency slot without blocking.
+// Returns true if acquired, false if at capacity.
+func (cl *ConcurrencyLimiter) TryAcquire() bool {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.active < cl.limit {
+		cl.active++
+		return true
+	}
+	return false
+}
+
+// Release releases a previously acquired concurrency slot.
+func (cl *ConcurrencyLimiter) Release() {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.active > 0 {
+		cl.active--
+	}
+}
+
 // NewValidatedHTTPClient validates the initial request and every redirect hop
 // against source approval, scheme, host, path and DNS/IP policy. Blocked
 // redirects are never followed; the underlying dialer pins validated IPs.
+// Per-source rate, daily quota and concurrency limits are configured from the
+// registered profile and enforced on every Do call.
 func NewValidatedHTTPClient(g *PolicyGateway, sourceID string, profile *SourceProfile) (*ValidatedClient, error) {
 	if g == nil || g.registry == nil || profile == nil || sourceID == "" || profile.SourceID != sourceID {
 		return nil, errors.New("matching source policy gateway, source ID and profile are required")
@@ -438,21 +520,47 @@ func NewValidatedHTTPClient(g *PolicyGateway, sourceID string, profile *SourcePr
 		timeout = 30 * time.Second
 	}
 	base := newValidatedTransport(profile)
-	return &ValidatedClient{client: &http.Client{
-		Transport: &policyRoundTripper{gateway: g, sourceID: sourceID, base: base},
-		Timeout:   timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) == 0 || len(via) >= 5 {
-				return http.ErrUseLastResponse
-			}
-			from := via[len(via)-1].URL.String()
-			decision := g.EvaluateRedirect(sourceID, from, req.URL.String())
-			if !decision.Allowed {
-				return http.ErrUseLastResponse
-			}
-			return nil
+
+	// Configure per-source rate limiter from minimum interval.
+	var rateLimiter *RateLimiter
+	if profile.MinimumIntervalSeconds > 0 {
+		ratePerSec := 1.0 / float64(profile.MinimumIntervalSeconds)
+		rateLimiter = NewRateLimiter(ratePerSec, 1)
+	}
+
+	// Configure daily quota tracker.
+	var dailyQuota *DailyQuotaTracker
+	if profile.DailyRequestLimit != nil {
+		dailyQuota = NewDailyQuotaTracker()
+		dailyQuota.SetLimit(sourceID, profile.DailyRequestLimit)
+	}
+
+	// Configure concurrency limiter.
+	var concurrency *ConcurrencyLimiter
+	if profile.MaxParallelRequests > 0 {
+		concurrency = NewConcurrencyLimiter(profile.MaxParallelRequests)
+	}
+
+	return &ValidatedClient{
+		client:       &http.Client{
+			Transport: &policyRoundTripper{gateway: g, sourceID: sourceID, base: base},
+			Timeout:   timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) == 0 || len(via) >= 5 {
+					return http.ErrUseLastResponse
+				}
+				from := via[len(via)-1].URL.String()
+				decision := g.EvaluateRedirect(sourceID, from, req.URL.String())
+				if !decision.Allowed {
+					return http.ErrUseLastResponse
+				}
+				return nil
+			},
 		},
-	}}, nil
+		rateLimiter:  rateLimiter,
+		dailyQuota:   dailyQuota,
+		concurrency:  concurrency,
+	}, nil
 }
 
 // makeValidatedDialer resolves the hostname once, rejects the whole answer set

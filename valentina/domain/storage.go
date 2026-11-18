@@ -1165,7 +1165,7 @@ func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *Inbound
 			ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 			ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
 			missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.LeadID, l.ReceivedAt.Format(time.RFC3339), l.InboundChannel, l.ChannelMessageRef,
 		l.RequestSummary, l.OriginalContent, string(services),
 		locStr(l.ProjectLocation, "municipality"), locStr(l.ProjectLocation, "province"),
