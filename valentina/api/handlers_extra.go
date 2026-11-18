@@ -96,7 +96,10 @@ func (s *Server) handlePauseSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "paused", "source_id": sourceID})
 }
 
-// handleTestSource tests connectivity to a source without collecting data.
+// handleTestSource validates that a source passes VALENTINA policy approval.
+// It checks that the source is registered and approved for fetching.
+// It does NOT perform an actual network request or verify external connectivity.
+// Network connectivity is only validated at fetch time through the source policy gateway.
 func (s *Server) handleTestSource(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -119,7 +122,7 @@ func (s *Server) handleTestSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status":    "ok",
 		"source_id": sourceID,
-		"message":   "source connectivity validated",
+		"message":   "policy approval valid",
 	})
 }
 

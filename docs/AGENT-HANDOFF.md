@@ -163,8 +163,10 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 - `valentina/sourceadapter`: 9 tests PASS
 - `valentina/api`: PASS (including intake tests)
 - `valentina/domain`: PASS
+- Frontend SFC structure regression test: SfcStructure.test.ts (new)
 
 ### Pending
+- Go vet/build for handlers_extra.go and updated handlers.go (verified via copy to Huginn module tree)
 - Frontend typecheck, Vitest, Vite production build
 - Full Windows build (scripts/build-valentina.ps1)
 - Isolated runtime smoke test

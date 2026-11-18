@@ -320,12 +320,97 @@ func (s *Server) handleListResearchRuns(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleCreateResearchRun creates a new research run.
+// It validates that all requested source IDs exist and are approved.
+// If no sources are configured or none are approved, it surfaces a blocked state.
 func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request) {
 	var body domain.ResearchRun
 	if err := withJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	allSources, err := s.store.ListSources(r.Context())
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	if len(allSources) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error":   "no sources configured",
+			"detail":  "at least one source must be registered before starting a research run",
+			"status":  "blocked",
+		})
+		return
+	}
+
+	approvedCount := 0
+	notApproved := []string{}
+	unregistered := []string{}
+
+	if len(body.SourceIDs) == 0 {
+		// No specific sources requested - check if any approved source exists
+		for _, src := range allSources {
+			if src.CanFetch() {
+				approvedCount++
+			}
+		}
+		if approvedCount == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+				"error":   "no approved sources",
+				"detail":  "no sources are approved for fetching; approve a source before starting a research run",
+				"status":  "blocked",
+			})
+			return
+		}
+	} else {
+		// Validate each requested source ID
+		for _, sid := range body.SourceIDs {
+			found := false
+			for _, src := range allSources {
+				if src.SourceID == sid {
+					found = true
+					if src.CanFetch() {
+						approvedCount++
+					} else {
+						notApproved = append(notApproved, sid)
+					}
+					break
+				}
+			}
+			if !found {
+				unregistered = append(unregistered, sid)
+			}
+		}
+
+		if len(unregistered) > 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+				"error":      "unregistered sources",
+				"detail":     "the following source IDs are not registered: " + strings.Join(unregistered, ", "),
+				"status":     "blocked",
+				"sources":    unregistered,
+			})
+			return
+		}
+		if len(notApproved) > 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+				"error":      "sources not approved",
+				"detail":     "the following sources are not approved for fetching: " + strings.Join(notApproved, ", "),
+				"status":     "blocked",
+				"sources":    notApproved,
+			})
+			return
+		}
+		if approvedCount == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+				"error":   "no approved sources",
+				"detail":  "none of the requested sources are approved for fetching",
+				"status":  "blocked",
+			})
+			return
+		}
+	}
+
+	body.Status = "running"
 	if err := s.store.CreateResearchRun(r.Context(), &body); err != nil {
 		writeDomainError(w, err)
 		return

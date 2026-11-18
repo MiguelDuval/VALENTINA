@@ -209,7 +209,7 @@ const load = async () => {
   loading.value = true
   error.value = null
   try {
-    const res = await apiFetch('/api/v1/valentina/leads?limit=' + PAGE_SIZE + '&offset=' + offset)
+    const res = await apiFetch('/api/v1/valentina/leads?limit=' + PAGE_SIZE + '&offset=' + offset.value)
     leads.value = res.leads || []
     hasMore.value = Boolean(res.has_more)
   } catch (e) {
@@ -405,4 +405,3 @@ onMounted(load)
 .valentina-detail-value { color: var(--valentina-text); font-size: 14px; }
 .valentina-detail-actions { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
 </style>
-</script>

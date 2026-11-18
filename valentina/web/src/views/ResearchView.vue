@@ -6,8 +6,9 @@
     </div>
 
     <div class="valentina-toolbar">
-      <button type="button" class="valentina-btn" @click="startRun" :disabled="loading">Запустить исследование</button>
-      <span class="valentina-toolbar-count">{{ runs.length }} запусков</span>
+      <button type="button" class="valentina-btn" @click="startRun" :disabled="loading || !hasApprovedSources">Запустить исследование</button>
+      <span v-if="!hasApprovedSources" class="valentina-toolbar-count" style="color: var(--valentina-red)">Нет утверждённых источников — настройте их на странице Источники</span>
+      <span v-else class="valentina-toolbar-count">{{ runs.length }} запусков</span>
     </div>
 
     <div v-if="error" class="valentina-error">{{ error }}</div>
@@ -48,6 +49,8 @@ import { apiFetch } from '../composables/useApi'
 const loading = ref(false)
 const error = ref(null)
 const runs = ref([])
+const sources = ref([])
+const hasApprovedSources = ref(false)
 
 const load = async () => {
   loading.value = true
@@ -63,17 +66,38 @@ const load = async () => {
   }
 }
 
-onMounted(load)
+const loadSources = async () => {
+  try {
+    const res = await apiFetch('/api/v1/valentina/sources')
+    sources.value = res.sources || []
+    hasApprovedSources.value = sources.value.some(s => s.approval_status === 'approved')
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+onMounted(async () => {
+  await load()
+  await loadSources()
+})
 
 const startRun = async () => {
+  if (!hasApprovedSources.value) return
   loading.value = true
   error.value = null
   try {
-    await apiFetch('/api/v1/valentina/research-runs', {
+    const approvedSourceIds = sources.value
+      .filter(s => s.approval_status === 'approved')
+      .map(s => s.source_id)
+    const res = await apiFetch('/api/v1/valentina/research-runs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source_ids: [], notes: 'Manual research run' })
+      body: JSON.stringify({ source_ids: approvedSourceIds, notes: 'Manual research run' })
     })
+    if (res.error && res.status === 'blocked') {
+      error.value = res.detail || 'Исследование заблокировано'
+      return
+    }
     await load()
   } catch (e) {
     error.value = 'Не удалось запустить исследование'
