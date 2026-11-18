@@ -556,3 +556,53 @@ func TestHandleIntakeLeadHoneypot(t *testing.T) {
 		t.Fatalf("Expected 400 for honeypot, got %d", w.Code)
 	}
 }
+
+
+func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
+	WithIntakeSecret("")
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("Expected 503 when HMAC secret is not configured, got %d: %s", w.Code, w.Body.String())
+	}
+	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListInboundLeads: %v", err)
+	}
+	if len(leads) != 0 {
+		t.Fatalf("expected no lead to be created while intake is disabled, got %d", len(leads))
+	}
+}
+
+
+func TestHandleCreateResearchRunDoesNotClaimExecutionWithoutRunner(t *testing.T) {
+	s := testServer(t)
+	source := &domain.Source{
+		Name: "Approved but not executable", Publisher: "Example", SourceType: "public",
+		BaseURL: "https://example.test", AllowedHosts: []string{"example.test"},
+		AllowedFields: []string{"title"}, RetrievalMethod: "rss", ApprovalStatus: "approved",
+		RateLimits: domain.SourceRateLimits{MinimumIntervalSeconds: 60, MaxParallelRequests: 1, TimeoutSeconds: 10, MaxResponseBytes: 1024},
+	}
+	if err := s.store.CreateSource(context.Background(), source); err != nil {
+		t.Fatalf("CreateSource: %v", err)
+	}
+	body := `{"source_ids":["` + source.SourceID + `"],"notes":"manual test"}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/research-runs", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.handleCreateResearchRun(w, req)
+	if w.Code != http.StatusNotImplemented {
+		t.Fatalf("Expected 501 until a real policy-gateway-backed runner is wired, got %d: %s", w.Code, w.Body.String())
+	}
+	runs, err := s.store.ListResearchRuns(context.Background())
+	if err != nil {
+		t.Fatalf("ListResearchRuns: %v", err)
+	}
+	if len(runs) != 0 {
+		t.Fatalf("expected no fake running record, got %d runs", len(runs))
+	}
+}

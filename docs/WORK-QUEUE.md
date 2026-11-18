@@ -15,15 +15,15 @@ This queue is the product-level source of task priority. Status changes require 
 
 ## P2 — renovation CRM and hot inbound intake (owner authorized)
 - VAL-P2-001 Domain contracts/persistence — DONE; backup/restore and deduplication verified.
-- VAL-P2-002 In-process API/SQLite — DONE; opportunity evidence/history complete; inbound lead detail and secure intake implemented.
-- VAL-P2-003 CRM UI — DONE; opportunity detail complete; inbound lead detail/review implemented.
-- VAL-INTAKE-001 Secure hot-lead intake vertical slice — DONE; idempotent webhook contract, consent, spam controls, CSV import deferred, triage UI/API implemented; never expose loopback app.
+- VAL-P2-002 In-process API/SQLite — PARTIAL; opportunity evidence/history and inbound lead detail/review are implemented; external intake security acceptance remains open.
+- VAL-P2-003 CRM UI — DONE for opportunity detail and inbound lead detail/review.
+- VAL-INTAKE-001 Secure hot-lead intake vertical slice — BLOCKED; HMAC is now fail-closed and intake remains disabled without a configured secret. Durable atomic idempotency and rate limiting are not implemented; do not expose or advertise the webhook as production-ready. CSV import deferred.
 
 ## P3 — internet opportunity discovery (owner explicitly authorized 2026-11-18)
-- VAL-P3-001 Source registry and technical policy gateway — DONE; source-specific allowlist, redirects/DNS/IP SSRF checks, quotas and fail-closed approval.
-- VAL-P3-002 Search/provider and public-source adapters — DONE; official APIs/RSS/datasets first, bounded HTML only where allowed.
-- VAL-P3-003 Manual research pipeline — READY_FOR_CLINE; discover → retrieve → extract → classify → validate → deduplicate → persist evidence → human review.
-- VAL-P3-004 Research operations UI — READY_FOR_CLINE; source status, query packs, geography, run progress/cancel, errors and evidence.
+- VAL-P3-001 Source registry and technical policy gateway — PARTIAL; allowlist, redirects and basic SSRF checks exist, but all-address DNS validation and connection pinning still require review. No source is pre-approved.
+- VAL-P3-002 Search/provider and public-source adapters — PARTIAL; RSS/Atom, sitemap, bounded HTML and official API adapter scaffolding exist, but they are not connected to the research-run API.
+- VAL-P3-003 Manual research pipeline — BLOCKED; API returns 501 until a real policy-gateway-backed runner retrieves, classifies, deduplicates and persists evidence. It must not create fake running records.
+- VAL-P3-004 Research operations UI — PARTIAL; source approval, query packs and geography controls exist; run execution is visibly disabled until the runner is implemented.
 
 ## P4 — AI enrichment and controlled automation
 - VAL-P4-001 NVIDIA NIM compatibility — BLOCKED until a local key is configured and live test approved.

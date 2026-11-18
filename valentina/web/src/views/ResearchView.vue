@@ -6,15 +6,15 @@
     </div>
 
     <div class="valentina-toolbar">
-      <button type="button" class="valentina-btn" @click="startRun" :disabled="loading || !hasApprovedSources">Запустить исследование</button>
+      <button type="button" class="valentina-btn" @click="startRun" :disabled="true">Запустить исследование</button>
       <span v-if="!hasApprovedSources" class="valentina-toolbar-count" style="color: var(--valentina-red)">Нет утверждённых источников — настройте их на странице Источники</span>
-      <span v-else class="valentina-toolbar-count">{{ runs.length }} запусков</span>
+      <span v-else class="valentina-toolbar-count" style="color: var(--valentina-amber)">Источники готовы, но исполнитель поиска ещё не подключён. Запуск пока заблокирован.</span>
     </div>
 
     <div v-if="error" class="valentina-error">{{ error }}</div>
     <div class="valentina-research-content">
       <div v-if="loading" class="valentina-loading">Загрузка...</div>
-      <div v-else-if="runs.length === 0" class="valentina-empty">Нет запусков исследований. Запустите ручное исследование.</div>
+      <div v-else-if="runs.length === 0" class="valentina-empty">Запусков пока нет. Поиск станет доступен после подключения и проверки исполнительного модуля.</div>
       <div v-else class="valentina-list">
         <div v-for="r in runs" :key="r.run_id" class="valentina-run-card">
           <div class="valentina-card-title">Исследование {{ r.run_id.slice(-8) }}</div>

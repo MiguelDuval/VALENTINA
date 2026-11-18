@@ -410,12 +410,14 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	body.Status = "running"
-	if err := s.store.CreateResearchRun(r.Context(), &body); err != nil {
-		writeDomainError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusCreated, body)
+	// Source discovery adapters are not yet connected to this API handler. Do not
+	// create a misleading "running" record until a policy-gateway-backed runner
+	// can actually retrieve, classify, and persist evidence.
+	writeJSON(w, http.StatusNotImplemented, map[string]interface{}{
+		"status": "blocked",
+		"error":  "research execution is not configured",
+		"detail": "sources can be registered and reviewed, but automated retrieval is not wired yet; no research run was created",
+	})
 }
 
 // handleListSourceEvidence returns only evidence records referenced by the supplied IDs.
@@ -519,8 +521,8 @@ type intakeResponse struct {
 
 // verifyIntakeHMAC checks the HMAC-SHA256 signature on inbound intake requests.
 func (s *Server) verifyIntakeHMAC(r *http.Request, body []byte) bool {
-	if intakeSecret == "" {
-		return true
+	if strings.TrimSpace(intakeSecret) == "" {
+		return false
 	}
 	signature := r.Header.Get("X-Valentina-Signature")
 	if signature == "" {
@@ -556,6 +558,10 @@ func (s *Server) checkIdempotency(key string) bool {
 func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if strings.TrimSpace(intakeSecret) == "" {
+		writeError(w, http.StatusServiceUnavailable, "intake endpoint is disabled: HMAC secret is not configured")
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody+1))
