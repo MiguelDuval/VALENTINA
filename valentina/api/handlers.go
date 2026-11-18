@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -38,8 +39,14 @@ func withJSON(r *http.Request, target interface{}) error {
 		return errors.New("request body is empty")
 	}
 	defer r.Body.Close()
-	body := io.LimitReader(r.Body, maxRequestBody)
-	dec := json.NewDecoder(body)
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody+1))
+	if err != nil {
+		return errors.New("failed to read request body")
+	}
+	if len(body) > maxRequestBody {
+		return errors.New("request body exceeds 1 MB limit")
+	}
+	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(target); err != nil {
 		if err == io.EOF {
@@ -104,6 +111,7 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/v1/valentina/sources":            s.handleListSources,
 		"POST /api/v1/valentina/sources":           s.handleCreateSource,
 		"GET /api/v1/valentina/research-runs":      s.handleListResearchRuns,
+		"GET /api/v1/valentina/source-evidence":    s.handleListSourceEvidence,
 		"POST /api/v1/valentina/research-runs":     s.handleCreateResearchRun,
 		"GET /api/v1/valentina/review-decisions":   s.handleListReviewDecisions,
 		"POST /api/v1/valentina/review-decisions":  s.handleCreateReviewDecision,
@@ -119,14 +127,24 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // handleListOpportunities lists opportunities with optional status filter.
 func (s *Server) handleListOpportunities(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
-	limit := parseInt(r.URL.Query().Get("limit"), 50)
+	limit := parseInt(r.URL.Query().Get("limit"), 25)
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
 	offset := parseInt(r.URL.Query().Get("offset"), 0)
-	opps, err := s.store.ListOpportunities(r.Context(), status, limit, offset)
+	if offset > 100000 {
+		offset = 100000
+	}
+	opps, err := s.store.ListOpportunities(r.Context(), status, limit+1, offset)
 	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"opportunities": opps, "count": len(opps)})
+	hasMore := len(opps) > limit
+	if hasMore {
+		opps = opps[:limit]
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"opportunities": opps, "count": len(opps), "has_more": hasMore})
 }
 
 // handleCreateOpportunity creates a new opportunity.
@@ -272,11 +290,43 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusCreated, body)
 }
 
-// handleListReviewDecisions lists review decisions.
-func (s *Server) handleListReviewDecisions(w http.ResponseWriter, r *http.Request) {
-	decisions, err := s.store.ListReviewDecisions(r.Context())
+// handleListSourceEvidence returns only evidence records referenced by the supplied IDs.
+func (s *Server) handleListSourceEvidence(w http.ResponseWriter, r *http.Request) {
+	ids := r.URL.Query()["id"]
+	if len(ids) > 100 {
+		writeError(w, http.StatusBadRequest, "at most 100 evidence IDs may be requested")
+		return
+	}
+	for i, id := range ids {
+		ids[i] = strings.TrimSpace(id)
+		if ids[i] == "" {
+			writeError(w, http.StatusBadRequest, "evidence IDs must not be empty")
+			return
+		}
+	}
+	evidence, err := s.store.ListSourceEvidenceByIDs(r.Context(), ids)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list review decisions")
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"evidence": evidence, "count": len(evidence)})
+}
+
+// handleListReviewDecisions lists decisions for exactly one entity.
+func (s *Server) handleListReviewDecisions(w http.ResponseWriter, r *http.Request) {
+	entityType := strings.TrimSpace(r.URL.Query().Get("entity_type"))
+	entityID := strings.TrimSpace(r.URL.Query().Get("entity_id"))
+	if entityType == "" || entityID == "" {
+		writeError(w, http.StatusBadRequest, "entity_type and entity_id are required")
+		return
+	}
+	if entityType != "opportunity" && entityType != "inbound_lead" {
+		writeError(w, http.StatusBadRequest, "unsupported entity_type")
+		return
+	}
+	decisions, err := s.store.ListReviewDecisionsForEntity(r.Context(), entityType, entityID)
+	if err != nil {
+		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"decisions": decisions, "count": len(decisions)})

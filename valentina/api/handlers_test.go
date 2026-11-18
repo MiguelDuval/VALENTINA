@@ -92,6 +92,36 @@ func TestHandleGetOpportunityNotFound(t *testing.T) {
 	}
 }
 
+func TestHandleListOpportunitiesFiltersAndPaginates(t *testing.T) {
+	s := testServer(t)
+	for _, item := range []*domain.Opportunity{
+		{Title: "Candidate one", Summary: "A", OpportunityType: "direct_request", Status: domain.OpportunityStatusCandidate, DemandEvidenceType: domain.DemandEvidenceUnknown, SourceEvidenceIDs: []string{"ev1"}},
+		{Title: "Verified", Summary: "B", OpportunityType: "direct_request", Status: domain.OpportunityStatusVerified, DemandEvidenceType: domain.DemandEvidenceUnknown, SourceEvidenceIDs: []string{"ev2"}},
+		{Title: "Candidate two", Summary: "C", OpportunityType: "direct_request", Status: domain.OpportunityStatusCandidate, DemandEvidenceType: domain.DemandEvidenceUnknown, SourceEvidenceIDs: []string{"ev3"}},
+	} {
+		if err := s.store.CreateOpportunity(context.Background(), item); err != nil {
+			t.Fatalf("CreateOpportunity: %v", err)
+		}
+	}
+	req := httptest.NewRequest("GET", "/api/v1/valentina/opportunities?status=candidate&limit=1&offset=0", nil)
+	w := httptest.NewRecorder()
+	s.handleListOpportunities(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var response struct {
+		Count         int                  `json:"count"`
+		HasMore       bool                 `json:"has_more"`
+		Opportunities []domain.Opportunity `json:"opportunities"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Count != 1 || !response.HasMore || len(response.Opportunities) != 1 || response.Opportunities[0].Status != domain.OpportunityStatusCandidate {
+		t.Fatalf("status filter/pagination mismatch: %+v", response)
+	}
+}
+
 func TestHandleCreateLeadDefaults(t *testing.T) {
 	s := testServer(t)
 	body := `{"request_summary":"Test lead","inbound_channel":"web"}`
@@ -170,6 +200,18 @@ func TestHandleCreateLeadSecondJSONRejected(t *testing.T) {
 	s.handleCreateLead(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("Expected 400 for second JSON object, got %d", w.Code)
+	}
+}
+
+func TestHandleCreateLeadRejectsOversizedBody(t *testing.T) {
+	s := testServer(t)
+	body := "{\"request_summary\":\"A\",\"inbound_channel\":\"web\"}" + strings.Repeat(" ", maxRequestBody)
+	req := httptest.NewRequest("POST", "/api/v1/valentina/leads", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.handleCreateLead(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400 for oversized request body, got %d", w.Code)
 	}
 }
 
@@ -253,11 +295,95 @@ func TestHandleListResearchRuns(t *testing.T) {
 
 func TestHandleListReviewDecisions(t *testing.T) {
 	s := testServer(t)
-	req := httptest.NewRequest("GET", "/api/v1/valentina/review-decisions", nil)
+	opportunity := &domain.Opportunity{
+		Title: "Review history", Summary: "Test", OpportunityType: "direct_request",
+		Status: domain.OpportunityStatusNeedsReview, DemandEvidenceType: domain.DemandEvidenceUnknown,
+		SourceEvidenceIDs: []string{"ev"},
+	}
+	if err := s.store.CreateOpportunity(context.Background(), opportunity); err != nil {
+		t.Fatalf("CreateOpportunity: %v", err)
+	}
+	if err := s.store.CreateReviewDecision(context.Background(), &domain.ReviewDecision{
+		EntityType: "opportunity", EntityID: opportunity.OpportunityID,
+		NewStatus: string(domain.OpportunityStatusQualified), DecisionReason: "Approved",
+	}); err != nil {
+		t.Fatalf("CreateReviewDecision: %v", err)
+	}
+	req := httptest.NewRequest("GET", "/api/v1/valentina/review-decisions?entity_type=opportunity&entity_id="+opportunity.OpportunityID, nil)
 	w := httptest.NewRecorder()
 	s.handleListReviewDecisions(w, req)
 	if w.Code != http.StatusOK {
-		t.Fatalf("Expected 200, got %d", w.Code)
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var response struct {
+		Count int `json:"count"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil || response.Count != 1 {
+		t.Fatalf("Expected one scoped decision, got %+v err=%v", response, err)
+	}
+}
+
+func TestHandleListReviewDecisionsRequiresEntity(t *testing.T) {
+	s := testServer(t)
+	for _, path := range []string{
+		"/api/v1/valentina/review-decisions",
+		"/api/v1/valentina/review-decisions?entity_type=opportunity",
+		"/api/v1/valentina/review-decisions?entity_id=abc",
+		"/api/v1/valentina/review-decisions?entity_type=invalid&entity_id=abc",
+	} {
+		req := httptest.NewRequest("GET", path, nil)
+		w := httptest.NewRecorder()
+		s.handleListReviewDecisions(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("%s: expected 400, got %d", path, w.Code)
+		}
+	}
+}
+
+func TestHandleListSourceEvidence(t *testing.T) {
+	s := testServer(t)
+	source := &domain.Source{
+		Name: "Evidence source", Publisher: "Example", SourceType: "public_tender_portal",
+		BaseURL: "https://example.test", AllowedHosts: []string{"example.test"},
+		AllowedFields: []string{"title"}, RetrievalMethod: "manual",
+		RateLimits: domain.SourceRateLimits{MinimumIntervalSeconds: 1, MaxParallelRequests: 1, TimeoutSeconds: 10, MaxResponseBytes: 1 << 20},
+	}
+	if err := s.store.CreateSource(context.Background(), source); err != nil {
+		t.Fatalf("CreateSource: %v", err)
+	}
+	evidence := &domain.SourceEvidence{
+		SourceID: source.SourceID, CanonicalURL: "https://example.test/notice", Publisher: "Example",
+		RetrievalStatus: "success", Facts: []domain.EvidenceFact{{FieldPath: "title", Value: "Notice"}},
+	}
+	if err := s.store.CreateSourceEvidence(context.Background(), evidence); err != nil {
+		t.Fatalf("CreateSourceEvidence: %v", err)
+	}
+	req := httptest.NewRequest("GET", "/api/v1/valentina/source-evidence?id="+evidence.EvidenceID+"&id=missing", nil)
+	w := httptest.NewRecorder()
+	s.handleListSourceEvidence(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var response struct {
+		Count    int                     `json:"count"`
+		Evidence []domain.SourceEvidence `json:"evidence"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil || response.Count != 1 || len(response.Evidence) != 1 || response.Evidence[0].EvidenceID != evidence.EvidenceID {
+		t.Fatalf("unexpected evidence response: %+v err=%v", response, err)
+	}
+}
+
+func TestHandleListSourceEvidenceRejectsTooManyIDs(t *testing.T) {
+	s := testServer(t)
+	values := make([]string, 101)
+	for i := range values {
+		values[i] = "id"
+	}
+	req := httptest.NewRequest("GET", "/api/v1/valentina/source-evidence?id="+strings.Join(values, "&id="), nil)
+	w := httptest.NewRecorder()
+	s.handleListSourceEvidence(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400 for too many IDs, got %d", w.Code)
 	}
 }
 
@@ -284,6 +410,33 @@ func TestHandleCreateReviewDecision(t *testing.T) {
 	}
 }
 
+func TestHandleCreateReviewDecisionRejectsBlankReason(t *testing.T) {
+	s := testServer(t)
+	opportunity := &domain.Opportunity{
+		Title: "Reason required", Summary: "Test", OpportunityType: "direct_request",
+		Status: domain.OpportunityStatusNeedsReview, DemandEvidenceType: domain.DemandEvidenceUnknown,
+		SourceEvidenceIDs: []string{"ev"},
+	}
+	if err := s.store.CreateOpportunity(context.Background(), opportunity); err != nil {
+		t.Fatalf("CreateOpportunity: %v", err)
+	}
+	body := `{"entity_type":"opportunity","entity_id":"` + opportunity.OpportunityID + `","new_status":"qualified","decision_reason":"  "}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/review-decisions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.handleCreateReviewDecision(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400 for blank reason, got %d: %s", w.Code, w.Body.String())
+	}
+	got, err := s.store.GetOpportunity(context.Background(), opportunity.OpportunityID)
+	if err != nil {
+		t.Fatalf("GetOpportunity: %v", err)
+	}
+	if got.Status != domain.OpportunityStatusNeedsReview {
+		t.Fatalf("status changed despite rejected decision: %q", got.Status)
+	}
+}
+
 func TestRoutesReturnsAllEndpoints(t *testing.T) {
 	s := testServer(t)
 	routes := s.Routes()
@@ -297,6 +450,7 @@ func TestRoutesReturnsAllEndpoints(t *testing.T) {
 		"GET /api/v1/valentina/companies",
 		"GET /api/v1/valentina/sources",
 		"GET /api/v1/valentina/research-runs",
+		"GET /api/v1/valentina/source-evidence",
 		"GET /api/v1/valentina/review-decisions",
 		"GET /api/v1/valentina/health",
 	}

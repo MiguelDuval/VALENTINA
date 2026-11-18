@@ -326,6 +326,139 @@ func TestCreateReviewDecisionEntityNotFound(t *testing.T) {
 	}
 }
 
+func TestListSourceEvidenceByIDsPreservesRequestedOrder(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	source := &Source{
+		Name: "Evidence source", Publisher: "Example", SourceType: "public_tender_portal",
+		BaseURL: "https://example.test", AllowedHosts: []string{"example.test"},
+		AllowedFields: []string{"title"}, RetrievalMethod: "manual",
+		RateLimits: SourceRateLimits{MinimumIntervalSeconds: 1, MaxParallelRequests: 1, TimeoutSeconds: 10, MaxResponseBytes: 1 << 20},
+	}
+	if err := s.CreateSource(ctx, source); err != nil {
+		t.Fatalf("CreateSource: %v", err)
+	}
+	published := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
+	first := &SourceEvidence{
+		SourceID: source.SourceID, CanonicalURL: "https://example.test/first", Publisher: "Example",
+		RetrievalStatus: "success", Facts: []EvidenceFact{{FieldPath: "title", Value: "First"}},
+	}
+	second := &SourceEvidence{
+		SourceID: source.SourceID, CanonicalURL: "https://example.test/second", Publisher: "Example",
+		PublishedAt: &published, RetrievalStatus: "success",
+		Facts: []EvidenceFact{{FieldPath: "title", Value: "Second"}},
+	}
+	if err := s.CreateSourceEvidence(ctx, first); err != nil {
+		t.Fatalf("CreateSourceEvidence first: %v", err)
+	}
+	if err := s.CreateSourceEvidence(ctx, second); err != nil {
+		t.Fatalf("CreateSourceEvidence second: %v", err)
+	}
+
+	got, err := s.ListSourceEvidenceByIDs(ctx, []string{second.EvidenceID, "missing", first.EvidenceID, second.EvidenceID})
+	if err != nil {
+		t.Fatalf("ListSourceEvidenceByIDs: %v", err)
+	}
+	if len(got) != 2 || got[0].EvidenceID != second.EvidenceID || got[1].EvidenceID != first.EvidenceID {
+		t.Fatalf("requested order / missing IDs / duplicates not handled: %+v", got)
+	}
+	if got[0].PublishedAt == nil || !got[0].PublishedAt.Equal(published) {
+		t.Fatalf("published_at was not decoded: %+v", got[0].PublishedAt)
+	}
+	if got[1].PublishedAt != nil {
+		t.Fatalf("nullable published_at should remain nil, got %+v", got[1].PublishedAt)
+	}
+	if len(got[0].Facts) != 1 || got[0].Facts[0].Value != "Second" {
+		t.Fatalf("evidence facts were not decoded: %+v", got[0].Facts)
+	}
+
+	empty, err := s.ListSourceEvidenceByIDs(ctx, nil)
+	if err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("empty input should return an empty slice, got=%v err=%v", empty, err)
+	}
+	if _, err := s.ListSourceEvidenceByIDs(ctx, make([]string, 501)); err == nil {
+		t.Fatal("more than 500 evidence IDs should be rejected")
+	}
+}
+
+func TestListReviewDecisionsForEntityIsScopedAndNewestFirst(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	opportunity := &Opportunity{
+		Title: "Scoped review", Summary: "Review history", OpportunityType: "direct_request",
+		Status: OpportunityStatusCandidate, DemandEvidenceType: DemandEvidenceUnknown,
+		SourceEvidenceIDs: []string{"ev"},
+	}
+	if err := s.CreateOpportunity(ctx, opportunity); err != nil {
+		t.Fatalf("CreateOpportunity: %v", err)
+	}
+	lead := &InboundLead{RequestSummary: "Manual inbound request", InboundChannel: "manual"}
+	if err := s.CreateInboundLead(ctx, lead); err != nil {
+		t.Fatalf("CreateInboundLead: %v", err)
+	}
+	t1 := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
+	t2 := t1.Add(time.Hour)
+	for _, decision := range []*ReviewDecision{
+		{EntityType: "opportunity", EntityID: opportunity.OpportunityID, NewStatus: string(OpportunityStatusNeedsReview), DecisionReason: "First review", DecisionTime: t1},
+		{EntityType: "opportunity", EntityID: opportunity.OpportunityID, NewStatus: string(OpportunityStatusQualified), DecisionReason: "Second review", DecisionTime: t2},
+		{EntityType: "inbound_lead", EntityID: lead.LeadID, NewStatus: string(InboundLeadStatusTriage), DecisionReason: "Lead triage", DecisionTime: t1},
+	} {
+		if err := s.CreateReviewDecision(ctx, decision); err != nil {
+			t.Fatalf("CreateReviewDecision: %v", err)
+		}
+	}
+	opportunityHistory, err := s.ListReviewDecisionsForEntity(ctx, "opportunity", opportunity.OpportunityID)
+	if err != nil {
+		t.Fatalf("ListReviewDecisionsForEntity opportunity: %v", err)
+	}
+	if len(opportunityHistory) != 2 || opportunityHistory[0].DecisionReason != "Second review" || opportunityHistory[1].DecisionReason != "First review" {
+		t.Fatalf("opportunity history should be scoped and newest-first: %+v", opportunityHistory)
+	}
+	leadHistory, err := s.ListReviewDecisionsForEntity(ctx, "inbound_lead", lead.LeadID)
+	if err != nil {
+		t.Fatalf("ListReviewDecisionsForEntity lead: %v", err)
+	}
+	if len(leadHistory) != 1 || leadHistory[0].EntityID != lead.LeadID {
+		t.Fatalf("lead history leaked unrelated decisions: %+v", leadHistory)
+	}
+	if empty, err := s.ListReviewDecisionsForEntity(ctx, "opportunity", "missing"); err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("missing entity history should be empty: got=%v err=%v", empty, err)
+	}
+	if _, err := s.ListReviewDecisionsForEntity(ctx, "unsupported", "id"); err == nil {
+		t.Fatal("unsupported entity type should be rejected")
+	}
+}
+
+func TestCreateReviewDecisionRequiresReason(t *testing.T) {
+	s := testStore(t)
+	opportunity := &Opportunity{
+		Title: "Reason required", Summary: "Test", OpportunityType: "direct_request",
+		Status: OpportunityStatusNeedsReview, DemandEvidenceType: DemandEvidenceUnknown,
+		SourceEvidenceIDs: []string{"ev"},
+	}
+	if err := s.CreateOpportunity(context.Background(), opportunity); err != nil {
+		t.Fatalf("CreateOpportunity: %v", err)
+	}
+	decision := &ReviewDecision{
+		EntityType: "opportunity", EntityID: opportunity.OpportunityID,
+		NewStatus: string(OpportunityStatusQualified), DecisionReason: "  \t ",
+	}
+	if err := s.CreateReviewDecision(context.Background(), decision); err == nil {
+		t.Fatal("blank decision reason should be rejected")
+	}
+	got, err := s.GetOpportunity(context.Background(), opportunity.OpportunityID)
+	if err != nil {
+		t.Fatalf("GetOpportunity: %v", err)
+	}
+	if got.Status != OpportunityStatusNeedsReview {
+		t.Fatalf("status changed despite rejected blank reason: %q", got.Status)
+	}
+	history, err := s.ListReviewDecisionsForEntity(context.Background(), "opportunity", opportunity.OpportunityID)
+	if err != nil || len(history) != 0 {
+		t.Fatalf("blank reason must not create a decision: history=%v err=%v", history, err)
+	}
+}
+
 func TestMigrationIdempotent(t *testing.T) {
 	s := testStore(t)
 	if err := s.migrate(context.Background()); err != nil {

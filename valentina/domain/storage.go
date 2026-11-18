@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	// modernc.org/sqlite is the pure-Go SQLite driver used by Store.
@@ -653,6 +654,93 @@ func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) err
 	return err
 }
 
+// ListSourceEvidenceByIDs returns source evidence records for the given IDs.
+// It returns only stored records, in the order of the input IDs; missing IDs
+// are silently skipped. An empty input returns an empty slice.
+func (s *Store) ListSourceEvidenceByIDs(ctx context.Context, ids []string) ([]*SourceEvidence, error) {
+	if len(ids) == 0 {
+		return []*SourceEvidence{}, nil
+	}
+	if len(ids) > 500 {
+		return nil, fmt.Errorf("too many source evidence IDs: %d", len(ids))
+	}
+	// Build an OR of equality predicates so each requested ID is matched
+	// exactly and returned at most once, stable against the input order.
+	var conds []string
+	var args []interface{}
+	for _, id := range ids {
+		conds = append(conds, "evidence_id = ?")
+		args = append(args, id)
+	}
+	query := `SELECT evidence_id, source_id, canonical_url, publisher, page_title,
+                observed_at, published_at, content_hash, retrieval_status,
+                extractor_id, extractor_version, facts
+                FROM source_evidence WHERE ` + strings.Join(conds, " OR ") + ` ORDER BY evidence_id`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*SourceEvidence
+	for rows.Next() {
+		var e SourceEvidence
+		var pageTitle, contentHash, extractorID, extractorVersion sql.NullString
+		var observedAt string
+		var publishedAt sql.NullString
+		var facts string
+		err := rows.Scan(
+			&e.EvidenceID, &e.SourceID, &e.CanonicalURL, &e.Publisher, &pageTitle,
+			&observedAt, &publishedAt, &contentHash, &e.RetrievalStatus,
+			&extractorID, &extractorVersion, &facts,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		e.ObservedAt = parseTime(observedAt)
+		if publishedAt.Valid {
+			e.PublishedAt = parseTimePtr(publishedAt)
+		}
+		if pageTitle.Valid {
+			e.PageTitle = &pageTitle.String
+		}
+		if contentHash.Valid {
+			e.ContentHash = &contentHash.String
+		}
+		if extractorID.Valid {
+			e.ExtractorID = &extractorID.String
+		}
+		if extractorVersion.Valid {
+			e.ExtractorVersion = &extractorVersion.String
+		}
+		if err := json.Unmarshal([]byte(facts), &e.Facts); err != nil {
+			return nil, fmt.Errorf("unmarshal facts: %w", err)
+		}
+		out = append(out, &e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Stable order by input ID, duplicates removed.
+	seen := map[string]bool{}
+	ordered := []*SourceEvidence{}
+	byID := map[string]*SourceEvidence{}
+	for _, e := range out {
+		byID[e.EvidenceID] = e
+	}
+	for _, id := range ids {
+		if e, ok := byID[id]; ok && !seen[id] {
+			seen[id] = true
+			ordered = append(ordered, e)
+		}
+	}
+	if ordered == nil {
+		ordered = []*SourceEvidence{}
+	}
+	return ordered, nil
+}
+
 // CreateSource inserts a new source record.
 func (s *Store) CreateSource(ctx context.Context, src *Source) error {
 	src.EnsureID()
@@ -878,6 +966,12 @@ func validTransition(entityType, prevStatus, newStatus string) bool {
 
 // CreateReviewDecision inserts a new review decision record.
 func (s *Store) CreateReviewDecision(ctx context.Context, d *ReviewDecision) error {
+	if strings.TrimSpace(d.EntityID) == "" {
+		return errors.New("entity_id is required")
+	}
+	if strings.TrimSpace(d.DecisionReason) == "" {
+		return errors.New("decision reason is required")
+	}
 	if d.DecisionID == "" {
 		d.DecisionID = NewDecisionID()
 	}
@@ -901,8 +995,11 @@ func (s *Store) CreateReviewDecision(ctx context.Context, d *ReviewDecision) err
 	default:
 		return fmt.Errorf("unsupported entity type: %q", d.EntityType)
 	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("entity not found: %s/%s", d.EntityType, d.EntityID)
+	}
 	if err != nil {
-		return fmt.Errorf("entity not found: %w", err)
+		return fmt.Errorf("read entity status: %w", err)
 	}
 	d.PreviousStatus = prevStatus
 
@@ -967,6 +1064,43 @@ func (s *Store) ListReviewDecisions(ctx context.Context) ([]*ReviewDecision, err
 		out = append(out, &d)
 	}
 	return out, rows.Err()
+}
+
+// ListReviewDecisionsForEntity returns decisions for one entity, newest first.
+func (s *Store) ListReviewDecisionsForEntity(ctx context.Context, entityType, entityID string) ([]*ReviewDecision, error) {
+	if entityType != "opportunity" && entityType != "inbound_lead" {
+		return nil, fmt.Errorf("unsupported entity type: %q", entityType)
+	}
+	if strings.TrimSpace(entityID) == "" {
+		return nil, errors.New("entity_id is required")
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT decision_id, entity_type, entity_id, previous_status, new_status, decision_time, decision_reason, profile_version, operator_ref FROM review_decisions WHERE entity_type = ? AND entity_id = ? ORDER BY decision_time DESC, decision_id DESC`, entityType, entityID)
+	if err != nil {
+		return nil, fmt.Errorf("query review decisions: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*ReviewDecision
+	for rows.Next() {
+		var d ReviewDecision
+		var decisionTime string
+		var operatorRef sql.NullString
+		if err := rows.Scan(&d.DecisionID, &d.EntityType, &d.EntityID, &d.PreviousStatus, &d.NewStatus, &decisionTime, &d.DecisionReason, &d.ProfileVersion, &operatorRef); err != nil {
+			return nil, fmt.Errorf("scan review decision: %w", err)
+		}
+		d.DecisionTime = parseTime(decisionTime)
+		if operatorRef.Valid {
+			d.OperatorRef = ptrStrFromNull(operatorRef)
+		}
+		out = append(out, &d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []*ReviewDecision{}
+	}
+	return out, nil
 }
 
 // CreateInboundLead inserts a new inbound lead record.

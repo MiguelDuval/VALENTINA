@@ -13,6 +13,7 @@ import CloudView from '../views/CloudView.vue'
 import SkillsView from '../views/SkillsView.vue'
 import MemoryView from '../views/MemoryView.vue'
 import OpportunitiesView from '../views/OpportunitiesView.vue'
+import OpportunityDetailView from '../views/OpportunityDetailView.vue'
 import LeadsView from '../views/LeadsView.vue'
 import CompaniesView from '../views/CompaniesView.vue'
 import SourcesView from '../views/SourcesView.vue'
@@ -38,6 +39,7 @@ export default createRouter({
     { path: '/workflows/:id/runs/:runId', component: WorkflowsView, props: true },
     { path: '/cloud', component: CloudView },
     { path: '/skills/:tab?', component: SkillsView, props: true },
+    { path: '/valentina/opportunities/:id', component: OpportunityDetailView },
     { path: '/valentina/opportunities', component: OpportunitiesView },
     { path: '/valentina/leads', component: LeadsView },
     { path: '/valentina/companies', component: CompaniesView },

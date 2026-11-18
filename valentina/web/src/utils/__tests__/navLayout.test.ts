@@ -26,6 +26,7 @@ describe('sectionFromPath', () => {
 
   it('maps every CRM route to its own active navigation section', () => {
     expect(sectionFromPath('/valentina/opportunities')).toBe('crm-opportunities')
+    expect(sectionFromPath('/valentina/opportunities/op-123')).toBe('crm-opportunities')
     expect(sectionFromPath('/valentina/opportunities?status=qualified')).toBe('crm-opportunities')
     expect(sectionFromPath('/valentina/leads')).toBe('crm-leads')
     expect(sectionFromPath('/valentina/companies')).toBe('crm-companies')
@@ -70,6 +71,7 @@ describe('showChatSidebar / showContextPanel', () => {
     '/memory',
     '/cloud',
     '/valentina/opportunities',
+    '/valentina/opportunities/op-123',
     '/valentina/leads',
     '/valentina/companies',
     '/valentina/sources',
