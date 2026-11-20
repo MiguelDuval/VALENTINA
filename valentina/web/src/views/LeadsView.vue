@@ -34,6 +34,10 @@
           <label class="valentina-detail-label">Согласие на обработку данных</label>
           <div class="valentina-detail-value">{{ selectedLead.privacy_notice ? 'Да' : 'Нет' }}</div>
         </div>
+        <div v-if="selectedLead.privacy_notice_version" class="valentina-detail-field">
+          <label class="valentina-detail-label">Версия уведомления о конфиденциальности</label>
+          <div class="valentina-detail-value">{{ selectedLead.privacy_notice_version }}</div>
+        </div>
         <div class="valentina-detail-field">
           <label class="valentina-detail-label">Сервисы</label>
           <div class="valentina-detail-value">{{ (selectedLead.requested_services || []).join(', ') || '—' }}</div>
@@ -122,6 +126,10 @@
           <label for="lead-consent">Согласие на обработку персональных данных</label>
           <input id="lead-consent" type="checkbox" v-model="newLead.privacy_notice" required />
         </div>
+        <div class="valentina-form-field">
+          <label for="lead-privacy-version">Версия уведомления о конфиденциальности</label>
+          <input id="lead-privacy-version" v-model="newLead.privacy_notice_version" type="text" placeholder="например: 2026-11-20-v1" />
+        </div>
         <button type="submit" class="valentina-btn" :disabled="creating">{{ creating ? 'Создаётся…' : 'Создать заявку' }}</button>
         <div v-if="createError" class="valentina-error">{{ createError }}</div>
         <div v-if="createSuccess" class="valentina-success">Заявка "{{ createdLeadSummary }}" создана.</div>
@@ -154,7 +162,8 @@ const createdLeadSummary = ref('')
 const newLead = ref({
   request_summary: '',
   inbound_channel: '',
-  privacy_notice: false
+  privacy_notice: false,
+  privacy_notice_version: ''
 })
 
 const statuses = ['new', 'triage', 'needs_information', 'qualified', 'converted', 'declined', 'spam', 'archived']
@@ -319,7 +328,7 @@ const createLead = async () => {
     })
     createdLeadSummary.value = newLead.value.request_summary
     createSuccess.value = true
-    newLead.value = { request_summary: '', inbound_channel: '', privacy_notice: false }
+    newLead.value = { request_summary: '', inbound_channel: '', privacy_notice: false, privacy_notice_version: '' }
     await load()
   } catch (e) {
     createError.value = 'Не удалось создать заявку'

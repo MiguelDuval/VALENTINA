@@ -207,6 +207,8 @@ var migrations = []migration{
 	{version: 11, stmt: `
                 ALTER TABLE research_runs ADD COLUMN updated_at TEXT;
                 CREATE INDEX IF NOT EXISTS idx_source_evidence_source_url ON source_evidence(source_id, canonical_url);`},
+	{version: 12, stmt: `
+                ALTER TABLE inbound_leads ADD COLUMN privacy_notice_version TEXT;`},
 }
 
 // companiesTable is the CREATE TABLE statement for the companies table.
@@ -1178,8 +1180,8 @@ func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *Inbound
 			company_id, contact_name, contact_email, contact_phone, contact_purpose,
 			ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 			ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
-			missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			missing_information, duplicate_group_id, status, privacy_notice, consent_at, privacy_notice_version, retention_state)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.LeadID, l.ReceivedAt.Format(time.RFC3339), l.InboundChannel, l.ChannelMessageRef,
 		l.RequestSummary, l.OriginalContent, string(services),
 		locStr(l.ProjectLocation, "municipality"), locStr(l.ProjectLocation, "province"),
@@ -1192,7 +1194,7 @@ func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *Inbound
 		ptrStr(l.AIAssessment, "Location"), ptrF64Obj(l.AIAssessment, "Budget"),
 		ptrStr(l.AIAssessment, "TimingUrgency"), string(factsJSON), ptrStr(l.AIAssessment, "CompanyMatch"),
 		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), ptrStr(l.AIAssessment, "ProfileVersion"),
-		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), timePtr(l.ConsentAt), l.RetentionState)
+		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), timePtr(l.ConsentAt), l.PrivacyNoticeVersion, l.RetentionState)
 	return err
 }
 
@@ -1336,7 +1338,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		company_id, contact_name, contact_email, contact_phone, contact_purpose,
 		ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 		ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
-		missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state
+		missing_information, duplicate_group_id, status, privacy_notice, consent_at, privacy_notice_version, retention_state
 		FROM inbound_leads`
 	var args []interface{}
 	if status != "" {
@@ -1359,6 +1361,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		var received string
 		var aiEval sql.NullString
 		var consentAt sql.NullString
+		var privacyNoticeVersion sql.NullString
 		var budget sql.NullFloat64
 		var aiBudget sql.NullFloat64
 		var burC sql.NullString
@@ -1375,7 +1378,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 			&l.CompanyID, &contactName, &contactEmail, &contactPhone, &contactPurpose,
 			&aiServiceCat, &aiProjectScope, &aiLocationVal, &aiBudget, &aiTimingUrgency, &aiMissingDetails,
 			&aiCompanyMatch, &aiResponseDraft, &aiEval, &aiProfileVersion,
-			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &consentAt, &l.RetentionState,
+			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &consentAt, &privacyNoticeVersion, &l.RetentionState,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
@@ -1385,6 +1388,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 			consentTime := parseTime(consentAt.String)
 			l.ConsentAt = &consentTime
 		}
+		l.PrivacyNoticeVersion = ptrStrFromNull(privacyNoticeVersion)
 		if err := json.Unmarshal([]byte(services), &l.RequestedServices); err != nil {
 			return nil, fmt.Errorf("unmarshal requested_services: %w", err)
 		}
@@ -1818,7 +1822,7 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 	// Validate transition.
 	allowed, ok := validRunTransitions[currentStatus]
 	if !ok {
-		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, status)
+		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, status)
 	}
 	transitionAllowed := false
 	for _, a := range allowed {
@@ -1828,7 +1832,7 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 		}
 	}
 	if !transitionAllowed {
-		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, status)
+		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, status)
 	}
 
 	// On cancellation, preserve existing stats (don't clobber with zeros).
@@ -1885,7 +1889,7 @@ func (s *Store) UpdateSource(ctx context.Context, sourceID string, approvalStatu
 
 	allowed, ok := validSourceTransitions[currentStatus]
 	if !ok {
-		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, approvalStatus)
+		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, approvalStatus)
 	}
 	transitionAllowed := false
 	for _, a := range allowed {
@@ -1895,7 +1899,7 @@ func (s *Store) UpdateSource(ctx context.Context, sourceID string, approvalStatu
 		}
 	}
 	if !transitionAllowed {
-		return fmt.Errorf("invalid status transition: %s → %s", currentStatus, approvalStatus)
+		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, approvalStatus)
 	}
 
 	result, err := s.db.ExecContext(ctx, `

@@ -235,27 +235,28 @@ type ReviewDecision struct {
 
 // InboundLead represents a customer-initiated enquiry.
 type InboundLead struct {
-	LeadID             string               `json:"lead_id"`
-	ReceivedAt         time.Time            `json:"received_at"`
-	InboundChannel     string               `json:"inbound_channel"`
-	ChannelMessageRef  *string              `json:"channel_message_ref,omitempty"`
-	RequestSummary     string               `json:"request_summary"`
-	OriginalContent    *string              `json:"original_content,omitempty"`
-	RequestedServices  []string             `json:"requested_services,omitempty"`
-	ProjectLocation    *Location            `json:"project_location,omitempty"`
-	Budget             *float64             `json:"budget,omitempty"`
-	BudgetCurrency     *string              `json:"budget_currency,omitempty"`
-	DesiredTiming      *string              `json:"desired_timing,omitempty"`
-	CompanyID          *string              `json:"company_id,omitempty"`
-	ContactInfo        *ContactInfo         `json:"contact_info,omitempty"`
-	AIAssessment       *InboundAIAssessment `json:"ai_assessment,omitempty"`
-	MissingInformation []string             `json:"missing_information,omitempty"`
-	DuplicateGroupID   *string              `json:"duplicate_group_id,omitempty"`
-	Status             InboundLeadStatus    `json:"status"`
-	DecisionHistory    []ReviewDecision     `json:"decision_history,omitempty"`
-	PrivacyNotice      *bool                `json:"privacy_notice,omitempty"`
-	ConsentAt          *time.Time           `json:"consent_at,omitempty"`
-	RetentionState     string               `json:"retention_state"`
+	LeadID               string               `json:"lead_id"`
+	ReceivedAt           time.Time            `json:"received_at"`
+	InboundChannel       string               `json:"inbound_channel"`
+	ChannelMessageRef    *string              `json:"channel_message_ref,omitempty"`
+	RequestSummary       string               `json:"request_summary"`
+	OriginalContent      *string              `json:"original_content,omitempty"`
+	RequestedServices    []string             `json:"requested_services,omitempty"`
+	ProjectLocation      *Location            `json:"project_location,omitempty"`
+	Budget               *float64             `json:"budget,omitempty"`
+	BudgetCurrency       *string              `json:"budget_currency,omitempty"`
+	DesiredTiming        *string              `json:"desired_timing,omitempty"`
+	CompanyID            *string              `json:"company_id,omitempty"`
+	ContactInfo          *ContactInfo         `json:"contact_info,omitempty"`
+	AIAssessment         *InboundAIAssessment `json:"ai_assessment,omitempty"`
+	MissingInformation   []string             `json:"missing_information,omitempty"`
+	DuplicateGroupID     *string              `json:"duplicate_group_id,omitempty"`
+	Status               InboundLeadStatus    `json:"status"`
+	DecisionHistory      []ReviewDecision     `json:"decision_history,omitempty"`
+	PrivacyNotice        *bool                `json:"privacy_notice,omitempty"`
+	ConsentAt            *time.Time           `json:"consent_at,omitempty"`
+	PrivacyNoticeVersion *string              `json:"privacy_notice_version,omitempty"`
+	RetentionState       string               `json:"retention_state"`
 }
 
 // NewOpportunityID generates a stable opportunity ID.

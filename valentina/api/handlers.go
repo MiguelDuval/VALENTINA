@@ -608,26 +608,27 @@ func parseInt(s string, def int) int {
 
 // intakeRequest is the validated payload for the secure inbound intake endpoint.
 type intakeRequest struct {
-	RequestSummary      string   `json:"request_summary"`
-	InboundChannel      string   `json:"inbound_channel"`
-	RequestedServices   []string `json:"requested_services,omitempty"`
-	Municipality        *string  `json:"municipality,omitempty"`
-	Province            *string  `json:"province,omitempty"`
-	AutonomousCommunity *string  `json:"autonomous_community,omitempty"`
-	CountryCode         *string  `json:"country_code,omitempty"`
-	LocationText        *string  `json:"location_text,omitempty"`
-	Budget              *float64 `json:"budget,omitempty"`
-	BudgetCurrency      *string  `json:"budget_currency,omitempty"`
-	DesiredTiming       *string  `json:"desired_timing,omitempty"`
-	CompanyID           *string  `json:"company_id,omitempty"`
-	ContactName         *string  `json:"contact_name,omitempty"`
-	ContactEmail        *string  `json:"contact_email,omitempty"`
-	ContactPhone        *string  `json:"contact_phone,omitempty"`
-	ContactPurpose      *string  `json:"contact_purpose,omitempty"`
-	PrivacyNotice       bool     `json:"privacy_notice"`
-	Consent             bool     `json:"consent"`
-	IdempotencyKey      string   `json:"idempotency_key,omitempty"`
-	Website             string   `json:"website,omitempty"`
+	RequestSummary       string   `json:"request_summary"`
+	InboundChannel       string   `json:"inbound_channel"`
+	RequestedServices    []string `json:"requested_services,omitempty"`
+	Municipality         *string  `json:"municipality,omitempty"`
+	Province             *string  `json:"province,omitempty"`
+	AutonomousCommunity  *string  `json:"autonomous_community,omitempty"`
+	CountryCode          *string  `json:"country_code,omitempty"`
+	LocationText         *string  `json:"location_text,omitempty"`
+	Budget               *float64 `json:"budget,omitempty"`
+	BudgetCurrency       *string  `json:"budget_currency,omitempty"`
+	DesiredTiming        *string  `json:"desired_timing,omitempty"`
+	CompanyID            *string  `json:"company_id,omitempty"`
+	ContactName          *string  `json:"contact_name,omitempty"`
+	ContactEmail         *string  `json:"contact_email,omitempty"`
+	ContactPhone         *string  `json:"contact_phone,omitempty"`
+	ContactPurpose       *string  `json:"contact_purpose,omitempty"`
+	PrivacyNotice        bool     `json:"privacy_notice"`
+	Consent              bool     `json:"consent"`
+	PrivacyNoticeVersion *string  `json:"privacy_notice_version,omitempty"`
+	IdempotencyKey       string   `json:"idempotency_key,omitempty"`
+	Website              string   `json:"website,omitempty"`
 }
 
 type intakeResponse struct {
@@ -682,6 +683,7 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 		clientIP = "unknown"
 	}
 	if !globalIntakeLimiter.checkRateLimit(clientIP) {
+		slog.Warn("intake rate limit exceeded", "client_ip", clientIP)
 		w.Header().Set("Retry-After", "6")
 		writeError(w, http.StatusTooManyRequests, "intake rate limit exceeded")
 		return
@@ -696,6 +698,7 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.verifyIntakeHMAC(r, body) {
+		slog.Warn("intake HMAC verification failed", "client_ip", clientIP)
 		writeError(w, http.StatusUnauthorized, "invalid or missing signature")
 		return
 	}
@@ -742,6 +745,7 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 	if req.PrivacyNotice {
 		lead.PrivacyNotice = &req.PrivacyNotice
 	}
+	lead.PrivacyNoticeVersion = req.PrivacyNoticeVersion
 	if req.Municipality != nil || req.Province != nil || req.AutonomousCommunity != nil || req.CountryCode != nil || req.LocationText != nil {
 		lead.ProjectLocation = &domain.Location{
 			Municipality:        req.Municipality,
