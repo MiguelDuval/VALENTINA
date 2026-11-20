@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -19,12 +20,15 @@ import (
 	"time"
 
 	"github.com/scrypster/huginn/internal/valentina/domain"
+	"github.com/scrypster/huginn/internal/valentina/sourceadapter"
 )
 
 // Server wraps a domain.Store and provides HTTP handlers for VALENTINA API.
 type Server struct {
-	store *domain.Store
-	log   *slog.Logger
+	store       *domain.Store
+	log         *slog.Logger
+	researchMu  sync.Mutex                                                                // serialize manual requests and durable budget checks
+	fetchSource func(context.Context, *domain.Source) (*sourceadapter.FetchResult, error) // test-only injection; production uses the policy gateway
 }
 
 // NewServer creates a new VALENTINA API server.
@@ -350,6 +354,15 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// A new source cannot be pre-approved through the creation API. Only the
+	// separate owner review transition may make it eligible for fetching.
+	if body.ApprovalStatus != "" && body.ApprovalStatus != "pending_review" {
+		writeError(w, http.StatusBadRequest, "new sources must start pending_review")
+		return
+	}
+	body.ApprovalStatus = "pending_review"
+	body.ApprovalReason = nil
+	body.TermsReviewedAt = nil
 	if err := s.store.CreateSource(r.Context(), &body); err != nil {
 		writeDomainError(w, err)
 		return
@@ -458,14 +471,71 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Source discovery adapters are not yet connected to this API handler. Do not
-	// create a misleading "running" record until a policy-gateway-backed runner
-	// can actually retrieve, classify, and persist evidence.
-	writeJSON(w, http.StatusNotImplemented, map[string]interface{}{
-		"status": "blocked",
-		"error":  "research execution is not configured",
-		"detail": "sources can be registered and reviewed, but automated retrieval is not wired yet; no research run was created",
-	})
+	// Run serially: budget checks and actual fetch must not overlap another
+	// manual request. No schedules or unattended fetches are enabled.
+	s.researchMu.Lock()
+	defer s.researchMu.Unlock()
+	selected := make([]*domain.Source, 0)
+	seen := make(map[string]bool)
+	for _, src := range allSources {
+		if len(body.SourceIDs) == 0 {
+			if src.CanFetch() {
+				selected = append(selected, src)
+			}
+			continue
+		}
+		for _, id := range body.SourceIDs {
+			if src.SourceID == id && !seen[id] {
+				selected = append(selected, src)
+				seen[id] = true
+			}
+		}
+	}
+	if len(selected) > 10 {
+		writeError(w, http.StatusBadRequest, "a manual run supports at most 10 sources")
+		return
+	}
+	for _, src := range selected {
+		if !sourceRunnable(src) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"status": "blocked", "error": "source is not executable",
+				"detail": "manual research currently supports approved RSS/Atom sources with recorded terms review, approval reason and URL scope",
+			})
+			return
+		}
+	}
+	if len(selected) == 0 {
+		writeError(w, http.StatusBadRequest, "no runnable RSS/Atom sources")
+		return
+	}
+	if err := s.checkResearchBudget(r.Context(), selected); err != nil {
+		writeError(w, http.StatusTooManyRequests, "manual research source budget not available: "+err.Error())
+		return
+	}
+	run := domain.ResearchRun{Status: "running", SourceIDs: make([]string, 0, len(selected))}
+	for _, src := range selected {
+		run.SourceIDs = append(run.SourceIDs, src.SourceID)
+	}
+	if err := s.store.CreateResearchRun(r.Context(), &run); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	note, runErr := s.executeManualResearch(r.Context(), &run, selected)
+	state := "completed"
+	if runErr != nil {
+		state = "failed"
+	}
+	if err := s.store.UpdateResearchRun(context.WithoutCancel(r.Context()), run.RunID,
+		state, run.CandidateCount, run.VerifiedCount, run.DuplicateCount,
+		run.AcceptedCount, run.RejectedCount, note); err != nil {
+		writeError(w, http.StatusInternalServerError, "research results were recorded but final status update failed")
+		return
+	}
+	run.Status = state
+	run.Notes = &note
+	completed := time.Now().UTC()
+	run.CompletedAt = &completed
+	writeJSON(w, http.StatusCreated, run)
 }
 
 // handleListSourceEvidence returns only evidence records referenced by the supplied IDs.

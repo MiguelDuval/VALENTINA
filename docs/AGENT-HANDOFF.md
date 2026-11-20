@@ -171,3 +171,44 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 - Full Windows build (scripts/build-valentina.ps1)
 - Isolated runtime smoke test
 - PR — not created (no merge requested)
+
+
+---
+
+## 2026-11-20 technical-lead implementation checkpoint (supersedes the older task status above)
+
+**Repository:** MiguelDuval/VALENTINA
+**Active feature branch before publication:** `feature/valentina-manual-rss-runner-20261120`
+**Base HEAD:** `1904cdb9f3d91ba87b4de1de84acd1ffc05a425c`
+**Pinned Huginn submodule:** `f01c1d84c08b1de972d8cc268da25602598adff8`
+**PR:** not created; no merge/release.
+**State:** local feature implementation and tests passed; GitHub CI and owner-machine acceptance pending.
+
+### Delivered in this implementation pass
+
+- Replaced the stub ResearchRun endpoint with manual RSS/Atom-only approved-source fetch using the fail-closed policy gateway, strict terms-review/approval-reason preflight, local run budgeting and capped source/entry counts. Unreviewed and non-RSS adapters stay blocked.
+- Extracted feed candidates safely, recorded original feed locator and external notice URL, persisted unverified candidates and SourceEvidence in SQLite with exact source+URL deduplication. No article was fetched or verified; demand class remains `unknown`, status `candidate`, never a confirmed order.
+- Added deterministic success/failure run history, completed timestamps, SQLite schema migration for `updated_at`, stricter source creation/approval tests, and source-adapter truncation/non-2xx and concurrency release tests.
+- Enabled explicit manual search action in the existing VALENTINA Vue Research UI.
+- Changed Windows build script to extract only the pinned upstream tracked Git commit with `git archive`, rather than copy local untracked upstream submodule files.
+- Updated ADR-007, product positioning, work queue, and audit documentation.
+
+### Local verification
+
+- `go test ./internal/valentina/...` in an isolated extraction of pinned Huginn with current VALENTINA Go sources: **4 packages passed**, including synthetic feed end-to-end, errors/dedup, approval gate and concurrency safety.
+- `scripts/build-valentina.ps1 -Profile Full` completed successfully after changing the upstream copy step to a pinned Git archive. Frontend: **116 test files / 2004 tests passed**, Vue typecheck passed, Vite production build passed; CRM Go tests passed, Huginn server compilation passed, Windows EXE compiled.
+- Clean-archive local test EXE: **67,193,344 bytes**, SHA256 `67dc0adf5c4447e194de1c06a026e6a1b7d6fe967f36c949c80559663aa0ea8e`. The local ZIP is in the machine's temporary build output and is **not** a GitHub Actions artifact. The archived build began before the final source-creation hardening edit; the final Go change was independently retested, and GitHub CI must rebuild the final commit.
+- `git diff --check` was run during this implementation; check the final staged diff again before publication.
+- No external production feed, live NIM, Messenger API, Windows installer, clean install or end-to-end runtime smoke verified.
+
+### Mandatory next work
+
+1. Verify the pushed feature branch CI build and download/run SHA-labelled EXE; do not claim a successful CI artifact without actual Actions evidence.
+2. Obtain owner review of a specific public source's terms and URLs; test RSS feed → evidence → UI review with source content, not only synthetic tests.
+3. Add secure privacy notice version to hot intake persistence and tests; protect data retention and credentials.
+4. Extend acquisition only through approved adapters/official APIs; add real cancellation, progress and resilient retry before unattended schedules.
+5. Continue ADR-007 project/document workspace only after discovery/intake foundation acceptance.
+
+### Preservation
+
+Existing user temp scripts, ZIPs, work dirs, original submodule untracked `internal/valentina`, and unrelated dirty files were not deleted, stashed, reset or force-pushed. Publish only explicitly reviewed first-party files from the feature branch.

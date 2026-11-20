@@ -102,6 +102,7 @@ func (a *RSSAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*Fetch
 		SourceID:    sourceID,
 		URL:         rawURL,
 		Content:     extracted,
+		RawFeed:     body,
 		ContentType: contentType,
 		StatusCode:  resp.StatusCode,
 		FetchedAt:   time.Now().UTC(),

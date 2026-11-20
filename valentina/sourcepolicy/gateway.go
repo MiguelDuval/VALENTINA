@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -409,11 +410,24 @@ func (p *policyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 // cannot accidentally fall back to http.DefaultClient.
 // Per-source rate, daily quota and concurrency limits are enforced on every Do call.
 type ValidatedClient struct {
-	client       *http.Client
-	rateLimiter  *RateLimiter
-	dailyQuota   *DailyQuotaTracker
-	concurrency  *ConcurrencyLimiter
-	acquired     bool
+	client      *http.Client
+	rateLimiter *RateLimiter
+	dailyQuota  *DailyQuotaTracker
+	concurrency *ConcurrencyLimiter
+}
+
+// concurrencyReleaseBody holds the source slot until the caller closes the
+// response body, including while a slow response is being downloaded.
+type concurrencyReleaseBody struct {
+	io.ReadCloser
+	once    sync.Once
+	release func()
+}
+
+func (b *concurrencyReleaseBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.once.Do(b.release)
+	return err
 }
 
 func (c *ValidatedClient) Do(req *http.Request) (*http.Response, error) {
@@ -437,14 +451,17 @@ func (c *ValidatedClient) Do(req *http.Request) (*http.Response, error) {
 		if !c.concurrency.TryAcquire() {
 			return nil, ErrConcurrencyLimit
 		}
-		c.acquired = true
 	}
 	resp, err := c.client.Do(req)
-	if c.acquired && c.concurrency != nil {
-		c.concurrency.Release()
-		c.acquired = false
+	if c.concurrency == nil {
+		return resp, err
 	}
-	return resp, err
+	if err != nil || resp == nil || resp.Body == nil {
+		c.concurrency.Release()
+		return resp, err
+	}
+	resp.Body = &concurrencyReleaseBody{ReadCloser: resp.Body, release: c.concurrency.Release}
+	return resp, nil
 }
 
 func (c *ValidatedClient) PolicyValidated() bool { return c != nil && c.client != nil }
@@ -542,7 +559,7 @@ func NewValidatedHTTPClient(g *PolicyGateway, sourceID string, profile *SourcePr
 	}
 
 	return &ValidatedClient{
-		client:       &http.Client{
+		client: &http.Client{
 			Transport: &policyRoundTripper{gateway: g, sourceID: sourceID, base: base},
 			Timeout:   timeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -557,9 +574,9 @@ func NewValidatedHTTPClient(g *PolicyGateway, sourceID string, profile *SourcePr
 				return nil
 			},
 		},
-		rateLimiter:  rateLimiter,
-		dailyQuota:   dailyQuota,
-		concurrency:  concurrency,
+		rateLimiter: rateLimiter,
+		dailyQuota:  dailyQuota,
+		concurrency: concurrency,
 	}, nil
 }
 

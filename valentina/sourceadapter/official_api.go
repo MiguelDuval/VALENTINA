@@ -3,6 +3,7 @@ package sourceadapter
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -63,22 +64,16 @@ func (a *OfficialAPIAdapter) Fetch(ctx context.Context, sourceID, rawURL string)
 }
 
 // readBodyLimit reads at most maxBytes from r.
-func readBodyLimit(r interface{ Read([]byte) (int, error) }, maxBytes int64) ([]byte, error) {
-	// Simple bounded reader using http.MaxBytesReader-like wrapping
-	// We use a wrapper since resp.Body may not be *http.Response body directly.
-	buf := make([]byte, 0, maxBytes)
-	tmp := make([]byte, 4096)
-	for {
-		n, err := r.Read(tmp)
-		if n > 0 {
-			if int64(len(buf))+int64(n) > maxBytes {
-				return buf, fmt.Errorf("response exceeds %d bytes", maxBytes)
-			}
-			buf = append(buf, tmp[:n]...)
-		}
-		if err != nil {
-			break
-		}
+func readBodyLimit(r io.Reader, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, fmt.Errorf("invalid response limit")
 	}
-	return buf, nil
+	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("response read failed: %w", err)
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("response exceeds %d bytes", maxBytes)
+	}
+	return body, nil
 }

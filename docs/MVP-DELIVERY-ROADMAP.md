@@ -119,7 +119,7 @@ Required for a usable vertical slice:
 
 A search result is not a verified opportunity. Distinguish explicit requests, public tenders, subcontracting requests and early public demand signals. An indirect signal must never be shown as a confirmed order.
 
-## 7. What can wait
+## 7. What can wait for later stages (required long-term capabilities are tracked by ADR-007)
 
 Do not block the first branded UI and installer on:
 
@@ -129,7 +129,7 @@ Do not block the first branded UI and installer on:
 - Advanced vision, OCR, model routing or multi-model debate.
 - Contact-person CRM, phone/email harvesting, outreach or automatic form submission.
 - Multi-user roles, remote access, cloud sync or collaboration.
-- Advanced analytics, forecasting, report builders or mobile app.
+- Advanced analytics, forecasting, report builders or mobile app (business analytics, scheduling, project/document modules and messenger command center are now planned in ADR-007).
 - Auto-updater, code signing and public binary distribution.
 - Perfect scoring weights, dozens of keywords or a huge golden evaluation set.
 

@@ -254,7 +254,7 @@ type InboundLead struct {
 	Status             InboundLeadStatus    `json:"status"`
 	DecisionHistory    []ReviewDecision     `json:"decision_history,omitempty"`
 	PrivacyNotice      *bool                `json:"privacy_notice,omitempty"`
-        ConsentAt          *time.Time      `json:"consent_at,omitempty"`
+	ConsentAt          *time.Time           `json:"consent_at,omitempty"`
 	RetentionState     string               `json:"retention_state"`
 }
 
@@ -281,9 +281,12 @@ func (s *Source) IsApproved() bool {
 	return s.ApprovalStatus == "approved"
 }
 
-// CanFetch returns true when the source is approved.
+// CanFetch requires both owner approval and documented permission to fetch.
+// A status flag alone must never authorize requests to an external publisher.
 func (s *Source) CanFetch() bool {
-	return s.ApprovalStatus == "approved"
+	return s != nil && s.ApprovalStatus == "approved" && s.TermsReviewedAt != nil &&
+		!s.TermsReviewedAt.IsZero() && s.ApprovalReason != nil &&
+		strings.TrimSpace(*s.ApprovalReason) != ""
 }
 
 // NewDecisionID generates a stable review decision ID.

@@ -6,15 +6,15 @@
     </div>
 
     <div class="valentina-toolbar">
-      <button type="button" class="valentina-btn" @click="startRun" :disabled="true">Запустить исследование</button>
+      <button type="button" class="valentina-btn" @click="startRun" :disabled="!hasApprovedSources || loading">Запустить RSS/Atom поиск</button>
       <span v-if="!hasApprovedSources" class="valentina-toolbar-count" style="color: var(--valentina-red)">Нет утверждённых источников — настройте их на странице Источники</span>
-      <span v-else class="valentina-toolbar-count" style="color: var(--valentina-amber)">Источники готовы, но исполнитель поиска ещё не подключён. Запуск пока заблокирован.</span>
+      <span v-else class="valentina-toolbar-count" style="color: var(--valentina-amber)">Ручной поиск RSS/Atom готов. Ссылки из ленты — кандидаты, не проверенные заказы.</span>
     </div>
 
     <div v-if="error" class="valentina-error">{{ error }}</div>
     <div class="valentina-research-content">
       <div v-if="loading" class="valentina-loading">Загрузка...</div>
-      <div v-else-if="runs.length === 0" class="valentina-empty">Запусков пока нет. Поиск станет доступен после подключения и проверки исполнительного модуля.</div>
+      <div v-else-if="runs.length === 0" class="valentina-empty">Запусков пока нет. Утвердите RSS/Atom источник с проверенными условиями и нажмите «Запустить поиск».</div>
       <div v-else class="valentina-list">
         <div v-for="r in runs" :key="r.run_id" class="valentina-run-card">
           <div class="valentina-card-title">Исследование {{ r.run_id.slice(-8) }}</div>
@@ -70,7 +70,7 @@ const loadSources = async () => {
   try {
     const res = await apiFetch('/api/v1/valentina/sources')
     sources.value = res.sources || []
-    hasApprovedSources.value = sources.value.some(s => s.approval_status === 'approved')
+    hasApprovedSources.value = sources.value.some(s => s.approval_status === 'approved' && s.terms_reviewed_at && s.approval_reason && ['rss','atom'].includes((s.retrieval_method || '').toLowerCase()))
   } catch (e) {
     console.error(e)
   }
@@ -87,7 +87,7 @@ const startRun = async () => {
   error.value = null
   try {
     const approvedSourceIds = sources.value
-      .filter(s => s.approval_status === 'approved')
+      .filter(s => s.approval_status === 'approved' && s.terms_reviewed_at && s.approval_reason && ['rss','atom'].includes((s.retrieval_method || '').toLowerCase()))
       .map(s => s.source_id)
     const res = await apiFetch('/api/v1/valentina/research-runs', {
       method: 'POST',

@@ -204,6 +204,9 @@ var migrations = []migration{
                 CREATE INDEX IF NOT EXISTS idx_idempotency_keys_lead ON idempotency_keys(lead_id);`},
 	{version: 10, stmt: `
                 ALTER TABLE inbound_leads ADD COLUMN consent_at TEXT;`},
+	{version: 11, stmt: `
+                ALTER TABLE research_runs ADD COLUMN updated_at TEXT;
+                CREATE INDEX IF NOT EXISTS idx_source_evidence_source_url ON source_evidence(source_id, canonical_url);`},
 }
 
 // companiesTable is the CREATE TABLE statement for the companies table.
@@ -638,6 +641,17 @@ func (s *Store) GetOpportunity(ctx context.Context, id string) (*Opportunity, er
 		o.DemandEvidenceNote = ptrStrFromNull(demNote)
 	}
 	return &o, nil
+}
+
+// HasSourceEvidence checks exact source and canonical URL to avoid creating
+// duplicate opportunity records from an unchanged RSS/Atom item.
+func (s *Store) HasSourceEvidence(ctx context.Context, sourceID, canonicalURL string) (bool, error) {
+	var found int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM source_evidence WHERE source_id = ? AND canonical_url = ? LIMIT 1`, sourceID, canonicalURL).Scan(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // CreateSourceEvidence inserts a new source evidence record.
@@ -1826,12 +1840,18 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 		rejectedCount = currentRejected
 	}
 
+	now := time.Now().UTC().Format(time.RFC3339)
+	var completedAt interface{}
+	if status == "completed" || status == "failed" || status == "cancelled" {
+		completedAt = now
+	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE research_runs
 		SET status = ?, candidate_count = ?, verified_count = ?, duplicate_count = ?,
-		    accepted_count = ?, rejected_count = ?, notes = ?, updated_at = ?
-		WHERE run_id = ?`,
-		status, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount, notes, time.Now().UTC().Format(time.RFC3339), id)
+		    accepted_count = ?, rejected_count = ?, notes = ?, updated_at = ?,
+		    completed_at = COALESCE(?, completed_at)
+		WHERE run_id = ? AND status = ?`,
+		status, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount, notes, now, completedAt, id, currentStatus)
 	if err != nil {
 		return fmt.Errorf("update research run: %w", err)
 	}

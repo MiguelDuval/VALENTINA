@@ -40,7 +40,7 @@ elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Joi
 if (Test-Path $OutputDirectory) { Remove-Item -LiteralPath $OutputDirectory -Recurse -Force }
 $packageDir = Join-Path $OutputDirectory "package"
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-foreach ($tool in @("git","npm","go","certutil")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Throw-BuildError "Build step failed" } }
+foreach ($tool in @("git","npm","go","certutil","tar")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Throw-BuildError "Build step failed" } }
 if (-not (Test-Path $Upstream)) { Throw-BuildError "Build step failed" }
 $actualUpstream = (& git -C $Upstream rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $actualUpstream -ne $ExpectedUpstreamSha) { Throw-BuildError "Build step failed" }
@@ -67,10 +67,15 @@ $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGui
 $copy = Join-Path $tmp "source"
 New-Item -ItemType Directory -Path $copy -Force | Out-Null
 try {
-    Write-Host "DEBUG: Step 1 - Copying upstream" -ForegroundColor Cyan; Write-Host "Copying upstream to $copy" -ForegroundColor Cyan
-    & robocopy $Upstream $copy /E /XD .git /XF .git /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-    $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+    # Extract ONLY files tracked by the exact pinned upstream commit.
+    # Robocopy included local untracked internal/valentina files and could
+    # hide missing first-party integration files in reproducibility checks.
+    Write-Host "DEBUG: Step 1 - Extracting clean pinned upstream" -ForegroundColor Cyan
+    $upstreamArchive = Join-Path $tmp "upstream-clean.zip"
+    & git -C $Upstream archive --format=zip --output=$upstreamArchive $ExpectedUpstreamSha
+    if ($LASTEXITCODE -ne 0) { Throw-BuildError "Failed to archive pinned upstream" }
+    & tar -xf $upstreamArchive -C $copy
+    if ($LASTEXITCODE -ne 0) { Throw-BuildError "Failed to extract pinned upstream" }
     & git -C $copy init --quiet
     if ($LASTEXITCODE -ne 0) { Throw-BuildError "Build step failed" }
     & git -C $copy config core.autocrlf false

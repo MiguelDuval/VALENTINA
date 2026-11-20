@@ -148,6 +148,10 @@ The binding decision is Windows-first, single-user packaging:
 - Any new runtime, desktop shell, updater, service model, public distribution or material change from this policy requires an owner-approved ADR before implementation.
 
 
+## Mandatory business-hub product contract
+
+Read `docs/ADR-007-BUSINESS-OPERATIONS-HUB.md` and `docs/AUDIT-2026-11-20.md` before product, domain, connector or UI changes. VALENTINA's four approved pillars are source-compliant cold discovery, direct owned-channel enquiries, document/project operations, and permissioned remote status/control through official messenger channels. These are a staged product objective, not permission to expose local HTTP/SQLite publicly or automate outreach without approval. Preserve separate cold/hot provenance, private operational data, audit trails and operator control. Build first the proven local discovery and intake vertical slices, then documents/projects, then read-only messenger access before any remote mutations. UFO² remains optional and requires a separate reviewed integration. Do not claim unimplemented features are ready.
+
 ## Mandatory VALENTINA product/data workflow policy
 
 Before implementing source discovery, extraction, data storage, qualification or results-review behavior, agents MUST read:

@@ -115,8 +115,8 @@ func (s *Server) handleTestSource(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err)
 		return
 	}
-	if !src.IsApproved() {
-		writeError(w, http.StatusBadRequest, "source not approved")
+	if !src.CanFetch() {
+		writeError(w, http.StatusBadRequest, "source requires approval, reviewed terms and a reason")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
@@ -144,10 +144,10 @@ func (s *Server) handleListQueryPacks(w http.ResponseWriter, r *http.Request) {
 	}
 	packs := []queryPack{
 		{
-			ID:          "es-renovation",
-			Name:        "Espa\u00f1ol — Renovaci\u00f3n",
-			Language:    "es",
-			Region:      "ES",
+			ID:       "es-renovation",
+			Name:     "Espa\u00f1ol — Renovaci\u00f3n",
+			Language: "es",
+			Region:   "ES",
 			Queries: []string{
 				"reforma vivienda Valencia",
 				"reparaci\u00f3n edificio Valencia",
@@ -158,10 +158,10 @@ func (s *Server) handleListQueryPacks(w http.ResponseWriter, r *http.Request) {
 			Description: "Spanish renovation and repair queries for Valencia",
 		},
 		{
-			ID:          "ca-renovacio",
-			Name:        "Valenci\u00e0 — Renovaci\u00f3",
-			Language:    "ca",
-			Region:      "ES-VLC",
+			ID:       "ca-renovacio",
+			Name:     "Valenci\u00e0 — Renovaci\u00f3",
+			Language: "ca",
+			Region:   "ES-VLC",
 			Queries: []string{
 				"reforma habitatge Val\u00e8ncia",
 				"reparaci\u00f3 edifici Val\u00e8ncia",
@@ -172,10 +172,10 @@ func (s *Server) handleListQueryPacks(w http.ResponseWriter, r *http.Request) {
 			Description: "Valencian renovation and repair queries for Val\u00e8ncia",
 		},
 		{
-			ID:          "ru-remont",
-			Name:        "\u0420\u0443\u0441\u0441\u043a\u0438\u0439 — \u0420\u0435\u043c\u043e\u043d\u0442",
-			Language:    "ru",
-			Region:      "RU",
+			ID:       "ru-remont",
+			Name:     "\u0420\u0443\u0441\u0441\u043a\u0438\u0439 — \u0420\u0435\u043c\u043e\u043d\u0442",
+			Language: "ru",
+			Region:   "RU",
 			Queries: []string{
 				"\u0440\u0435\u043c\u043e\u043d\u0442 \u043a\u0432\u0430\u0440\u0442\u0438\u0440\u044b \u0412\u0430\u043b\u0435\u043d\u0446\u0438\u044f",
 				"\u0440\u0435\u043c\u043e\u043d\u0442 \u0437\u0434\u0430\u043d\u0438\u044f \u0412\u0430\u043b\u0435\u043d\u0446\u0438\u044f",
@@ -191,12 +191,12 @@ func (s *Server) handleListQueryPacks(w http.ResponseWriter, r *http.Request) {
 
 // geographyConfig represents the owner-configured geographic scope.
 type geographyConfig struct {
-	PrimaryMunicipality   string   `json:"primary_municipality"`
-	PrimaryProvince       string   `json:"primary_province"`
-	AutonomousCommunity   string   `json:"autonomous_community"`
-	CountryCode           string   `json:"country_code"`
-	PriorityBands         []string `json:"priority_bands,omitempty"`
-	HardExclusions        []string `json:"hard_exclusions,omitempty"`
+	PrimaryMunicipality string   `json:"primary_municipality"`
+	PrimaryProvince     string   `json:"primary_province"`
+	AutonomousCommunity string   `json:"autonomous_community"`
+	CountryCode         string   `json:"country_code"`
+	PriorityBands       []string `json:"priority_bands,omitempty"`
+	HardExclusions      []string `json:"hard_exclusions,omitempty"`
 }
 
 // handleGetGeography returns the owner-configured geographic scope.
@@ -206,10 +206,10 @@ func (s *Server) handleGetGeography(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := geographyConfig{
-		PrimaryMunicipality:  "Valencia",
-		PrimaryProvince:      "Valencia",
-		AutonomousCommunity:  "Comunitat Valenciana",
-		CountryCode:          "ES",
+		PrimaryMunicipality: "Valencia",
+		PrimaryProvince:     "Valencia",
+		AutonomousCommunity: "Comunitat Valenciana",
+		CountryCode:         "ES",
 		PriorityBands: []string{
 			"Valencia municipality",
 			"Valencia province",

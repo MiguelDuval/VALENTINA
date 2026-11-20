@@ -29,7 +29,7 @@ Never modify or copy from Mozart for VALENTINA work. Do not rely on a prior chat
 
 ## Project identity
 
-VALENTINA is a private, local, single-operator research and CRM application for finding, checking, classifying and organizing publicly available renovation, repair, construction and interior-finishing opportunities in Valencia and owner-approved surrounding areas.
+VALENTINA is a private, local-first single-operator renovation/repair/finishing/small-construction business hub: compliant opportunity discovery, owned-channel inbound enquiries, project/document workflows and future secure messenger control. Follow docs/ADR-007-BUSINESS-OPERATIONS-HUB.md and docs/AUDIT-2026-11-20.md; do not present planned capabilities as implemented.
 
 It is not a coding agent product, generic developer workspace, team chat or hosted SaaS.
 
