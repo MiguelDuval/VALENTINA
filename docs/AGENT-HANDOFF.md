@@ -206,7 +206,7 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 ### Mandatory next work
 
 1. Verify the pushed feature branch CI build and download/run SHA-labelled EXE; do not claim a successful CI artifact without actual Actions evidence.
-2. Obtain owner review of a specific public source's terms and URLs; test RSS feed в†’ evidence в†’ UI review with source content, not only synthetic tests.
+2. Obtain owner review of a specific public source's terms and URLs; test RSS feed -> evidence -> UI review with source content, not only synthetic tests.
 3. Add secure privacy notice version to hot intake persistence and tests — DONE (migration v12, model, storage, handler, UI, offline tests).
 4. Extend acquisition only through approved adapters/official APIs; add real cancellation, progress and resilient retry before unattended schedules.
 5. Continue ADR-007 project/document workspace only after discovery/intake foundation acceptance.
@@ -214,4 +214,3 @@ Work in large coherent blocks. Do not stop after writing a plan. Implement, test
 ### Preservation
 
 Existing user temp scripts, ZIPs, work dirs, original submodule untracked `internal/valentina`, and unrelated dirty files were not deleted, stashed, reset or force-pushed. Publish only explicitly reviewed first-party files from the feature branch.
-

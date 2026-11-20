@@ -1822,7 +1822,7 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 	// Validate transition.
 	allowed, ok := validRunTransitions[currentStatus]
 	if !ok {
-		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, status)
+		return fmt.Errorf("invalid status transition: %s -> %s", currentStatus, status)
 	}
 	transitionAllowed := false
 	for _, a := range allowed {
@@ -1832,7 +1832,7 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 		}
 	}
 	if !transitionAllowed {
-		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, status)
+		return fmt.Errorf("invalid status transition: %s -> %s", currentStatus, status)
 	}
 
 	// On cancellation, preserve existing stats (don't clobber with zeros).
@@ -1889,7 +1889,7 @@ func (s *Store) UpdateSource(ctx context.Context, sourceID string, approvalStatu
 
 	allowed, ok := validSourceTransitions[currentStatus]
 	if !ok {
-		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, approvalStatus)
+		return fmt.Errorf("invalid status transition: %s -> %s", currentStatus, approvalStatus)
 	}
 	transitionAllowed := false
 	for _, a := range allowed {
@@ -1899,7 +1899,7 @@ func (s *Store) UpdateSource(ctx context.Context, sourceID string, approvalStatu
 		}
 	}
 	if !transitionAllowed {
-		return fmt.Errorf("invalid status transition: %s в†’ %s", currentStatus, approvalStatus)
+		return fmt.Errorf("invalid status transition: %s -> %s", currentStatus, approvalStatus)
 	}
 
 	result, err := s.db.ExecContext(ctx, `
