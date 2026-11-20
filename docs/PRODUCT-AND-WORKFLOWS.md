@@ -5,11 +5,11 @@
 
 ## 1. Product definition
 
-VALENTINA is a local, single-operator research system that discovers publicly available commercial opportunities relevant to an owner-defined business profile and geographic scope, verifies source evidence, removes duplicates, assesses possible fit and presents results for human review.
+VALENTINA is a local-first, single-operator business center for renovation, interior finishing, repairs and small construction. It discovers source-backed public opportunities, receives direct client enquiries, manages the progression from lead to project, and will maintain business documents and optional securely authorized messenger interaction. The four required product pillars and staged delivery rules are defined in ADR-007.
 
 The product outcome is not "many search results". It is a useful queue of traceable opportunities where the operator can answer: what is the opportunity, why might it matter, who published it, which facts are confirmed or unknown, when was it published and checked, and what decision is pending?
 
-It is not an autonomous sales agent, a mass-contacting system, a generic web crawler or a multi-tenant SaaS platform.
+It is not a mass-contacting system, an unrestricted crawler or a multi-tenant SaaS platform. AI augments review, drafting and permitted agent actions under defined approval boundaries; customer outreach, price commitments and sensitive remote commands require operator approval.
 
 ## 2. Business profile is a required input
 
@@ -120,7 +120,7 @@ NVIDIA NIM is the initial hosted model interface, not a model identity embedded 
 
 Do not assume every NIM model supports the same vision, tool-calling, JSON or streaming behavior.
 
-## 8. Explicit non-goals
+## 8. Explicit first-stage exclusions (not permanent product non-goals)
 
 The initial product does not send email/WhatsApp/social messages or applications automatically; bypass logins, CAPTCHAs, paywalls or rate limits; harvest personal profiles; mirror whole publisher websites; require a local LLM/GPU, Kubernetes, PostgreSQL or Redis; or become a general CRM for multiple organizations.
 

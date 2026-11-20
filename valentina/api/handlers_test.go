@@ -565,7 +565,7 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.handleIntakeLead(w, req)
-	if w.Code != http.StatusNotImplemented {
+	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("Expected 503 when HMAC secret is not configured, got %d: %s", w.Code, w.Body.String())
 	}
 	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
@@ -577,7 +577,7 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	}
 }
 
-func TestHandleCreateResearchRunNotImplementedWithoutRunner(t *testing.T) {
+func TestHandleCreateResearchRunRejectsUnreviewedSource(t *testing.T) {
 	s := testServer(t)
 	source := &domain.Source{
 		Name: "Approved but not executable", Publisher: "Example", SourceType: "public",
@@ -593,8 +593,8 @@ func TestHandleCreateResearchRunNotImplementedWithoutRunner(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.handleCreateResearchRun(w, req)
-	if w.Code != http.StatusNotImplemented {
-		t.Fatalf("Expected 501 until a real policy-gateway-backed runner is wired, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400 until a source has reviewed terms and an executable adapter, got %d: %s", w.Code, w.Body.String())
 	}
 	runs, err := s.store.ListResearchRuns(context.Background())
 	if err != nil {
@@ -651,6 +651,112 @@ func TestHandleIntakeLeadIdempotencyPreventsDuplicateLead(t *testing.T) {
 	}
 }
 
+func TestHandleIntakeLeadPersistsPrivacyNoticeVersion(t *testing.T) {
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"privacy_notice_version":"2026-11-20-v1","idempotency_key":"privacy-version-key-001"}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
+	mac.Write([]byte(body))
+	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListInboundLeads: %v", err)
+	}
+	if len(leads) != 1 {
+		t.Fatalf("expected exactly one lead, got %d", len(leads))
+	}
+	if leads[0].PrivacyNoticeVersion == nil || *leads[0].PrivacyNoticeVersion != "2026-11-20-v1" {
+		t.Fatalf("privacy_notice_version not persisted: %v", leads[0].PrivacyNoticeVersion)
+	}
+}
+
+func TestHandleIntakeLeadPrivacyNoticeVersionOptional(t *testing.T) {
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"idempotency_key":"privacy-version-key-002"}`
+	req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
+	mac.Write([]byte(body))
+	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	w := httptest.NewRecorder()
+	s.handleIntakeLead(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListInboundLeads: %v", err)
+	}
+	if len(leads) != 1 {
+		t.Fatalf("expected exactly one lead, got %d", len(leads))
+	}
+	if leads[0].PrivacyNoticeVersion != nil {
+		t.Fatalf("privacy_notice_version should be nil when not provided, got %v", leads[0].PrivacyNoticeVersion)
+	}
+}
+
+func TestHandleIntakeLeadIdempotentSameKeyDifferentPayload(t *testing.T) {
+	WithIntakeSecret("test-secret-0123456789abcdef0123456789")
+	defer func() { WithIntakeSecret("") }()
+
+	s := testServer(t)
+	firstBody := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true,"idempotency_key":"same-key-diff-payload-001"}`
+	secondBody := `{"request_summary":"Need kitchen renovation","inbound_channel":"phone","consent":true,"privacy_notice":true,"idempotency_key":"same-key-diff-payload-001"}`
+
+	makeReq := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
+		mac.Write([]byte(body))
+		req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+		w := httptest.NewRecorder()
+		s.handleIntakeLead(w, req)
+		return w
+	}
+
+	first := makeReq(firstBody)
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first request: expected 201, got %d: %s", first.Code, first.Body.String())
+	}
+
+	second := makeReq(secondBody)
+	if second.Code != http.StatusOK {
+		t.Fatalf("replay with same key: expected 200, got %d: %s", second.Code, second.Body.String())
+	}
+	var secondResp intakeResponse
+	if err := json.Unmarshal(second.Body.Bytes(), &secondResp); err != nil {
+		t.Fatalf("decode replay response: %v", err)
+	}
+	if !secondResp.Duplicate {
+		t.Fatal("replay with same idempotency key must be marked duplicate")
+	}
+
+	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListInboundLeads: %v", err)
+	}
+	if len(leads) != 1 {
+		t.Fatalf("expected exactly one lead after same-key replay, got %d", len(leads))
+	}
+	if leads[0].RequestSummary != "Need bathroom renovation" {
+		t.Fatalf("original payload must be preserved, got %q", leads[0].RequestSummary)
+	}
+}
+
 func TestIntakeRateLimiterEnforcesBurstLimit(t *testing.T) {
 	limiter := &intakeRateLimiter{buckets: make(map[string]*rateBucket)}
 	for i := 0; i < 20; i++ {
@@ -672,7 +778,6 @@ func TestNewServerLoadsIntakeSecretFromEnvironment(t *testing.T) {
 		t.Fatal("NewServer did not load VALENTINA_INTAKE_HMAC_SECRET")
 	}
 }
-
 
 func TestWithIntakeSecretRejectsShortSecrets(t *testing.T) {
 	if err := WithIntakeSecret("short-secret"); err == nil {

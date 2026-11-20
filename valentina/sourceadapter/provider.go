@@ -27,6 +27,7 @@ type FetchResult struct {
 	URL              string            `json:"url"`
 	CanonicalURL     string            `json:"canonical_url"`
 	Content          []byte            `json:"-"` // not serialized to JSON
+	RawFeed          []byte            `json:"-"` // original bounded XML, for structured RSS/Atom extraction
 	ContentType      string            `json:"content_type"`
 	StatusCode       int               `json:"status_code"`
 	FetchedAt        time.Time         `json:"fetched_at"`

@@ -3,6 +3,7 @@ package sourceadapter
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -27,6 +28,9 @@ func (a *HTMLAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*Fetc
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("source returned HTTP %d", resp.StatusCode)
+	}
 
 	contentType := resp.Header.Get("Content-Type")
 	if !isAllowedHTMLContentType(contentType) {
@@ -46,14 +50,14 @@ func (a *HTMLAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*Fetc
 	text := extractTextFromHTML(string(body))
 
 	return &FetchResult{
-		SourceID:     sourceID,
-		URL:          rawURL,
-		Content:      []byte(text),
-		ContentType:  contentType,
-		StatusCode:   resp.StatusCode,
-		FetchedAt:    time.Now().UTC(),
-		ExtractorID:  "html_adapter",
-		Metadata:     map[string]string{},
+		SourceID:    sourceID,
+		URL:         rawURL,
+		Content:     []byte(text),
+		ContentType: contentType,
+		StatusCode:  resp.StatusCode,
+		FetchedAt:   time.Now().UTC(),
+		ExtractorID: "html_adapter",
+		Metadata:    map[string]string{},
 	}, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -17,7 +18,7 @@ type SitemapURL struct {
 
 // SitemapIndex represents a sitemap index referencing other sitemaps.
 type SitemapIndex struct {
-	XMLName xml.Name `xml:"sitemapindex"`
+	XMLName  xml.Name `xml:"sitemapindex"`
 	Sitemaps []struct {
 		Loc     string `xml:"loc"`
 		LastMod string `xml:"lastmod,omitempty"`
@@ -26,7 +27,7 @@ type SitemapIndex struct {
 
 // URLSet represents a standard sitemap URL set.
 type URLSet struct {
-	XMLName xml.Name `xml:"urlset"`
+	XMLName xml.Name     `xml:"urlset"`
 	URLs    []SitemapURL `xml:"url"`
 }
 
@@ -49,6 +50,9 @@ func (a *SitemapAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*F
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("source returned HTTP %d", resp.StatusCode)
+	}
 
 	body, err := readBodyLimit(resp.Body, 2*1024*1024)
 	if err != nil {
@@ -65,14 +69,14 @@ func (a *SitemapAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*F
 			out += "- " + s.Loc + "\n"
 		}
 		return &FetchResult{
-			SourceID:     sourceID,
-			URL:          rawURL,
-			Content:      []byte(out),
-			ContentType:  contentType,
-			StatusCode:   resp.StatusCode,
-			FetchedAt:    time.Now().UTC(),
-			ExtractorID:  "sitemap_adapter",
-			Metadata:     map[string]string{},
+			SourceID:    sourceID,
+			URL:         rawURL,
+			Content:     []byte(out),
+			ContentType: contentType,
+			StatusCode:  resp.StatusCode,
+			FetchedAt:   time.Now().UTC(),
+			ExtractorID: "sitemap_adapter",
+			Metadata:    map[string]string{},
 		}, nil
 	}
 
@@ -88,26 +92,26 @@ func (a *SitemapAdapter) Fetch(ctx context.Context, sourceID, rawURL string) (*F
 			out += "\n"
 		}
 		return &FetchResult{
-			SourceID:     sourceID,
-			URL:          rawURL,
-			Content:      []byte(out),
-			ContentType:  contentType,
-			StatusCode:   resp.StatusCode,
-			FetchedAt:    time.Now().UTC(),
-			ExtractorID:  "sitemap_adapter",
-			Metadata:     map[string]string{},
+			SourceID:    sourceID,
+			URL:         rawURL,
+			Content:     []byte(out),
+			ContentType: contentType,
+			StatusCode:  resp.StatusCode,
+			FetchedAt:   time.Now().UTC(),
+			ExtractorID: "sitemap_adapter",
+			Metadata:    map[string]string{},
 		}, nil
 	}
 
 	// Return raw body as fallback.
 	return &FetchResult{
-		SourceID:     sourceID,
-		URL:          rawURL,
-		Content:      body,
-		ContentType:  contentType,
-		StatusCode:   resp.StatusCode,
-		FetchedAt:    time.Now().UTC(),
-		ExtractorID:  "sitemap_adapter",
-		Metadata:     map[string]string{},
+		SourceID:    sourceID,
+		URL:         rawURL,
+		Content:     body,
+		ContentType: contentType,
+		StatusCode:  resp.StatusCode,
+		FetchedAt:   time.Now().UTC(),
+		ExtractorID: "sitemap_adapter",
+		Metadata:    map[string]string{},
 	}, nil
 }

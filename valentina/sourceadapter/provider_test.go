@@ -22,6 +22,8 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return m.response, nil
 }
 
+func (m *mockHTTPClient) PolicyValidated() bool { return true }
+
 func mockResponse(body string, statusCode int, contentType string) *http.Response {
 	return &http.Response{
 		StatusCode: statusCode,

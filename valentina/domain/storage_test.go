@@ -157,6 +157,64 @@ func TestListInboundLeadsNilNested(t *testing.T) {
 	}
 }
 
+func TestCreateInboundLeadWithPrivacyNoticeVersion(t *testing.T) {
+	s := testStore(t)
+	version := "2026-11-20-v1"
+	pn := true
+	l := &InboundLead{
+		RequestSummary:       "Test lead with privacy version",
+		InboundChannel:       "web",
+		PrivacyNotice:        &pn,
+		PrivacyNoticeVersion: &version,
+	}
+	if err := s.CreateInboundLead(context.Background(), l); err != nil {
+		t.Fatalf("CreateInboundLead: %v", err)
+	}
+	if l.PrivacyNoticeVersion == nil || *l.PrivacyNoticeVersion != version {
+		t.Fatalf("PrivacyNoticeVersion not set on create: %v", l.PrivacyNoticeVersion)
+	}
+	got, err := s.GetInboundLead(context.Background(), l.LeadID)
+	if err != nil {
+		t.Fatalf("GetInboundLead: %v", err)
+	}
+	if got.PrivacyNoticeVersion == nil || *got.PrivacyNoticeVersion != version {
+		t.Fatalf("PrivacyNoticeVersion not persisted: %v", got.PrivacyNoticeVersion)
+	}
+	list, err := s.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatalf("ListInboundLeads: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("Expected 1 lead, got %d", len(list))
+	}
+	if list[0].PrivacyNoticeVersion == nil || *list[0].PrivacyNoticeVersion != version {
+		t.Fatalf("PrivacyNoticeVersion not listed: %v", list[0].PrivacyNoticeVersion)
+	}
+}
+
+func TestCreateInboundLeadWithoutPrivacyNoticeVersion(t *testing.T) {
+	s := testStore(t)
+	pn := true
+	l := &InboundLead{
+		RequestSummary: "Test lead without privacy version",
+		InboundChannel: "web",
+		PrivacyNotice:  &pn,
+	}
+	if err := s.CreateInboundLead(context.Background(), l); err != nil {
+		t.Fatalf("CreateInboundLead: %v", err)
+	}
+	if l.PrivacyNoticeVersion != nil {
+		t.Fatalf("PrivacyNoticeVersion should be nil when not provided: %v", l.PrivacyNoticeVersion)
+	}
+	got, err := s.GetInboundLead(context.Background(), l.LeadID)
+	if err != nil {
+		t.Fatalf("GetInboundLead: %v", err)
+	}
+	if got.PrivacyNoticeVersion != nil {
+		t.Fatalf("PrivacyNoticeVersion should be nil when not stored: %v", got.PrivacyNoticeVersion)
+	}
+}
+
 func TestCreateAndGetCompany(t *testing.T) {
 	s := testStore(t)
 	c := &Company{
