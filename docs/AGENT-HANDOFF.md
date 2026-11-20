@@ -1,7 +1,7 @@
 ﻿# VALENTINA вЂ” active agent handoff
 
 **Updated:** 2026-11-20
-**Status:** IN_PROGRESS вЂ” hot-intake privacy_notice_version hardening pass
+**Status:** READY_FOR_REVIEW — hot-intake privacy_notice_version hardening pass complete, tests pass
 **Task:** VAL-INTAKE-001 вЂ” secure hot-lead intake vertical slice (privacy notice version + security audit)
 **Owner authorization:** P2 hot inbound intake explicitly authorized 2026-11-18. Does NOT authorize bypassing site terms, CAPTCHA/login restrictions, unrestricted crawling, external outreach, form submission, or public exposure of the local app.
 
