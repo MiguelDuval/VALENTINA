@@ -40,7 +40,7 @@ elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Joi
 if (Test-Path $OutputDirectory) { Remove-Item -LiteralPath $OutputDirectory -Recurse -Force }
 $packageDir = Join-Path $OutputDirectory "package"
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-foreach ($tool in @("git","npm","go","certutil")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Throw-BuildError "Build step failed" } }
+foreach ($tool in @("git","npm","go","certutil","tar")) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Throw-BuildError "Build step failed" } }
 if (-not (Test-Path $Upstream)) { Throw-BuildError "Build step failed" }
 $actualUpstream = (& git -C $Upstream rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $actualUpstream -ne $ExpectedUpstreamSha) { Throw-BuildError "Build step failed" }
@@ -66,11 +66,26 @@ if ($Profile -eq "Full") {
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGuid().ToString("N"))
 $copy = Join-Path $tmp "source"
 New-Item -ItemType Directory -Path $copy -Force | Out-Null
+# Copy current edits to tracked first-party files, never untracked local mirrors.
+function Copy-TrackedTree([string]$relativeRoot, [string]$destination) {
+    $files = @(& git -C $Repo -c core.quotepath=false ls-files -- $relativeRoot)
+    if ($LASTEXITCODE -ne 0 -or $files.Count -eq 0) { Throw-BuildError "No tracked sources under $relativeRoot" }
+    foreach ($file in $files) {
+        $relative = $file.Substring($relativeRoot.Length).TrimStart('/')
+        $target = Join-Path $destination $relative
+        New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $Repo $file) -Destination $target -Force
+    }
+}
 try {
     Write-Host "DEBUG: Step 1 - Copying upstream" -ForegroundColor Cyan; Write-Host "Copying upstream to $copy" -ForegroundColor Cyan
-    & robocopy $Upstream $copy /E /XD .git /XF .git /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-    $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+    # Export the exact commit, not the submodule working directory: dirty and
+    # untracked upstream files must never make an incomplete root overlay pass.
+    $upstreamArchive = Join-Path $tmp "upstream.tar"
+    & git -C $Upstream archive --format=tar --output=$upstreamArchive $ExpectedUpstreamSha
+    if ($LASTEXITCODE -ne 0) { Throw-BuildError "Pinned upstream export failed" }
+    & tar -xf $upstreamArchive -C $copy
+    if ($LASTEXITCODE -ne 0) { Throw-BuildError "Pinned upstream extraction failed" }
     & git -C $copy init --quiet
     if ($LASTEXITCODE -ne 0) { Throw-BuildError "Build step failed" }
     & git -C $copy config core.autocrlf false
@@ -93,30 +108,22 @@ try {
         New-Item -ItemType Directory -Path $destValentina -Force | Out-Null
         $destDomain = Join-Path $destValentina "domain"
         New-Item -ItemType Directory -Path $destDomain -Force | Out-Null
-        & robocopy (Join-Path $Repo "valentina\domain") $destDomain /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-        $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+        Copy-TrackedTree "valentina/domain" $destDomain
         $destApi = Join-Path $destValentina "api"
         New-Item -ItemType Directory -Path $destApi -Force | Out-Null
-        & robocopy (Join-Path $Repo "valentina\api") $destApi /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-        $rc = $LASTEXITCODE
-        if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+        Copy-TrackedTree "valentina/api" $destApi
 
         foreach ($packageName in @("sourcepolicy", "sourceadapter")) {
             $sourcePackage = Join-Path $Repo ("valentina\" + $packageName)
             if (Test-Path -LiteralPath $sourcePackage -PathType Container) {
                 $destPackage = Join-Path $destValentina $packageName
                 New-Item -ItemType Directory -Path $destPackage -Force | Out-Null
-                & robocopy $sourcePackage $destPackage /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-                $rc = $LASTEXITCODE
-                if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+                Copy-TrackedTree ("valentina/" + $packageName) $destPackage
             }
         }
         $destViews = Join-Path $copy "web\src\views"
         New-Item -ItemType Directory -Path $destViews -Force | Out-Null
-        & robocopy (Join-Path $Repo "valentina\web\src\views") $destViews /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
-        $rc = $LASTEXITCODE
-    if ($rc -gt 7) { Throw-BuildError "Build step failed with exit code $rc" }
+        Copy-TrackedTree "valentina/web/src/views" $destViews
         Write-Host "CRM sources copied successfully." -ForegroundColor Green
         $destShims = Join-Path $copy "web\src\shims-vue.d.ts"
         $sourceShims = Join-Path $Repo "valentina\web\src\shims-vue.d.ts"
@@ -263,7 +270,7 @@ Verification:
 "@ | Out-File -FilePath $readmePath -Encoding utf8
     $licensesDir = Join-Path $packageDir "LICENSES"
     New-Item -ItemType Directory -Path $licensesDir -Force | Out-Null
-    $upstreamLicense = Join-Path $Upstream "LICENSE"
+    $upstreamLicense = Join-Path $copy "LICENSE"
     if (Test-Path $upstreamLicense) {
         Copy-Item -LiteralPath $upstreamLicense -Destination (Join-Path $licensesDir "LICENSE.huginn.txt") -Force
     }

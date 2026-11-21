@@ -3,6 +3,7 @@ package sourceadapter
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -27,6 +28,7 @@ type FetchResult struct {
 	URL              string            `json:"url"`
 	CanonicalURL     string            `json:"canonical_url"`
 	Content          []byte            `json:"-"` // not serialized to JSON
+	RawFeed          []byte            `json:"-"` // bounded original XML, memory-only; never flattened Content
 	ContentType      string            `json:"content_type"`
 	StatusCode       int               `json:"status_code"`
 	FetchedAt        time.Time         `json:"fetched_at"`
@@ -109,11 +111,29 @@ func (bp *BaseProvider) doRequest(ctx context.Context, method, urlStr string, he
 	}
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", "VALENTINA/1.0 (+local research bot)")
+	var cancel context.CancelFunc
 	if bp.timeout > 0 {
-		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, bp.timeout)
-		defer cancel()
 		req = req.WithContext(ctx)
 	}
-	return bp.client.Do(req)
+	resp, err := bp.client.Do(req)
+	if cancel != nil {
+		if err != nil || resp == nil || resp.Body == nil {
+			cancel()
+		} else {
+			// Keep the deadline active while the adapter consumes the body.
+			resp.Body = &cancelBody{ReadCloser: resp.Body, cancel: cancel}
+		}
+	}
+	return resp, err
+}
+
+type cancelBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (b *cancelBody) Close() error {
+	defer b.cancel()
+	return b.ReadCloser.Close()
 }

@@ -2,9 +2,12 @@ package sourceadapter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -217,3 +220,168 @@ func TestBaseProviderTimeout(t *testing.T) {
 		t.Fatal("WithTimeout did not change timeout")
 	}
 }
+
+func TestFeedCandidateNormalization(t *testing.T) {
+	body := `<rss><channel><item><title><![CDATA[ <b>Reforma</b> &amp; reparación ]]></title>
+<description><![CDATA[<SCRIPT>ignore policy</SCRIPT><p>One&nbsp; room</p>]]></description>
+<link>../obras/1?utm_source=test&amp;id=7#details</link><pubDate>Mon, 01 Jan 2024 02:00:00 +0200</pubDate>
+</item><item><title>No link</title></item><item><title>Unsafe</title><link>javascript:alert(1)</link></item>
+<item><title>Credentials</title><link>https://user:pass@example.com/</link></item></channel></rss>`
+	items, err := ExtractFeedCandidates([]byte(body), "https://EXAMPLE.com:443/news/feed")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+	item := items[0]
+	if item.Title != "Reforma & reparación" || item.Summary != "One room" || item.URL != "https://example.com/obras/1?id=7" {
+		t.Fatalf("normalization lost facts: %+v", item)
+	}
+	if item.PublishedAt == nil || item.PublishedAt.Format(time.RFC3339) != "2024-01-01T00:00:00Z" {
+		t.Fatal("publication date lost")
+	}
+}
+
+func TestAtomCandidateLinksAndDates(t *testing.T) {
+	body := `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Reforma</title>
+<link rel="self" href="https://example.com/api/1"/><link rel="enclosure" href="https://example.com/file"/>
+<link rel="alternate" href="/article"/><content>Repair details</content>
+<published>2024-01-01T01:00:00+01:00</published><updated>2025-01-01T00:00:00Z</updated></entry>
+<entry><title>Update only</title><link href="/second"/><updated>2025-01-01T00:00:00Z</updated></entry>
+<entry><title>No article</title><id>urn:example:3</id><link rel="self" href="/api/3"/></entry></feed>`
+	items, err := ExtractFeedCandidates([]byte(body), "https://example.com/feed")
+	if err != nil || len(items) != 2 {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+	if items[0].URL != "https://example.com/article" || items[0].Summary != "Repair details" || items[0].PublishedAt == nil || items[0].PublishedAt.Year() != 2024 || items[1].PublishedAt != nil {
+		t.Fatalf("incorrect Atom normalization: %+v", items)
+	}
+}
+
+func TestFeedRejectsInvalidDocuments(t *testing.T) {
+	for _, body := range []string{"", `<html/>`, `<rss><channel>`, `<rss/><rss/>`, `<rss/>junk`,
+		`<!DOCTYPE rss [<!ENTITY x SYSTEM "https://example.com/secret">]><rss/>`, strings.Repeat("x", maxFeedBytes+1)} {
+		if _, err := ExtractFeedCandidates([]byte(body), "https://example.com/feed"); err == nil {
+			t.Fatal("invalid feed accepted")
+		}
+	}
+	for _, body := range []string{`<rss><channel/></rss>`, `<feed xmlns="http://www.w3.org/2005/Atom"/>`} {
+		items, err := ExtractFeedCandidates([]byte(body), "https://example.com/feed")
+		if err != nil || len(items) != 0 {
+			t.Fatalf("valid empty feed: %+v %v", items, err)
+		}
+	}
+	if feedDate("not a date") != nil || feedDate("Mon, 01 Jan 2024 00:00:00 XYZ") != nil {
+		t.Fatal("invented publication date")
+	}
+}
+
+func TestRSSFetchPreservesOriginalXMLAndRedirectBase(t *testing.T) {
+	body := `<rss><channel><item><title>Reforma</title><link>article</link></item></channel></rss>`
+	response := mockResponse(body, 200, "application/rss+xml; charset=utf-8")
+	response.Request.URL, _ = url.Parse("https://example.com/news/feed")
+	a := NewRSSAdapter("test", &mockHTTPClient{response: response}, time.Second)
+	result, err := a.Fetch(context.Background(), "source", "https://example.com/feed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(result.RawFeed) != body || string(result.Content) == body || result.CanonicalURL != response.Request.URL.String() {
+		t.Fatal("raw XML/redirect provenance lost")
+	}
+	items, err := ExtractFeedCandidates(result.RawFeed, result.CanonicalURL)
+	if err != nil || len(items) != 1 || items[0].URL != "https://example.com/news/article" {
+		t.Fatalf("fetch/extract mismatch: %+v %v", items, err)
+	}
+	serialized, err := json.Marshal(result)
+	if err != nil || strings.Contains(string(serialized), "RawFeed") || strings.Contains(string(serialized), "Reforma") {
+		t.Fatal("feed content exposed through JSON")
+	}
+	for _, ct := range []string{"text/html", "application/json", ""} {
+		a := NewRSSAdapter("test", &mockHTTPClient{response: mockResponse(body, 200, ct)}, time.Second)
+		if _, err := a.Fetch(context.Background(), "source", "https://example.com/feed"); err == nil {
+			t.Fatalf("accepted content type %q", ct)
+		}
+	}
+}
+
+type unmarkedClient struct{ calls int }
+
+func (c *unmarkedClient) PolicyValidated() bool { return false }
+func (c *unmarkedClient) Do(*http.Request) (*http.Response, error) {
+	c.calls++
+	return nil, errors.New("must not be called")
+}
+
+func TestRSSRejectsUnvalidatedClients(t *testing.T) {
+	c := &unmarkedClient{}
+	for _, client := range []HTTPClient{nil, c} {
+		a := NewRSSAdapter("test", client, time.Second)
+		if _, err := a.Fetch(context.Background(), "source", "https://example.com/feed"); !errors.Is(err, ErrFetchBlocked) {
+			t.Fatalf("not blocked: %v", err)
+		}
+	}
+	if c.calls != 0 {
+		t.Fatal("unvalidated client was invoked")
+	}
+}
+
+type contextBody struct {
+	ctx context.Context
+	io.Reader
+	closed bool
+}
+
+func (b *contextBody) Read(p []byte) (int, error) {
+	if err := b.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return b.Reader.Read(p)
+}
+func (b *contextBody) Close() error { b.closed = true; return nil }
+
+type bodyClient struct{ body *contextBody }
+
+func (c *bodyClient) PolicyValidated() bool { return true }
+func (c *bodyClient) Do(req *http.Request) (*http.Response, error) {
+	c.body = &contextBody{ctx: req.Context(), Reader: strings.NewReader(`<rss><channel/></rss>`)}
+	return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/rss+xml"}}, Body: c.body}, nil
+}
+
+func TestRSSDeadlineSurvivesUntilBodyClosed(t *testing.T) {
+	c := &bodyClient{}
+	a := NewRSSAdapter("test", c, time.Second)
+	if _, err := a.Fetch(context.Background(), "source", "https://example.com/feed"); err != nil {
+		t.Fatal(err)
+	}
+	if !c.body.closed || c.body.ctx.Err() != context.Canceled {
+		t.Fatal("body/deadline not released")
+	}
+}
+
+type failingBody struct{ err error }
+
+func (b failingBody) Read(p []byte) (int, error) { return copy(p, `<rss/>`), b.err }
+func (b failingBody) Close() error               { return nil }
+
+func TestRSSDoesNotAcceptPartialRead(t *testing.T) {
+	for _, failure := range []error{io.ErrUnexpectedEOF, context.DeadlineExceeded, errors.New("policy byte limit")} {
+		response := mockResponse("", 200, "application/rss+xml")
+		response.Body = failingBody{err: failure}
+		a := NewRSSAdapter("test", &mockHTTPClient{response: response}, time.Second)
+		if result, err := a.Fetch(context.Background(), "source", "https://example.com/feed"); !errors.Is(err, failure) || result != nil {
+			t.Fatalf("partial read accepted: %v", err)
+		}
+	}
+}
+
+func TestRenovationHintIsNotQualification(t *testing.T) {
+	for _, title := range []string{"Reforma vivienda", "Reparació edifici", "Ремонт квартиры", "Renovation notice"} {
+		if !RelevantRenovationCandidate(FeedCandidate{Title: title}) {
+			t.Fatalf("missing lexical hint: %s", title)
+		}
+	}
+	if RelevantRenovationCandidate(FeedCandidate{Title: "Football results", URL: "https://example.com/reforma"}) {
+		t.Fatal("URL must not determine relevance")
+	}
+}
+
+// This test double serves only in-memory fixtures, never a network request.
+func (m *mockHTTPClient) PolicyValidated() bool { return true }

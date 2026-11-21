@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,15 +39,29 @@ func approvedRSSSource(t *testing.T, s *Server) *domain.Source {
 	return src
 }
 
+// fixtureFeedClient has no transport: the complete adapter-to-SQLite test stays offline.
+type fixtureFeedClient struct {
+	body  string
+	calls int
+}
+
+func (c *fixtureFeedClient) PolicyValidated() bool { return true }
+func (c *fixtureFeedClient) Do(req *http.Request) (*http.Response, error) {
+	c.calls++
+	return &http.Response{StatusCode: http.StatusOK, Request: req,
+		Header: http.Header{"Content-Type": {"application/rss+xml"}}, Body: io.NopCloser(strings.NewReader(c.body))}, nil
+}
+
 func TestManualRSSResearchPersistsCandidatesAndDeduplicates(t *testing.T) {
 	s := testServer(t)
 	src := approvedRSSSource(t, s)
+	client := &fixtureFeedClient{body: syntheticRSS}
+	adapter := sourceadapter.NewRSSAdapter("synthetic", client, time.Second)
 	s.fetchSource = func(ctx context.Context, item *domain.Source) (*sourceadapter.FetchResult, error) {
 		if item.SourceID != src.SourceID {
 			t.Fatalf("wrong source")
 		}
-		return &sourceadapter.FetchResult{SourceID: item.SourceID, URL: item.BaseURL, StatusCode: 200,
-			FetchedAt: time.Now().UTC(), RawFeed: []byte(syntheticRSS)}, nil
+		return adapter.Fetch(ctx, item.SourceID, item.BaseURL)
 	}
 	execute := func() *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/valentina/research-runs",
@@ -71,10 +86,15 @@ func TestManualRSSResearchPersistsCandidatesAndDeduplicates(t *testing.T) {
 	}
 	evidence, err := s.store.ListSourceEvidenceByIDs(context.Background(), opp.SourceEvidenceIDs)
 	if err != nil || len(evidence) != 1 || evidence[0].RetrievalStatus != "feed_observed" ||
-		evidence[0].CanonicalURL != "https://example.com/obras/1" {
+		evidence[0].CanonicalURL != "https://example.com/obras/1" || evidence[0].ObservedAt.IsZero() ||
+		len(evidence[0].Facts) != 3 || evidence[0].Facts[0].EvidenceLocator == nil || *evidence[0].Facts[0].EvidenceLocator != src.BaseURL {
 		t.Fatalf("source provenance lost: %+v %v", evidence, err)
 	}
+	client.body = strings.ReplaceAll(syntheticRSS, "https://example.com/obras/1", "https://EXAMPLE.com:443/obras/1?utm_source=repeat#top")
 	execute()
+	if client.calls != 2 {
+		t.Fatalf("expected only two feed requests, got %d", client.calls)
+	}
 	opportunities, _ = s.store.ListOpportunities(context.Background(), "", 10, 0)
 	runs, err := s.store.ListResearchRuns(context.Background())
 	if err != nil || len(runs) != 2 || len(opportunities) != 1 {
@@ -82,6 +102,27 @@ func TestManualRSSResearchPersistsCandidatesAndDeduplicates(t *testing.T) {
 	}
 	if runs[0].DuplicateCount != 1 || runs[0].CompletedAt == nil || runs[0].Status != "completed" {
 		t.Fatalf("run progress missing: %+v", runs[0])
+	}
+}
+
+func TestMalformedFeedDoesNotPersistCandidate(t *testing.T) {
+	s := testServer(t)
+	src := approvedRSSSource(t, s)
+	client := &fixtureFeedClient{body: `<rss><channel><item><title>Reforma</title><link>https://example.com/1</link></item>`}
+	adapter := sourceadapter.NewRSSAdapter("synthetic", client, time.Second)
+	s.fetchSource = func(ctx context.Context, item *domain.Source) (*sourceadapter.FetchResult, error) {
+		return adapter.Fetch(ctx, item.SourceID, item.BaseURL)
+	}
+	w := httptest.NewRecorder()
+	s.handleCreateResearchRun(w, httptest.NewRequest(http.MethodPost, "/api/v1/valentina/research-runs",
+		strings.NewReader(`{"source_ids":["`+src.SourceID+`"]}`)))
+	runs, err := s.store.ListResearchRuns(context.Background())
+	if w.Code != http.StatusCreated || err != nil || len(runs) != 1 || runs[0].Status != "failed" {
+		t.Fatal("malformed feed must produce a failed run")
+	}
+	opps, err := s.store.ListOpportunities(context.Background(), "", 10, 0)
+	if err != nil || len(opps) != 0 {
+		t.Fatal("malformed feed created candidates")
 	}
 }
 

@@ -558,6 +558,7 @@ func TestHandleIntakeLeadHoneypot(t *testing.T) {
 }
 
 func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
+	t.Setenv("VALENTINA_INTAKE_HMAC_SECRET", "")
 	WithIntakeSecret("")
 	s := testServer(t)
 	body := `{"request_summary":"Need bathroom renovation","inbound_channel":"website","consent":true,"privacy_notice":true}`
@@ -565,7 +566,7 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.handleIntakeLead(w, req)
-	if w.Code != http.StatusNotImplemented {
+	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("Expected 503 when HMAC secret is not configured, got %d: %s", w.Code, w.Body.String())
 	}
 	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
@@ -577,7 +578,7 @@ func TestHandleIntakeLeadDisabledWithoutHMACSecret(t *testing.T) {
 	}
 }
 
-func TestHandleCreateResearchRunNotImplementedWithoutRunner(t *testing.T) {
+func TestHandleCreateResearchRunRejectsIncompleteApproval(t *testing.T) {
 	s := testServer(t)
 	source := &domain.Source{
 		Name: "Approved but not executable", Publisher: "Example", SourceType: "public",
@@ -593,8 +594,8 @@ func TestHandleCreateResearchRunNotImplementedWithoutRunner(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.handleCreateResearchRun(w, req)
-	if w.Code != http.StatusNotImplemented {
-		t.Fatalf("Expected 501 until a real policy-gateway-backed runner is wired, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "sources not approved") {
+		t.Fatalf("Expected incomplete source approval to be blocked, got %d: %s", w.Code, w.Body.String())
 	}
 	runs, err := s.store.ListResearchRuns(context.Background())
 	if err != nil {
@@ -672,7 +673,6 @@ func TestNewServerLoadsIntakeSecretFromEnvironment(t *testing.T) {
 		t.Fatal("NewServer did not load VALENTINA_INTAKE_HMAC_SECRET")
 	}
 }
-
 
 func TestWithIntakeSecretRejectsShortSecrets(t *testing.T) {
 	if err := WithIntakeSecret("short-secret"); err == nil {

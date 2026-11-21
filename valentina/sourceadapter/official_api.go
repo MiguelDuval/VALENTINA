@@ -3,6 +3,7 @@ package sourceadapter
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -77,7 +78,10 @@ func readBodyLimit(r interface{ Read([]byte) (int, error) }, maxBytes int64) ([]
 			buf = append(buf, tmp[:n]...)
 		}
 		if err != nil {
-			break
+			if err == io.EOF {
+				break
+			}
+			return nil, err
 		}
 	}
 	return buf, nil

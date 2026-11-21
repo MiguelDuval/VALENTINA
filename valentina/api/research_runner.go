@@ -139,7 +139,11 @@ func (s *Server) executeManualResearch(ctx context.Context, run *domain.Research
 			failures = append(failures, src.SourceID+": fetch failed")
 			continue
 		}
-		entries, err := sourceadapter.ExtractFeedCandidates(fetched.RawFeed, src.BaseURL)
+		feedURL := fetched.CanonicalURL
+		if feedURL == "" {
+			feedURL = src.BaseURL
+		}
+		entries, err := sourceadapter.ExtractFeedCandidates(fetched.RawFeed, feedURL)
 		if err != nil {
 			failures = append(failures, src.SourceID+": feed parse failed")
 			continue
