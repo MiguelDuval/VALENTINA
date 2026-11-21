@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -409,16 +410,24 @@ func (p *policyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 // cannot accidentally fall back to http.DefaultClient.
 // Per-source rate, daily quota and concurrency limits are enforced on every Do call.
 type ValidatedClient struct {
-	client       *http.Client
-	rateLimiter  *RateLimiter
-	dailyQuota   *DailyQuotaTracker
-	concurrency  *ConcurrencyLimiter
-	acquired     bool
+	client      *http.Client
+	sourceID    string
+	rateLimiter *RateLimiter
+	dailyQuota  *DailyQuotaTracker
+	concurrency *ConcurrencyLimiter
 }
 
 func (c *ValidatedClient) Do(req *http.Request) (*http.Response, error) {
 	if c == nil || c.client == nil {
 		return nil, ErrSourceNotFound
+	}
+	if req == nil {
+		return nil, ErrNilRequest
+	}
+	// Context cancellation checked before any state mutation so a cancelled
+	// context never consumes a concurrency slot or increments quota.
+	if err := req.Context().Err(); err != nil {
+		return nil, err
 	}
 	// Enforce minimum interval between requests (rate limit).
 	if c.rateLimiter != nil {
@@ -428,23 +437,50 @@ func (c *ValidatedClient) Do(req *http.Request) (*http.Response, error) {
 	}
 	// Enforce daily request quota.
 	if c.dailyQuota != nil {
-		if !c.dailyQuota.CheckAndIncrement(sourceIDFromRequest(req)) {
+		if !c.dailyQuota.CheckAndIncrement(c.sourceID) {
 			return nil, ErrDailyQuotaExceeded
 		}
 	}
 	// Enforce concurrency limit (non-blocking: returns immediately if at capacity).
+	var acquired bool
 	if c.concurrency != nil {
 		if !c.concurrency.TryAcquire() {
 			return nil, ErrConcurrencyLimit
 		}
-		c.acquired = true
+		acquired = true
 	}
 	resp, err := c.client.Do(req)
-	if c.acquired && c.concurrency != nil {
-		c.concurrency.Release()
-		c.acquired = false
+	if err != nil {
+		if acquired && c.concurrency != nil {
+			c.concurrency.Release()
+		}
+		return resp, err
+	}
+	if acquired && c.concurrency != nil {
+		if resp == nil || resp.Body == nil {
+			c.concurrency.Release()
+		} else {
+			resp.Body = &concurrencyReleaseBody{
+				ReadCloser: resp.Body,
+				release:    c.concurrency.Release,
+			}
+		}
 	}
 	return resp, err
+}
+
+// concurrencyReleaseBody wraps a response body and releases a concurrency slot
+// when the body is closed, ensuring the slot is held for the duration of the response.
+type concurrencyReleaseBody struct {
+	io.ReadCloser
+	release func()
+	once    sync.Once
+}
+
+func (b *concurrencyReleaseBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.once.Do(b.release)
+	return err
 }
 
 func (c *ValidatedClient) PolicyValidated() bool { return c != nil && c.client != nil }
@@ -542,7 +578,7 @@ func NewValidatedHTTPClient(g *PolicyGateway, sourceID string, profile *SourcePr
 	}
 
 	return &ValidatedClient{
-		client:       &http.Client{
+		client: &http.Client{
 			Transport: &policyRoundTripper{gateway: g, sourceID: sourceID, base: base},
 			Timeout:   timeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -557,9 +593,9 @@ func NewValidatedHTTPClient(g *PolicyGateway, sourceID string, profile *SourcePr
 				return nil
 			},
 		},
-		rateLimiter:  rateLimiter,
-		dailyQuota:   dailyQuota,
-		concurrency:  concurrency,
+		rateLimiter: rateLimiter,
+		dailyQuota:  dailyQuota,
+		concurrency: concurrency,
 	}, nil
 }
 

@@ -1,7 +1,17 @@
 # VALENTINA — active agent handoff
 
-**Updated:** 2026-11-18
-**Status:** READY_FOR_REVIEW — research + inbound-intake milestone implemented and pushed
+**Updated:** 2026-11-21 (Cline recovery checkpoint)
+**Status:** PARTIAL — local manual RSS implementation/tests restored; full desktop build, real source onboarding and intake security audit pending
+
+## 2026-11-21 checkpoint for the next agent
+- VS Code Cline session `1795043585019_o8c7l` ended in NVIDIA NIM `Too Many Requests` after a very long task. Do **not** Retry the old session. Start a fresh bounded task with a new context instead.
+- Repository: `C:\Users\migue\Projects\VALENTINA`; branch `feature/valentina-research-intake-engine-20261118`; starting HEAD `1904cdb`. Preserve unrelated/untracked owner files, dirty Huginn submodule content, parallel worktrees and all user changes.
+- Recovery: wired operator-triggered RSS/Atom `handleCreateResearchRun` to a source-scoped policy fetch; added source-specific evidence duplicate lookup; repaired research status/completion-time persistence; added nullable `privacy_notice_version` with additive SQLite v11 migration; fixed Go compilation.
+- Verified: `go test ./internal/valentina/...` passed on the local Huginn internal test mirror on 2026-11-21, including synthetic RSS and intake tests. This is **not** proof of production feed connectivity or a full Windows build.
+- Safety: no source has been approved for real fetching by this checkpoint; intake remains HMAC-gated and must not be exposed externally. Verify mismatched idempotency keys, validation of policy version, frontend contract, real app build and security acceptance before declaring the intake feature ready.
+- Keep the next assignment narrow: one end-to-end acceptance goal; perform tests; report exact files, checks, SHA, and blockers. Codex is the preferred primary executor; Cline may be used only in a fresh short task.
+
+**Historical status (2026-11-18):** READY_FOR_REVIEW — research + inbound-intake milestone implemented and pushed
 **Task:** VAL-P3/INTAKE-001 — controlled multi-source discovery and hot-lead intake vertical slice
 **Owner authorization:** The owner explicitly authorized implementation of internet-wide opportunity discovery and intake of hot leads. This authorizes building the P3 source-policy/search pipeline and P2 inbound-lead workflow. It does NOT authorize bypassing site terms, CAPTCHA/login restrictions, unrestricted crawling, external outreach, form submission, or public exposure of the local app.
 

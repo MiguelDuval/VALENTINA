@@ -47,6 +47,9 @@ var ErrDailyQuotaExceeded = fmt.Errorf("daily quota exceeded")
 // ErrConcurrencyLimit is returned when a source exceeds its parallel request limit.
 var ErrConcurrencyLimit = fmt.Errorf("concurrency limit exceeded")
 
+// ErrNilRequest is returned when a nil request is passed to ValidatedClient.Do.
+var ErrNilRequest = fmt.Errorf("nil request")
+
 // SanitizedError wraps an internal error and returns a safe, generic message
 // that leaks no URL, host, IP, or source-specific details to callers.
 type SanitizedError struct {

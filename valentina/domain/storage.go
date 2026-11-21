@@ -204,6 +204,8 @@ var migrations = []migration{
                 CREATE INDEX IF NOT EXISTS idx_idempotency_keys_lead ON idempotency_keys(lead_id);`},
 	{version: 10, stmt: `
                 ALTER TABLE inbound_leads ADD COLUMN consent_at TEXT;`},
+	{version: 11, stmt: `
+		ALTER TABLE inbound_leads ADD COLUMN privacy_notice_version TEXT;`},
 }
 
 // companiesTable is the CREATE TABLE statement for the companies table.
@@ -661,6 +663,20 @@ func (s *Store) CreateSourceEvidence(ctx context.Context, e *SourceEvidence) err
 		e.ObservedAt.Format(time.RFC3339), timePtr(e.PublishedAt), e.ContentHash, e.RetrievalStatus,
 		e.ExtractorID, e.ExtractorVersion, string(facts))
 	return err
+}
+
+// HasSourceEvidence reports whether a source URL has already been observed.
+// Only the scoped source ID and canonical URL are compared; another source's
+// observation is not treated as a duplicate for this source.
+func (s *Store) HasSourceEvidence(ctx context.Context, sourceID, canonicalURL string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(
+		SELECT 1 FROM source_evidence WHERE source_id = ? AND canonical_url = ?
+	)`, sourceID, canonicalURL).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check source evidence: %w", err)
+	}
+	return exists, nil
 }
 
 // ListSourceEvidenceByIDs returns source evidence records for the given IDs.
@@ -1164,8 +1180,8 @@ func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *Inbound
 			company_id, contact_name, contact_email, contact_phone, contact_purpose,
 			ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 			ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
-			missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			missing_information, duplicate_group_id, status, privacy_notice, privacy_notice_version, consent_at, retention_state)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		l.LeadID, l.ReceivedAt.Format(time.RFC3339), l.InboundChannel, l.ChannelMessageRef,
 		l.RequestSummary, l.OriginalContent, string(services),
 		locStr(l.ProjectLocation, "municipality"), locStr(l.ProjectLocation, "province"),
@@ -1178,7 +1194,7 @@ func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *Inbound
 		ptrStr(l.AIAssessment, "Location"), ptrF64Obj(l.AIAssessment, "Budget"),
 		ptrStr(l.AIAssessment, "TimingUrgency"), string(factsJSON), ptrStr(l.AIAssessment, "CompanyMatch"),
 		ptrStr(l.AIAssessment, "ResponseDraft"), timePtr(aiTime(l.AIAssessment)), ptrStr(l.AIAssessment, "ProfileVersion"),
-		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), timePtr(l.ConsentAt), l.RetentionState)
+		string(missingInfoJSON), l.DuplicateGroupID, l.Status, boolToInt(l.PrivacyNotice), l.PrivacyNoticeVersion, timePtr(l.ConsentAt), l.RetentionState)
 	return err
 }
 
@@ -1322,7 +1338,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		company_id, contact_name, contact_email, contact_phone, contact_purpose,
 		ai_service_category, ai_project_scope, ai_location, ai_budget, ai_timing_urgency,
 		ai_missing_details, ai_company_match, ai_response_draft, ai_evaluated_at, ai_profile_version,
-		missing_information, duplicate_group_id, status, privacy_notice, consent_at, retention_state
+		missing_information, duplicate_group_id, status, privacy_notice, privacy_notice_version, consent_at, retention_state
 		FROM inbound_leads`
 	var args []interface{}
 	if status != "" {
@@ -1345,6 +1361,7 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 		var received string
 		var aiEval sql.NullString
 		var consentAt sql.NullString
+		var noticeVersion sql.NullString
 		var budget sql.NullFloat64
 		var aiBudget sql.NullFloat64
 		var burC sql.NullString
@@ -1361,12 +1378,15 @@ func (s *Store) ListInboundLeads(ctx context.Context, status string, limit, offs
 			&l.CompanyID, &contactName, &contactEmail, &contactPhone, &contactPurpose,
 			&aiServiceCat, &aiProjectScope, &aiLocationVal, &aiBudget, &aiTimingUrgency, &aiMissingDetails,
 			&aiCompanyMatch, &aiResponseDraft, &aiEval, &aiProfileVersion,
-			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &consentAt, &l.RetentionState,
+			&missingInfo, &l.DuplicateGroupID, &l.Status, &l.PrivacyNotice, &noticeVersion, &consentAt, &l.RetentionState,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		l.ReceivedAt = parseTime(received)
+		if noticeVersion.Valid {
+			l.PrivacyNoticeVersion = &noticeVersion.String
+		}
 		if consentAt.Valid {
 			consentTime := parseTime(consentAt.String)
 			l.ConsentAt = &consentTime
@@ -1826,12 +1846,17 @@ func (s *Store) UpdateResearchRun(ctx context.Context, id string, status string,
 		rejectedCount = currentRejected
 	}
 
+	completedAt := interface{}(nil)
+	if status == "completed" || status == "failed" || status == "cancelled" {
+		completedAt = time.Now().UTC().Format(time.RFC3339)
+	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE research_runs
 		SET status = ?, candidate_count = ?, verified_count = ?, duplicate_count = ?,
-		    accepted_count = ?, rejected_count = ?, notes = ?, updated_at = ?
+		    accepted_count = ?, rejected_count = ?, notes = ?,
+		    completed_at = COALESCE(?, completed_at)
 		WHERE run_id = ?`,
-		status, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount, notes, time.Now().UTC().Format(time.RFC3339), id)
+		status, candidateCount, verifiedCount, duplicateCount, acceptedCount, rejectedCount, notes, completedAt, id)
 	if err != nil {
 		return fmt.Errorf("update research run: %w", err)
 	}

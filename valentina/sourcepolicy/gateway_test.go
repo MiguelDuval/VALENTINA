@@ -452,3 +452,21 @@ func TestApprovedSourceWithoutTermsReviewCannotFetch(t *testing.T) {
 		t.Fatal("source must not fetch until terms review timestamp is recorded")
 	}
 }
+
+// Closing a response body twice must never release another request's slot.
+func TestConcurrencyReleaseBodyOnce(t *testing.T) {
+	calls := 0
+	body := &concurrencyReleaseBody{
+		ReadCloser: io.NopCloser(strings.NewReader("test")),
+		release:    func() { calls++ },
+	}
+	if err := body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected one release, got %d", calls)
+	}
+}

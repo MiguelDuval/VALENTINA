@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -19,12 +20,14 @@ import (
 	"time"
 
 	"github.com/scrypster/huginn/internal/valentina/domain"
+	"github.com/scrypster/huginn/internal/valentina/sourceadapter"
 )
 
 // Server wraps a domain.Store and provides HTTP handlers for VALENTINA API.
 type Server struct {
-	store *domain.Store
-	log   *slog.Logger
+	store       *domain.Store
+	log         *slog.Logger
+	fetchSource func(context.Context, *domain.Source) (*sourceadapter.FetchResult, error)
 }
 
 // NewServer creates a new VALENTINA API server.
@@ -37,8 +40,9 @@ func NewServer(store *domain.Store) *Server {
 		}
 	}
 	return &Server{
-		store: store,
-		log:   slog.Default(),
+		store:       store,
+		log:         slog.Default(),
+		fetchSource: nil,
 	}
 }
 
@@ -398,7 +402,7 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 	if len(body.SourceIDs) == 0 {
 		// No specific sources requested - check if any approved source exists
 		for _, src := range allSources {
-			if src.CanFetch() {
+			if sourceRunnable(src) {
 				approvedCount++
 			}
 		}
@@ -417,7 +421,7 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 			for _, src := range allSources {
 				if src.SourceID == sid {
 					found = true
-					if src.CanFetch() {
+					if sourceRunnable(src) {
 						approvedCount++
 					} else {
 						notApproved = append(notApproved, sid)
@@ -458,14 +462,54 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Source discovery adapters are not yet connected to this API handler. Do not
-	// create a misleading "running" record until a policy-gateway-backed runner
-	// can actually retrieve, classify, and persist evidence.
-	writeJSON(w, http.StatusNotImplemented, map[string]interface{}{
-		"status": "blocked",
-		"error":  "research execution is not configured",
-		"detail": "sources can be registered and reviewed, but automated retrieval is not wired yet; no research run was created",
-	})
+	// All source approvals were checked above. Resolve the exact approved
+	// records and enforce the manual fetch budget before writing a run.
+	selected := make([]*domain.Source, 0, len(allSources))
+	if len(body.SourceIDs) == 0 {
+		for _, src := range allSources {
+			if sourceRunnable(src) {
+				selected = append(selected, src)
+			}
+		}
+	} else {
+		for _, sid := range body.SourceIDs {
+			for _, src := range allSources {
+				if sid == src.SourceID {
+					selected = append(selected, src)
+					break
+				}
+			}
+		}
+	}
+	if err := s.checkResearchBudget(r.Context(), selected); err != nil {
+		writeError(w, http.StatusBadRequest, "source request budget exceeded or unavailable")
+		return
+	}
+	ids := make([]string, 0, len(selected))
+	for _, src := range selected {
+		ids = append(ids, src.SourceID)
+	}
+	run := &domain.ResearchRun{Status: "running", SourceIDs: ids}
+	if err := s.store.CreateResearchRun(r.Context(), run); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	note, runErr := s.executeManualResearch(r.Context(), run, selected)
+	status := "completed"
+	if runErr != nil {
+		status = "failed"
+	}
+	if err := s.store.UpdateResearchRun(context.WithoutCancel(r.Context()), run.RunID, status,
+		run.CandidateCount, run.VerifiedCount, run.DuplicateCount, run.AcceptedCount,
+		run.RejectedCount, note); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	run.Status = status
+	now := time.Now().UTC()
+	run.CompletedAt = &now
+	run.Notes = &note
+	writeJSON(w, http.StatusCreated, map[string]interface{}{"run": run})
 }
 
 // handleListSourceEvidence returns only evidence records referenced by the supplied IDs.
@@ -538,26 +582,27 @@ func parseInt(s string, def int) int {
 
 // intakeRequest is the validated payload for the secure inbound intake endpoint.
 type intakeRequest struct {
-	RequestSummary      string   `json:"request_summary"`
-	InboundChannel      string   `json:"inbound_channel"`
-	RequestedServices   []string `json:"requested_services,omitempty"`
-	Municipality        *string  `json:"municipality,omitempty"`
-	Province            *string  `json:"province,omitempty"`
-	AutonomousCommunity *string  `json:"autonomous_community,omitempty"`
-	CountryCode         *string  `json:"country_code,omitempty"`
-	LocationText        *string  `json:"location_text,omitempty"`
-	Budget              *float64 `json:"budget,omitempty"`
-	BudgetCurrency      *string  `json:"budget_currency,omitempty"`
-	DesiredTiming       *string  `json:"desired_timing,omitempty"`
-	CompanyID           *string  `json:"company_id,omitempty"`
-	ContactName         *string  `json:"contact_name,omitempty"`
-	ContactEmail        *string  `json:"contact_email,omitempty"`
-	ContactPhone        *string  `json:"contact_phone,omitempty"`
-	ContactPurpose      *string  `json:"contact_purpose,omitempty"`
-	PrivacyNotice       bool     `json:"privacy_notice"`
-	Consent             bool     `json:"consent"`
-	IdempotencyKey      string   `json:"idempotency_key,omitempty"`
-	Website             string   `json:"website,omitempty"`
+	RequestSummary       string   `json:"request_summary"`
+	InboundChannel       string   `json:"inbound_channel"`
+	RequestedServices    []string `json:"requested_services,omitempty"`
+	Municipality         *string  `json:"municipality,omitempty"`
+	Province             *string  `json:"province,omitempty"`
+	AutonomousCommunity  *string  `json:"autonomous_community,omitempty"`
+	CountryCode          *string  `json:"country_code,omitempty"`
+	LocationText         *string  `json:"location_text,omitempty"`
+	Budget               *float64 `json:"budget,omitempty"`
+	BudgetCurrency       *string  `json:"budget_currency,omitempty"`
+	DesiredTiming        *string  `json:"desired_timing,omitempty"`
+	CompanyID            *string  `json:"company_id,omitempty"`
+	ContactName          *string  `json:"contact_name,omitempty"`
+	ContactEmail         *string  `json:"contact_email,omitempty"`
+	ContactPhone         *string  `json:"contact_phone,omitempty"`
+	ContactPurpose       *string  `json:"contact_purpose,omitempty"`
+	PrivacyNotice        bool     `json:"privacy_notice"`
+	PrivacyNoticeVersion *string  `json:"privacy_notice_version,omitempty"`
+	Consent              bool     `json:"consent"`
+	IdempotencyKey       string   `json:"idempotency_key,omitempty"`
+	Website              string   `json:"website,omitempty"`
 }
 
 type intakeResponse struct {
@@ -655,6 +700,14 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "privacy notice must be acknowledged")
 		return
 	}
+	if req.PrivacyNoticeVersion != nil {
+		version := strings.TrimSpace(*req.PrivacyNoticeVersion)
+		if len(version) == 0 || len(version) > 128 {
+			writeError(w, http.StatusBadRequest, "privacy_notice_version must be 1-128 characters")
+			return
+		}
+		req.PrivacyNoticeVersion = &version
+	}
 	if strings.TrimSpace(req.IdempotencyKey) == "" {
 		writeError(w, http.StatusBadRequest, "idempotency_key is required")
 		return
@@ -664,10 +717,11 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lead := &domain.InboundLead{
-		RequestSummary:    req.RequestSummary,
-		InboundChannel:    req.InboundChannel,
-		RequestedServices: req.RequestedServices,
-		ConsentAt:         func() *time.Time { t := time.Now().UTC(); return &t }(),
+		RequestSummary:       req.RequestSummary,
+		InboundChannel:       req.InboundChannel,
+		RequestedServices:    req.RequestedServices,
+		PrivacyNoticeVersion: req.PrivacyNoticeVersion,
+		ConsentAt:            func() *time.Time { t := time.Now().UTC(); return &t }(),
 	}
 	if req.PrivacyNotice {
 		lead.PrivacyNotice = &req.PrivacyNotice
