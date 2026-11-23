@@ -1,9 +1,18 @@
 # VALENTINA — active agent handoff
 
-**Updated:** 2026-11-23 (Codex bounded Gate 1 pass)
-**Status:** LOCAL CHECKS PASS; publication blocked by sandbox Git-metadata permissions; Gate 1 owner/runtime acceptance remains open.
+**Updated:** 2026-11-23 (signed intake runtime routing recovery)
+**Status:** Windows Go/runtime smoke PASS; new CI integration gate awaits a fresh workflow; owner/live source acceptance remains open.
 
-## Gate 1 security and manual research pass
+## 2026-11-23 local Windows runtime routing recovery
+- Base: `feature/valentina-gate1-security-ui-20261123` SHA `e3f90ed24df851a57812a0a7119bd81093dc51bd` (previous Codex Gate 1 work already committed and pushed); pinned Huginn `f01c1d84c08b1de972d8cc268da25602598adff8`. Draft PR #5 and canonical dirty workspace unchanged.
+- Initial independent live HTTP acceptance exposed a real integration flaw: `POST /api/v1/valentina/intake` returned 401 despite valid HMAC-v2 because tracked upstream route patch wrapped it in the host's bearer auth. In-process handler tests had missed that extra middleware.
+- Updated only tracked `patches/upstream-ui/004-valentina-route-registration.patch`: health stays public; only intake now uses its own HMAC-v2 signature, timestamp/replay/size and per-IP limits behind request-ID/logging and a 1 MiB outer bound; every other CRM read/mutation keeps the host bearer auth. All remain loopback-only. No global auth weakening, public webhook or external feed.
+- Added `scripts/test-runtime-intake.ps1` and a Windows workflow gate that runs the compiled EXE on a unique throwaway localhost profile **before** uploading an Actions artifact. Synthetic assertions: UI/health HTTP 200; signed first intake 201, same body/key 200 same ID, changed body/key 409, invalid/stale/future signatures 401, unauthed other CRM routes 401, post-restart replay 200 same ID, listener exactly 127.0.0.1; isolated subprocess terminated.
+- Verified on MIGUELHP: clean pinned Huginn archive + patches `git apply --check` succeeded; four `go test ./internal/valentina/...` packages PASS; `go test -run '^$' ./internal/server` PASS; embedded Windows `go build -tags embed_frontend` PASS (previously verified frontend dist reused); local runtime test script PASS exit 0. Temp compiled EXE SHA256 `4B2FF0071D1CB52AFEABBB39E718D0D3982E40D115B72A8E00C912E6A69B6243` (not a published artifact).
+- Prior Windows workflow #132 for SHA `e3f90ed` succeeded and published an EXE, but preceded this routing/CI-gate correction. A new CI run of the final commit is required before claiming the corrected Actions artifact.
+- Remaining: real owner's website relay/consent notice and local secret, manually approved compliant source and first live evidence, browser/installer verification; no unattended source collection or remote binding.
+
+## Earlier Gate 1 security and manual research pass (historical)
 - Repository/origin verified: `MiguelDuval/VALENTINA`; isolated worktree `VALENTINA-CODEX-GATE1-20261123`; branch `feature/valentina-gate1-security-ui-20261123`. Base branch: `feature/valentina-intake-security-20261123`; base and unchanged HEAD: `0fbdafd24b6b58b75d8000eee8a608133ab67cb9`. Upstream is clean at `f01c1d84c08b1de972d8cc268da25602598adff8`. No PR created, commit or push claimed; no changes to canonical source worktree, CI worktree or PR #5.
 - Implemented timestamp/version/body HMAC-v2 (300-second past/future tolerance, canonical timestamp and unique headers, no downgrade). Body-only v1 is disabled unless local startup environment `VALENTINA_INTAKE_ALLOW_LEGACY_V1=1`; migration contract is in SECURITY-AND-SECRETS section 10. Intake 4xx responses do not reflect submitted JSON/contact data. Existing v11/v12/v13 migrations remain unchanged.
 - Fixed concurrent SQLite key reservations: a single Store connection serializes writes. Tests prove one lead under concurrent signed deliveries, changed-body 409, retained key across reopen, 30-day expiry preserving original leads, and existing migration fixtures.

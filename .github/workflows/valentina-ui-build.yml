@@ -53,6 +53,10 @@ jobs:
           ./scripts/build-valentina.ps1 -Profile Full -OutputDirectory ./dist 2>&1 | Tee-Object -FilePath build-debug.log
           if (-not (Test-Path ./dist/package/VALENTINA.exe)) { throw "VALENTINA.exe was not produced." }
           if ((Get-Item ./dist/package/VALENTINA.exe).Length -le 0) { throw "VALENTINA.exe is empty." }
+      - name: Smoke test signed intake and loopback Windows runtime
+        shell: pwsh
+        run: |
+          ./scripts/test-runtime-intake.ps1 -ExecutablePath ./dist/package/VALENTINA.exe
       - name: Upload debug log on failure
         if: failure()
         uses: actions/upload-artifact@v4

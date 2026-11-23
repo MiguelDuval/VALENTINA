@@ -1,18 +1,21 @@
 diff --git a/internal/server/server.go b/internal/server/server.go
 --- a/internal/server/server.go
 +++ b/internal/server/server.go
-@@ -1182,10 +1182,22 @@
- 
- 	// Unauthenticated endpoints — safe because server binds to 127.0.0.1 only.
+@@ -1195,6 +1195,23 @@
  	mux.HandleFunc("GET /api/v1/token", loggingMiddleware(s.handleGetToken))
  	mux.HandleFunc("GET /api/v1/health", loggingMiddleware(requestIDMiddleware(s.handleHealth)))
  
-+	// VALENTINA CRM API. Keep its health endpoint unauthenticated like the
-+	// host health endpoint; all data mutations and reads use the normal auth wrapper.
++	// VALENTINA CRM API. Health is a public local probe. The HMAC-protected
++	// intake accepts signed submissions without the separate Huginn UI bearer
++	// token; all other CRM reads and mutations retain the host auth wrapper.
 +	if s.valentinaAPI != nil {
 +		for pattern, handler := range s.valentinaAPI.Routes() {
 +			if pattern == "GET /api/v1/valentina/health" {
 +				mux.HandleFunc(pattern, loggingMiddleware(requestIDMiddleware(handler)))
++				continue
++			}
++			if pattern == "POST /api/v1/valentina/intake" {
++				mux.HandleFunc(pattern, loggingMiddleware(requestIDMiddleware(withMaxBody(1<<20, handler))))
 +				continue
 +			}
 +			mux.HandleFunc(pattern, api(handler))
@@ -22,5 +25,3 @@ diff --git a/internal/server/server.go b/internal/server/server.go
  	// REST API (auth required)
  	mux.HandleFunc("POST /api/v1/restart", api(s.handleRestart))
  	mux.HandleFunc("GET /api/v1/sessions", api(s.handleListSessions))
- 	mux.HandleFunc("GET /api/v1/sessions/search", api(s.handleSearchSessions))
- 	mux.HandleFunc("POST /api/v1/sessions", api(s.rateLimitMiddleware(func() *endpointRateLimiter { return s.sessionCreateLimiter }, s.handleCreateSession)))
