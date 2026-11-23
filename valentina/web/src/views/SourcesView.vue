@@ -17,6 +17,8 @@
             <span class="valentina-cell-url">{{ s.base_url }}</span>
           </div>
           <div class="valentina-card-publisher">{{ s.publisher }}</div>
+          <p v-if="!s.manual_run_allowed" class="valentina-toolbar-count">{{ s.manual_run_reason || 'Запуск не разрешён сервером' }}</p>
+          <p v-else>RSS/Atom разрешён для ручного запуска: <a href="#/valentina/research">Исследования</a>. Кандидаты требуют ручной проверки.</p>
           <div class="valentina-source-policy">
             <span v-if="s.terms_reviewed_at">Условия проверены: {{ s.terms_reviewed_at }}</span>
             <span v-if="s.max_parallel_requests !== undefined">Параллельность: {{ s.max_parallel_requests }}</span>

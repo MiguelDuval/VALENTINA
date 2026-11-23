@@ -703,3 +703,61 @@ func TestStoreRoundTripAfterReopen(t *testing.T) {
 		t.Fatalf("source evidence round-trip: facts=%+v err=%v", facts, err)
 	}
 }
+
+func TestIntakeConcurrentReservationAndRetention(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewStore(ctx, filepath.Join(t.TempDir(), "intake.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	const key = "concurrent-synthetic-key"
+	digest := strings.Repeat("a", 64)
+	type result struct {
+		duplicate bool
+		id        string
+		err       error
+	}
+	results := make(chan result, 8)
+	start := make(chan struct{})
+	for i := 0; i < 8; i++ {
+		go func() {
+			<-start
+			duplicate, id, err := s.CreateInboundLeadIdempotent(ctx, &InboundLead{RequestSummary: "Synthetic repair", InboundChannel: "website"}, key, digest)
+			results <- result{duplicate, id, err}
+		}()
+	}
+	close(start)
+	created := 0
+	original := ""
+	for i := 0; i < 8; i++ {
+		r := <-results
+		if r.err != nil {
+			t.Errorf("concurrent intake: %v", r.err)
+			continue
+		}
+		if !r.duplicate {
+			created++
+		}
+		if original == "" {
+			original = r.id
+		}
+		if r.id != original {
+			t.Error("different lead IDs for one key")
+		}
+	}
+	if created != 1 {
+		t.Fatalf("created=%d want 1", created)
+	}
+	if _, err := s.db.ExecContext(ctx, "UPDATE idempotency_keys SET created_at=? WHERE idempotency_key=?", time.Now().UTC().Add(-31*24*time.Hour).Format(time.RFC3339), key); err != nil {
+		t.Fatal(err)
+	}
+	duplicate, id, err := s.CreateInboundLeadIdempotent(ctx, &InboundLead{RequestSummary: "Synthetic new delivery", InboundChannel: "website"}, key, strings.Repeat("b", 64))
+	if err != nil || duplicate || id == original {
+		t.Fatalf("expired reservation: duplicate=%v err=%v", duplicate, err)
+	}
+	leads, err := s.ListInboundLeads(ctx, "", 10, 0)
+	if err != nil || len(leads) != 2 {
+		t.Fatalf("retention must preserve original lead: count=%d err=%v", len(leads), err)
+	}
+}

@@ -6,15 +6,17 @@
     </div>
 
     <div class="valentina-toolbar">
-      <button type="button" class="valentina-btn" @click="startRun" :disabled="true">Запустить исследование</button>
+      <button type="button" class="valentina-btn" @click="startRun" :disabled="loading || running || !hasApprovedSources">{{ running ? 'Исследование выполняется…' : 'Запустить исследование' }}</button>
       <span v-if="!hasApprovedSources" class="valentina-toolbar-count" style="color: var(--valentina-red)">Нет утверждённых источников — настройте их на странице Источники</span>
-      <span v-else class="valentina-toolbar-count" style="color: var(--valentina-amber)">Источники готовы, но исполнитель поиска ещё не подключён. Запуск пока заблокирован.</span>
+      <span v-else class="valentina-toolbar-count">Ручной запуск утверждённых RSS/Atom. Результаты требуют ручной проверки.</span>
     </div>
+    <p v-for="s in sources.filter(s => !s.manual_run_allowed)" :key="s.source_id" class="valentina-toolbar-count">{{ s.name }}: {{ s.manual_run_reason || 'Запуск не разрешён сервером' }}</p>
+    <p class="valentina-toolbar-count">Наблюдение в ленте — не подтверждённый заказ. Оригинальный URL, время наблюдения и выдержки доступны в карточке кандидата: <a href="#/valentina/opportunities">Открыть кандидатов</a>.</p>
 
     <div v-if="error" class="valentina-error">{{ error }}</div>
     <div class="valentina-research-content">
       <div v-if="loading" class="valentina-loading">Загрузка...</div>
-      <div v-else-if="runs.length === 0" class="valentina-empty">Запусков пока нет. Поиск станет доступен после подключения и проверки исполнительного модуля.</div>
+      <div v-else-if="runs.length === 0" class="valentina-empty">Запусков пока нет. Выберите утверждённые источники на странице Источники.</div>
       <div v-else class="valentina-list">
         <div v-for="r in runs" :key="r.run_id" class="valentina-run-card">
           <div class="valentina-card-title">Исследование {{ r.run_id.slice(-8) }}</div>
@@ -33,7 +35,7 @@
             <button type="button" class="valentina-btn valentina-btn-danger" @click="cancelRun(r.run_id)">Отмена</button>
           </div>
           <div v-else-if="r.status === 'completed' || r.status === 'failed'" class="valentina-run-actions">
-            <button type="button" class="valentina-btn" @click="startRun">Новый запуск</button>
+            <button type="button" class="valentina-btn" @click="startRun" :disabled="loading || running || !hasApprovedSources">Новый запуск</button>
           </div>
           <div v-if="r.notes" class="valentina-card-notes">{{ r.notes }}</div>
         </div>
@@ -43,14 +45,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { apiFetch } from '../composables/useApi'
 
 const loading = ref(false)
 const error = ref(null)
 const runs = ref([])
 const sources = ref([])
-const hasApprovedSources = ref(false)
+const running = ref(false)
+const hasApprovedSources = computed(() => sources.value.some(s => s.manual_run_allowed === true))
 
 const load = async () => {
   loading.value = true
@@ -60,7 +63,6 @@ const load = async () => {
     runs.value = res.runs || []
   } catch (e) {
     error.value = 'Не удалось загрузить исследования'
-    console.error(e)
   } finally {
     loading.value = false
   }
@@ -70,9 +72,9 @@ const loadSources = async () => {
   try {
     const res = await apiFetch('/api/v1/valentina/sources')
     sources.value = res.sources || []
-    hasApprovedSources.value = sources.value.some(s => s.approval_status === 'approved')
   } catch (e) {
-    console.error(e)
+    sources.value = []
+    error.value = 'Не удалось загрузить разрешения источников'
   }
 }
 
@@ -82,12 +84,12 @@ onMounted(async () => {
 })
 
 const startRun = async () => {
-  if (!hasApprovedSources.value) return
-  loading.value = true
+  if (loading.value || running.value || !hasApprovedSources.value) return
+  running.value = true
   error.value = null
   try {
     const approvedSourceIds = sources.value
-      .filter(s => s.approval_status === 'approved')
+      .filter(s => s.manual_run_allowed === true)
       .map(s => s.source_id)
     const res = await apiFetch('/api/v1/valentina/research-runs', {
       method: 'POST',
@@ -101,9 +103,9 @@ const startRun = async () => {
     await load()
   } catch (e) {
     error.value = 'Не удалось запустить исследование'
-    console.error(e)
   } finally {
-    loading.value = false
+    running.value = false
+    await loadSources()
   }
 }
 

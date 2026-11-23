@@ -139,10 +139,21 @@ Huginn's own storage and the VALENTINA opportunity registry are local runtime da
 ## 10. VALENTINA inbound intake endpoint
 
 - The external intake handler is disabled unless `VALENTINA_INTAKE_HMAC_SECRET` is set to at least 32 bytes in the local process environment before the server starts. Never commit this value or place it in frontend code.
-- Send `X-Valentina-Signature` as the lowercase hexadecimal HMAC-SHA256 of the exact UTF-8 request body. The request must also include a unique `idempotency_key` (8–200 characters). SQLite stores the key and lead atomically; keys expire after 30 days.
+- HMAC-v2 is required by default. Send exactly one of each header: `X-Valentina-Signature-Version: v2`, `X-Valentina-Timestamp: <Unix seconds>`, and `X-Valentina-Signature: <lowercase hex HMAC-SHA256>`. The authenticated bytes are `v2\n<timestamp>\n<exact request body>` (two LF bytes, no added final newline). Serialize the UTF-8 JSON once and transmit those exact bytes. The body includes the `idempotency_key`, so the key is authenticated too.
+- Timestamp syntax is canonical positive decimal integer Unix seconds, without whitespace, sign, leading zeros, fractions, date strings or exponent notation. The timestamp must be within 300 seconds of server time in either direction. Duplicate, comma-joined, missing or unknown-version headers fail closed. Verification happens before JSON parsing and before idempotency lookup; stale retries return 401 even for an existing key. Keep sender/server clocks synchronized.
+- Use a unique `idempotency_key` (8–200 characters) for each logical submission. SQLite atomically stores the lead, key and SHA256 of the exact body. Within 30 days an identical-body retry with a fresh v2 signature returns the original lead ID (200); a changed body or an old pre-v13 key with no digest returns 409. Reopening the database preserves this binding. Concurrent deliveries through the single-process Store serialize on one SQLite connection. Keys expire after 30 days; expiry preserves the original lead but permits a newly signed delivery to create another lead. This is a bounded deduplication window, not indefinite replay protection.
 - The endpoint applies a per-remote-IP token bucket (10 requests/minute, burst 20) and a 1 MiB body limit. It does not trust forwarded-IP headers.
 - Keep the application bound to loopback. A public website must not call this local endpoint directly; a separately reviewed relay/backend is required before any internet exposure.
-- The handler validates consent and privacy-notice acknowledgement and persists the server-side consent timestamp. The exact privacy-policy version is not yet persisted. Treat the intake feature as not production-ready until that policy-version audit metadata is implemented.
+- The handler validates consent and privacy-notice acknowledgement, persists the server-side consent timestamp, and stores the optional `privacy_notice_version` (1–128 characters when supplied). Historic missing versions remain missing. The owned-channel privacy contract and required version remain production prerequisites. JSON/domain errors do not reflect submitted contact data or database details.
+
+### Migrating body-only v1 senders
+
+1. Update the local sender to the v2 byte contract above. Keep the same serialized body and key when retrying an uncertain delivery; refresh only the signed timestamp and signature. Do not place the HMAC secret in a browser, URL, process argument or log.
+2. Deploy sender and receiver together. If a temporary migration overlap is necessary, explicitly set local process environment `VALENTINA_INTAKE_ALLOW_LEGACY_V1=1` **before starting the application**. Only the exact value `1` opts in. Unset, empty or other values keep v1 disabled. No UI or request can enable this option.
+3. In that deprecated mode only, a missing version header or explicit `v1` accepts the old lowercase hex HMAC-SHA256 of the body alone, with no timestamp header. Malformed v2 never falls back to v1. Legacy requests have **no authenticated freshness guarantee**; the durable 30-day body/key binding still applies.
+4. After every sender uses v2, remove the environment option and restart. Old senders then receive sanitized HTTP 401. Do not rotate keys merely to bypass an uncertain prior delivery; investigate its stored result first. No migration changes/deletes SQLite v11/v12/v13 data and no public webhook is enabled.
+
+Offline acceptance is executable in `TestGate1OfflineSmoke`, `TestIntakeV2Contract`, `TestIntakeLegacyExplicitOptIn`, `TestConcurrentSignedIntake`, and `TestIntakeConcurrentReservationAndRetention`. These use synthetic data and a fixture feed transport, not live sources or NVIDIA NIM.
 
 
 ## 11. Public-source fetch policy

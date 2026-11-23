@@ -25,9 +25,10 @@ import (
 
 // Server wraps a domain.Store and provides HTTP handlers for VALENTINA API.
 type Server struct {
-	store       *domain.Store
-	log         *slog.Logger
-	fetchSource func(context.Context, *domain.Source) (*sourceadapter.FetchResult, error)
+	store             *domain.Store
+	log               *slog.Logger
+	fetchSource       func(context.Context, *domain.Source) (*sourceadapter.FetchResult, error)
+	allowLegacyIntake bool
 }
 
 // NewServer creates a new VALENTINA API server.
@@ -40,9 +41,10 @@ func NewServer(store *domain.Store) *Server {
 		}
 	}
 	return &Server{
-		store:       store,
-		log:         slog.Default(),
-		fetchSource: nil,
+		store:             store,
+		log:               slog.Default(),
+		fetchSource:       nil,
+		allowLegacyIntake: os.Getenv("VALENTINA_INTAKE_ALLOW_LEGACY_V1") == "1",
 	}
 }
 
@@ -344,7 +346,17 @@ func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to list sources")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"sources": sources, "count": len(sources)})
+	type sourceView struct {
+		*domain.Source
+		ManualRunAllowed bool   `json:"manual_run_allowed"`
+		ManualRunReason  string `json:"manual_run_reason"`
+	}
+	views := make([]sourceView, 0, len(sources))
+	for _, src := range sources {
+		reason := sourceRunReason(src)
+		views = append(views, sourceView{src, reason == "", reason})
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"sources": views, "count": len(views)})
 }
 
 // handleCreateSource creates a new source.
@@ -617,26 +629,37 @@ func (s *Server) verifyIntakeHMAC(r *http.Request, body []byte) bool {
 	if strings.TrimSpace(intakeSecret) == "" {
 		return false
 	}
-	signature := r.Header.Get("X-Valentina-Signature")
-	if signature == "" {
+	signatures := r.Header.Values("X-Valentina-Signature")
+	versions := r.Header.Values("X-Valentina-Signature-Version")
+	timestamps := r.Header.Values("X-Valentina-Timestamp")
+	if len(signatures) != 1 || len(signatures[0]) != 64 {
 		return false
 	}
 	mac := hmac.New(sha256.New, []byte(intakeSecret))
-	mac.Write(body)
-	expected := hex.EncodeToString(mac.Sum(nil))
-	return secureCompare(signature, expected)
-}
-
-// secureCompare performs a constant-time comparison of two strings.
-func secureCompare(a, b string) bool {
-	if len(a) != len(b) {
+	if len(versions) == 1 && versions[0] == "v2" {
+		if len(timestamps) != 1 {
+			return false
+		}
+		stamp := timestamps[0]
+		seconds, err := strconv.ParseInt(stamp, 10, 64)
+		// Canonical positive decimal Unix seconds only: no signs, spaces,
+		// fractions, duplicate/comma-joined headers or alternate encodings.
+		if err != nil || seconds <= 0 || strconv.FormatInt(seconds, 10) != stamp {
+			return false
+		}
+		now := time.Now().Unix()
+		if seconds < now-300 || seconds > now+300 {
+			return false
+		}
+		mac.Write([]byte("v2\n" + stamp + "\n"))
+	} else if !s.allowLegacyIntake || len(timestamps) != 0 ||
+		!(len(versions) == 0 || (len(versions) == 1 && versions[0] == "v1")) {
+		// Never downgrade a malformed v2 request, even during migration.
 		return false
 	}
-	var result byte
-	for i := 0; i < len(a); i++ {
-		result |= a[i] ^ b[i]
-	}
-	return result == 0
+	mac.Write(body)
+	expected := hex.EncodeToString(mac.Sum(nil))
+	return hmac.Equal([]byte(signatures[0]), []byte(expected))
 }
 
 // handleIntakeLead is the secure inbound lead intake endpoint.
@@ -676,7 +699,7 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 	}
 	var req intakeRequest
 	if err := withJSONFromBytes(body, &req); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, "invalid intake JSON")
 		return
 	}
 	if strings.TrimSpace(req.Website) != "" {
@@ -760,7 +783,12 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeDomainError(w, err)
+		// Do not reflect contact data, schema values or database errors.
+		if strings.Contains(err.Error(), "validation:") {
+			writeError(w, http.StatusBadRequest, "invalid intake fields")
+		} else {
+			writeError(w, http.StatusInternalServerError, "intake could not be persisted")
+		}
 		return
 	}
 	if duplicate {

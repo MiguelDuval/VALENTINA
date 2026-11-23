@@ -19,14 +19,35 @@ import (
 // types cannot be marked executable until structured extraction is validated.
 // This is one bounded, synchronous operator-triggered pass, not a scheduler.
 func sourceRunnable(src *domain.Source) bool {
-	if src == nil || !src.CanFetch() || src.TermsReviewedAt == nil ||
-		src.TermsReviewedAt.IsZero() || src.ApprovalReason == nil ||
-		strings.TrimSpace(*src.ApprovalReason) == "" || src.AuthenticationRequired ||
-		len(src.AllowedHosts) == 0 || len(src.AllowedPathPrefixes) == 0 {
-		return false
+	return sourceRunReason(src) == ""
+}
+
+// Shared by the list response and POST authorization; UI flags are never trusted.
+func sourceRunReason(src *domain.Source) string {
+	if src == nil || !src.CanFetch() {
+		return "Источник ожидает утверждения, заблокирован или приостановлен"
+	}
+	if src.TermsReviewedAt == nil || src.TermsReviewedAt.IsZero() {
+		return "Условия источника не проверены"
+	}
+	if src.ApprovalReason == nil || strings.TrimSpace(*src.ApprovalReason) == "" {
+		return "Не указано основание утверждения"
+	}
+	if src.AuthenticationRequired {
+		return "Источники с авторизацией пока не поддерживаются"
+	}
+	if len(src.AllowedHosts) == 0 || len(src.AllowedPathPrefixes) == 0 {
+		return "Не задана разрешённая область источника"
 	}
 	method := strings.ToLower(strings.TrimSpace(src.RetrievalMethod))
-	return method == "rss" || method == "atom"
+	if method != "rss" && method != "atom" {
+		return "Ручной запуск поддерживает только RSS/Atom"
+	}
+	u, err := url.Parse(src.BaseURL)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil {
+		return "Нужен HTTPS-адрес ленты без учётных данных"
+	}
+	return ""
 }
 
 // fetchApprovedFeed creates a narrow policy gateway bound to the approved

@@ -1,5 +1,25 @@
 # VALENTINA — active agent handoff
 
+**Updated:** 2026-11-23 (Codex bounded Gate 1 pass)
+**Status:** LOCAL CHECKS PASS; publication blocked by sandbox Git-metadata permissions; Gate 1 owner/runtime acceptance remains open.
+
+## Gate 1 security and manual research pass
+- Repository/origin verified: `MiguelDuval/VALENTINA`; isolated worktree `VALENTINA-CODEX-GATE1-20261123`; branch `feature/valentina-gate1-security-ui-20261123`. Base branch: `feature/valentina-intake-security-20261123`; base and unchanged HEAD: `0fbdafd24b6b58b75d8000eee8a608133ab67cb9`. Upstream is clean at `f01c1d84c08b1de972d8cc268da25602598adff8`. No PR created, commit or push claimed; no changes to canonical source worktree, CI worktree or PR #5.
+- Implemented timestamp/version/body HMAC-v2 (300-second past/future tolerance, canonical timestamp and unique headers, no downgrade). Body-only v1 is disabled unless local startup environment `VALENTINA_INTAKE_ALLOW_LEGACY_V1=1`; migration contract is in SECURITY-AND-SECRETS section 10. Intake 4xx responses do not reflect submitted JSON/contact data. Existing v11/v12/v13 migrations remain unchanged.
+- Fixed concurrent SQLite key reservations: a single Store connection serializes writes. Tests prove one lead under concurrent signed deliveries, changed-body 409, retained key across reopen, 30-day expiry preserving original leads, and existing migration fixtures.
+- Research/Sources now consume server-derived `manual_run_allowed` / `manual_run_reason`; manual POST rechecks the same source approval/terms/RSS-Atom contract. UI shows blocked reasons, busy/error states and persisted counts, links to evidence cards, and explicitly requires human review. No source was approved or fetched live.
+- Added `TestGate1OfflineSmoke`: real domain HTTP routes -> signed intake -> triage; fixture RSS adapter -> evidence-backed candidate -> human review; reopen SQLite -> persisted decisions/provenance -> signed duplicate and changed-payload rejection. This is handler/SQLite acceptance, not a launched desktop app or process-restart/UI-browser acceptance test.
+- Changed files: `valentina/api/{handlers.go,handlers_test.go,research_runner.go,research_runner_test.go}`, `valentina/domain/{storage.go,storage_test.go}`, `valentina/web/src/views/{ResearchView.vue,SourcesView.vue,__tests__/ResearchRun.test.ts}`, this handoff, WORK-QUEUE and SECURITY-AND-SECRETS. Original untracked task specification preserved.
+- Verification tree: ignored `build/gate1/source`, from `git archive` of the exact pin, all four tracked patches applied after `git apply --check --ignore-space-change`, plus current first-party sources. Go toolchain `go1.25.0`; `GOCACHE` under `build/gate1/gocache`.
+- PASS: `go test ./internal/valentina/... -count=1 -timeout=90s` (all four packages); `go vet ./internal/valentina/...`; `go test -run '^$' ./internal/server`; 25 targeted Vitest tests in CRMViews, OpportunityDetailView, SfcStructure, ResearchRun and navLayout; `vue-tsc -b`; `vite build --configLoader native`; `go build -tags embed_frontend -o ../VALENTINA.exe .`; full authored diff reviewed and `git diff --check` passed.
+- Local EXE: `build/gate1/VALENTINA.exe`, 67,184,640 bytes, SHA256 `ba774234a8f1bdc484fa1fb32314bf0fc8725c12d065996ed59345d829a76a60`. Build is from uncommitted working changes; binary is ignored, not published and not an installer or Actions artifact.
+- Environment limits: scoped `git add` failed creating `.git/worktrees/VALENTINA-CODEX-GATE1-20261123/index.lock` with Permission denied; no files staged and no commit/push attempted. Submodule re-init could not write shared `.git/worktrees/.../modules/.../config`, although existing pin/source were valid. Offline npm caches missed packages; network `npm ci` failed EACCES. Reused installed dependencies from a previous temporary build whose package-lock SHA256 matches the exact pin; no dependency/lockfile changes. Native config loading bypassed esbuild's denied ancestor-directory scan. Warnings: outdated Browserslist data, large Vite chunk. A fresh npm installation is not claimed.
+- Not run: broad upstream suites, race detector, real source/NIM requests, browser/desktop process smoke, install/upgrade/uninstall, GitHub CI. No NIM credential availability was established. Remaining Gate 1 blockers: owner-approved real source and original-page verification, owned intake channel/notice contract and local secret, Windows runtime acceptance and new-branch CI/artifact review. Unattended research/public webhooks remain disabled; source quota/concurrent-run hardening remains a separate prerequisite for automation.
+- Next action: review these local changes, then commit only scoped files and publish via `scripts/publish-branch.ps1` in a session allowed to update this worktree's Git metadata. Do not merge/release or substitute this local EXE for a successful Actions artifact.
+
+## Earlier handoff (historical)
+
+
 **Updated:** 2026-11-23 (isolated intake acceptance; prior history retained below)
 **Status:** PARTIAL — hot-intake idempotency/draft-PR migration convergence locally tested 2026-11-23; Windows CI/runtime and signed-request freshness acceptance pending
 

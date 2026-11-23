@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +15,99 @@ import (
 
 	"github.com/scrypster/huginn/internal/valentina/domain"
 )
+
+// Client-side implementation of the documented wire contract.
+func signV2(r *http.Request, body, secret, stamp string) {
+	r.Header.Set("X-Valentina-Signature-Version", "v2")
+	r.Header.Set("X-Valentina-Timestamp", stamp)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte("v2\n" + stamp + "\n" + body))
+	r.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+}
+
+func TestIntakeV2Contract(t *testing.T) {
+	const secret = "synthetic-secret-01234567890123456789"
+	WithIntakeSecret(secret)
+	defer WithIntakeSecret("")
+	t.Setenv("VALENTINA_INTAKE_ALLOW_LEGACY_V1", "")
+	s := testServer(t)
+	now := time.Now().Unix()
+	for _, tc := range []struct {
+		name, stamp string
+		want        bool
+	}{
+		{"current", fmt.Sprint(now), true},
+		{"stale", fmt.Sprint(now - 301), false},
+		{"future", fmt.Sprint(now + 301), false},
+		{"zero prefix", "0" + fmt.Sprint(now), false},
+		{"plus", "+" + fmt.Sprint(now), false},
+		{"fraction", fmt.Sprint(now) + ".0", false},
+		{"space", " " + fmt.Sprint(now), false},
+		{"overflow", "9999999999999999999999", false},
+		{"missing", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/", nil)
+			signV2(r, "{}", secret, tc.stamp)
+			if got := s.verifyIntakeHMAC(r, []byte("{}")); got != tc.want {
+				t.Fatalf("valid=%v want=%v", got, tc.want)
+			}
+		})
+	}
+	for _, header := range []string{"X-Valentina-Signature", "X-Valentina-Timestamp", "X-Valentina-Signature-Version"} {
+		t.Run(header, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/", nil)
+			signV2(r, "{}", secret, fmt.Sprint(now))
+			r.Header.Add(header, r.Header.Get(header))
+			if s.verifyIntakeHMAC(r, []byte("{}")) {
+				t.Fatal("duplicate header accepted")
+			}
+			r.Header.Del(header)
+			if s.verifyIntakeHMAC(r, []byte("{}")) {
+				t.Fatal("missing header accepted")
+			}
+		})
+	}
+	r := httptest.NewRequest("POST", "/", nil)
+	signV2(r, "{}", secret, fmt.Sprint(now))
+	if s.verifyIntakeHMAC(r, []byte("{ }")) {
+		t.Fatal("changed body accepted")
+	}
+	r.Header.Set("X-Valentina-Timestamp", fmt.Sprint(now-1))
+	if s.verifyIntakeHMAC(r, []byte("{}")) {
+		t.Fatal("changed timestamp accepted")
+	}
+	r.Header.Set("X-Valentina-Signature-Version", "v3")
+	if s.verifyIntakeHMAC(r, []byte("{}")) {
+		t.Fatal("unknown version accepted")
+	}
+}
+
+func TestIntakeLegacyExplicitOptIn(t *testing.T) {
+	const secret = "synthetic-secret-01234567890123456789"
+	WithIntakeSecret(secret)
+	defer WithIntakeSecret("")
+	r := httptest.NewRequest("POST", "/", nil)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte("{}"))
+	r.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	for _, enabled := range []string{"", "true", "1"} {
+		t.Setenv("VALENTINA_INTAKE_ALLOW_LEGACY_V1", enabled)
+		s := testServer(t)
+		if got := s.verifyIntakeHMAC(r, []byte("{}")); got != (enabled == "1") {
+			t.Fatalf("opt-in %q accepted=%v", enabled, got)
+		}
+		r.Header.Set("X-Valentina-Signature-Version", "v1")
+		if got := s.verifyIntakeHMAC(r, []byte("{}")); got != (enabled == "1") {
+			t.Fatal("explicit v1 did not respect opt-in")
+		}
+		r.Header.Set("X-Valentina-Signature-Version", "v2")
+		if s.verifyIntakeHMAC(r, []byte("{}")) {
+			t.Fatal("malformed v2 downgraded to legacy")
+		}
+		r.Header.Del("X-Valentina-Signature-Version")
+	}
+}
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
@@ -475,7 +569,7 @@ func TestHandleIntakeLeadSuccess(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 	mac.Write([]byte(body))
-	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	signV2(req, body, intakeSecret, fmt.Sprint(time.Now().Unix()))
 	w := httptest.NewRecorder()
 	s.handleIntakeLead(w, req)
 	if w.Code != http.StatusCreated {
@@ -500,7 +594,7 @@ func TestHandleIntakeLeadMissingConsent(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 	mac.Write([]byte(body))
-	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	signV2(req, body, intakeSecret, fmt.Sprint(time.Now().Unix()))
 	w := httptest.NewRecorder()
 	s.handleIntakeLead(w, req)
 	if w.Code != http.StatusBadRequest {
@@ -549,7 +643,7 @@ func TestHandleIntakeLeadHoneypot(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 	mac.Write([]byte(body))
-	req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+	signV2(req, body, intakeSecret, fmt.Sprint(time.Now().Unix()))
 	w := httptest.NewRecorder()
 	s.handleIntakeLead(w, req)
 	if w.Code != http.StatusBadRequest {
@@ -616,7 +710,7 @@ func TestHandleIntakeLeadIdempotencyPreventsDuplicateLead(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		mac := hmac.New(sha256.New, []byte("test-secret-0123456789abcdef0123456789"))
 		_, _ = mac.Write([]byte(body))
-		req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+		signV2(req, body, intakeSecret, fmt.Sprint(time.Now().Unix()))
 		w := httptest.NewRecorder()
 		s.handleIntakeLead(w, req)
 		return w
@@ -665,7 +759,7 @@ func TestHandleIntakeLeadRejectsDifferentPayloadForSameKey(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		mac := hmac.New(sha256.New, []byte(secret))
 		mac.Write([]byte(body))
-		req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+		signV2(req, body, intakeSecret, fmt.Sprint(time.Now().Unix()))
 		w := httptest.NewRecorder()
 		s.handleIntakeLead(w, req)
 		return w
@@ -738,5 +832,49 @@ func TestWithIntakeSecretRejectsShortSecrets(t *testing.T) {
 	}
 	if intakeSecret != "" {
 		t.Fatal("invalid secret must leave intake disabled")
+	}
+}
+
+func TestConcurrentSignedIntake(t *testing.T) {
+	const secret = "synthetic-secret-01234567890123456789"
+	WithIntakeSecret(secret)
+	defer WithIntakeSecret("")
+	s := testServer(t)
+	body := `{"request_summary":"Synthetic concurrent request","inbound_channel":"website","consent":true,"privacy_notice":true,"idempotency_key":"parallel-signed-key"}`
+	results := make(chan *httptest.ResponseRecorder, 8)
+	for i := 0; i < 8; i++ {
+		go func() {
+			r := httptest.NewRequest("POST", "/api/v1/valentina/intake", strings.NewReader(body))
+			r.RemoteAddr = "192.0.2.90:12345"
+			signV2(r, body, secret, fmt.Sprint(time.Now().Unix()))
+			w := httptest.NewRecorder()
+			s.handleIntakeLead(w, r)
+			results <- w
+		}()
+	}
+	created := 0
+	id := ""
+	for i := 0; i < 8; i++ {
+		w := <-results
+		if w.Code == 201 {
+			created++
+		} else if w.Code != 200 {
+			t.Errorf("parallel status=%d", w.Code)
+			continue
+		}
+		var response intakeResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Error(err)
+			continue
+		}
+		if id == "" {
+			id = response.LeadID
+		}
+		if id == "" || response.LeadID != id {
+			t.Error("parallel requests have different identities")
+		}
+	}
+	if created != 1 {
+		t.Fatalf("created=%d want 1", created)
 	}
 }

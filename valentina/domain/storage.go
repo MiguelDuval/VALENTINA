@@ -250,6 +250,11 @@ func NewStore(ctx context.Context, dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
+	// One local process owns this store. Serialize SQLite transactions so
+	// concurrent deliveries wait rather than failing a key reservation with
+	// SQLITE_BUSY; also keep :memory: stores on the same database connection.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
