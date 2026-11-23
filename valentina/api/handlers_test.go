@@ -652,6 +652,64 @@ func TestHandleIntakeLeadIdempotencyPreventsDuplicateLead(t *testing.T) {
 	}
 }
 
+func TestHandleIntakeLeadRejectsDifferentPayloadForSameKey(t *testing.T) {
+	const secret = "test-secret-0123456789abcdef0123456789"
+	if err := WithIntakeSecret(secret); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { WithIntakeSecret("") }()
+	s := testServer(t)
+	send := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/valentina/intake", strings.NewReader(body))
+		req.RemoteAddr = "198.51.100.41:1234" // Synthetic test-only address.
+		req.Header.Set("Content-Type", "application/json")
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write([]byte(body))
+		req.Header.Set("X-Valentina-Signature", hex.EncodeToString(mac.Sum(nil)))
+		w := httptest.NewRecorder()
+		s.handleIntakeLead(w, req)
+		return w
+	}
+	body := "{\"request_summary\":\"Need kitchen renovation\",\"inbound_channel\":\"website\",\"contact_email\":\"person@example.test\",\"consent\":true,\"privacy_notice\":true,\"privacy_notice_version\":\"2026-11\",\"idempotency_key\":\"stable-test-key-001\"}"
+	first := send(body)
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first intake: expected 201, got %d: %s", first.Code, first.Body.String())
+	}
+	var firstResponse intakeResponse
+	if err := json.Unmarshal(first.Body.Bytes(), &firstResponse); err != nil {
+		t.Fatal(err)
+	}
+	if firstResponse.LeadID == "" {
+		t.Fatal("first intake returned empty lead ID")
+	}
+	replay := send(body)
+	if replay.Code != http.StatusOK {
+		t.Fatalf("identical replay: expected 200, got %d: %s", replay.Code, replay.Body.String())
+	}
+	var replayResponse intakeResponse
+	if err := json.Unmarshal(replay.Body.Bytes(), &replayResponse); err != nil {
+		t.Fatal(err)
+	}
+	if !replayResponse.Duplicate || replayResponse.LeadID != firstResponse.LeadID {
+		t.Fatalf("replay did not preserve original lead ID: %+v", replayResponse)
+	}
+	changed := send(strings.Replace(body, "kitchen renovation", "roof repair", 1))
+	if changed.Code != http.StatusConflict {
+		t.Fatalf("changed payload: expected 409, got %d: %s", changed.Code, changed.Body.String())
+	}
+	if strings.Contains(changed.Body.String(), "person@example.test") || strings.Contains(changed.Body.String(), "roof repair") {
+		t.Fatal("conflict response leaked contact or request content")
+	}
+	leads, err := s.store.ListInboundLeads(context.Background(), "", 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(leads) != 1 || leads[0].LeadID != firstResponse.LeadID {
+		t.Fatalf("conflicting retry created or changed a lead: %+v", leads)
+	}
+}
+
+// TestIntakeRateLimiterEnforcesBurstLimit verifies the per-IP burst limit.
 func TestIntakeRateLimiterEnforcesBurstLimit(t *testing.T) {
 	limiter := &intakeRateLimiter{buckets: make(map[string]*rateBucket)}
 	for i := 0; i < 20; i++ {

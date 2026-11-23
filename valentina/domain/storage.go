@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,9 @@ type migration struct {
 	version int
 	stmt    string
 }
+
+// ErrIdempotencyConflict signals reuse of an intake key for different content.
+var ErrIdempotencyConflict = errors.New("idempotency key already used for a different request")
 
 // migrations are applied in order. Each migration is idempotent.
 var migrations = []migration{
@@ -206,6 +210,9 @@ var migrations = []migration{
                 ALTER TABLE inbound_leads ADD COLUMN consent_at TEXT;`},
 	{version: 11, stmt: `
 		ALTER TABLE inbound_leads ADD COLUMN privacy_notice_version TEXT;`},
+	// v12 is reserved by Draft PR #5; v13 tracks intake payload fingerprints.
+	{version: 13, stmt: `
+		ALTER TABLE idempotency_keys ADD COLUMN payload_sha256 TEXT;`},
 }
 
 // companiesTable is the CREATE TABLE statement for the companies table.
@@ -291,6 +298,12 @@ func (s *Store) migrate(ctx context.Context) error {
 		}
 		applied[v] = true
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate applied migrations: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close applied migrations: %w", err)
+	}
 
 	// Apply pending migrations
 	for _, m := range migrations {
@@ -300,6 +313,26 @@ func (s *Store) migrate(ctx context.Context) error {
 		if _, err := tx.Exec(m.stmt); err != nil {
 			return fmt.Errorf("apply migration %d: %w", m.version, err)
 		}
+		if m.version == 13 {
+			// Both historic v11 variants exist in owner test databases.
+			// Converge on the union of their columns without duplicate ALTERs.
+			for _, c := range []struct{ table, column string }{
+				{"research_runs", "updated_at"},
+				{"inbound_leads", "privacy_notice_version"},
+			} {
+				if err := ensureMigrationColumn(ctx, tx, c.table, c.column); err != nil {
+					return fmt.Errorf("reconcile migration %d: %w", m.version, err)
+				}
+			}
+			if _, err := tx.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_source_evidence_source_url ON source_evidence(source_id, canonical_url)`); err != nil {
+				return fmt.Errorf("reconcile evidence index: %w", err)
+			}
+			// Draft PR #5 v12 adds only the privacy column ensured above.
+			// Mark its schema effect adopted so later merging PR #5 cannot re-ALTER it.
+			if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, applied_at) VALUES (12, ?) ON CONFLICT(version) DO NOTHING`, time.Now().UTC().Format(time.RFC3339)); err != nil {
+				return fmt.Errorf("record adopted PR migration 12: %w", err)
+			}
+		}
 		if _, err := tx.Exec("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)", m.version, time.Now().UTC().Format(time.RFC3339)); err != nil {
 			return fmt.Errorf("record migration %d: %w", m.version, err)
 		}
@@ -307,6 +340,47 @@ func (s *Store) migrate(ctx context.Context) error {
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit migrations: %w", err)
+	}
+	return nil
+}
+
+// ensureMigrationColumn accepts only reviewed identifiers, never request input.
+// It handles the two incompatible v11 histories without deleting existing data.
+func ensureMigrationColumn(ctx context.Context, tx *sql.Tx, table, column string) error {
+	switch table + "." + column {
+	case "research_runs.updated_at", "inbound_leads.privacy_notice_version":
+	default:
+		return errors.New("unsupported migration column")
+	}
+	rows, err := tx.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return fmt.Errorf("inspect %s columns: %w", table, err)
+	}
+	found := false
+	for rows.Next() {
+		var ordinal, nonNull, pk int
+		var name, kind string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&ordinal, &name, &kind, &nonNull, &defaultValue, &pk); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan %s columns: %w", table, err)
+		}
+		if name == column {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate %s columns: %w", table, err)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, "ALTER TABLE "+table+" ADD COLUMN "+column+" TEXT"); err != nil {
+		return fmt.Errorf("add %s.%s: %w", table, column, err)
 	}
 	return nil
 }
@@ -1198,13 +1272,20 @@ func createInboundLead(ctx context.Context, execer inboundLeadExecer, l *Inbound
 	return err
 }
 
-// CreateInboundLeadIdempotent atomically records an idempotency key and its lead.
-// Replays return the original lead ID and never create a second lead.
-func (s *Store) CreateInboundLeadIdempotent(ctx context.Context, l *InboundLead, key string) (bool, string, error) {
+// CreateInboundLeadIdempotent binds each key to the exact authenticated request bytes.
+// Existing keys without fingerprints fail closed and require a fresh key.
+func (s *Store) CreateInboundLeadIdempotent(ctx context.Context, l *InboundLead, key, payloadSHA256 string) (bool, string, error) {
 	key = strings.TrimSpace(key)
 	if len(key) < 8 || len(key) > 200 {
 		return false, "", errors.New("idempotency key must be between 8 and 200 characters")
 	}
+	if len(payloadSHA256) != 64 {
+		return false, "", errors.New("invalid intake payload digest")
+	}
+	if _, err := hex.DecodeString(payloadSHA256); err != nil {
+		return false, "", errors.New("invalid intake payload digest")
+	}
+	payloadSHA256 = strings.ToLower(payloadSHA256)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, "", fmt.Errorf("begin intake transaction: %w", err)
@@ -1216,7 +1297,7 @@ func (s *Store) CreateInboundLeadIdempotent(ctx context.Context, l *InboundLead,
 		return false, "", fmt.Errorf("expire idempotency keys: %w", err)
 	}
 	createdAt := time.Now().UTC().Format(time.RFC3339)
-	result, err := tx.ExecContext(ctx, `INSERT INTO idempotency_keys (idempotency_key, lead_id, created_at) VALUES (?, '', ?) ON CONFLICT(idempotency_key) DO NOTHING`, key, createdAt)
+	result, err := tx.ExecContext(ctx, `INSERT INTO idempotency_keys (idempotency_key, lead_id, created_at, payload_sha256) VALUES (?, '', ?, ?) ON CONFLICT(idempotency_key) DO NOTHING`, key, createdAt, payloadSHA256)
 	if err != nil {
 		return false, "", fmt.Errorf("reserve idempotency key: %w", err)
 	}
@@ -1226,8 +1307,12 @@ func (s *Store) CreateInboundLeadIdempotent(ctx context.Context, l *InboundLead,
 	}
 	if inserted == 0 {
 		var existingLeadID string
-		if err := tx.QueryRowContext(ctx, `SELECT lead_id FROM idempotency_keys WHERE idempotency_key = ?`, key).Scan(&existingLeadID); err != nil {
+		var storedDigest sql.NullString
+		if err := tx.QueryRowContext(ctx, `SELECT lead_id, payload_sha256 FROM idempotency_keys WHERE idempotency_key = ?`, key).Scan(&existingLeadID, &storedDigest); err != nil {
 			return false, "", fmt.Errorf("load idempotent lead: %w", err)
+		}
+		if existingLeadID == "" || !storedDigest.Valid || storedDigest.String != payloadSHA256 {
+			return false, "", ErrIdempotencyConflict
 		}
 		return true, existingLeadID, nil
 	}

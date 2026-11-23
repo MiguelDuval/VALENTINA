@@ -2,8 +2,11 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -456,6 +459,126 @@ func TestCreateReviewDecisionRequiresReason(t *testing.T) {
 	history, err := s.ListReviewDecisionsForEntity(context.Background(), "opportunity", opportunity.OpportunityID)
 	if err != nil || len(history) != 0 {
 		t.Fatalf("blank reason must not create a decision: history=%v err=%v", history, err)
+	}
+}
+
+func TestIdempotentIntakeFingerprintSurvivesReopen(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "idempotent.db")
+	s, err := NewStore(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := &InboundLead{RequestSummary: "Synthetic kitchen repair", InboundChannel: "website"}
+	hashA, hashB := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	duplicate, id, err := s.CreateInboundLeadIdempotent(ctx, lead, "sample-key-for-reopen", hashA)
+	if err != nil || duplicate || id == "" {
+		t.Fatalf("initial intake failed: duplicate=%v id=%q err=%v", duplicate, id, err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = NewStore(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	duplicate, replayID, err := s.CreateInboundLeadIdempotent(ctx, &InboundLead{
+		RequestSummary: "Synthetic kitchen repair", InboundChannel: "website",
+	}, "sample-key-for-reopen", hashA)
+	if err != nil || !duplicate || replayID != id {
+		t.Fatalf("idempotent retry after reopen: dup=%v id=%q err=%v", duplicate, replayID, err)
+	}
+	_, _, err = s.CreateInboundLeadIdempotent(ctx, &InboundLead{
+		RequestSummary: "Different synthetic request", InboundChannel: "website",
+	}, "sample-key-for-reopen", hashB)
+	if !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("changed content must be rejected, got %v", err)
+	}
+	// Pre-migration keys have no payload fingerprint and cannot be safely matched.
+	_, err = s.db.ExecContext(ctx, "INSERT INTO idempotency_keys (idempotency_key, lead_id, created_at) VALUES (?, ?, ?)",
+		"legacy-no-hash-001", id, time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = s.CreateInboundLeadIdempotent(ctx, &InboundLead{
+		RequestSummary: "Legacy retry", InboundChannel: "website",
+	}, "legacy-no-hash-001", hashA)
+	if !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("legacy key without a digest must fail closed, got %v", err)
+	}
+	leads, err := s.ListInboundLeads(ctx, "", 10, 0)
+	if err != nil || len(leads) != 1 || leads[0].LeadID != id {
+		t.Fatalf("retries must not create another lead: leads=%v err=%v", len(leads), err)
+	}
+}
+
+func TestMigrationV13ReconcilesDraftPR5V11History(t *testing.T) {
+	for _, v12Applied := range []bool{false, true} {
+		t.Run(map[bool]string{false: "only-pr-v11", true: "pr-v11-and-v12"}[v12Applied], func(t *testing.T) {
+			ctx := context.Background()
+			path := filepath.Join(t.TempDir(), "pr5-schema.db")
+			db, err := sql.Open("sqlite", path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.ExecContext(ctx, "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"); err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range migrations {
+				if m.version >= 11 {
+					break
+				}
+				if _, err = db.ExecContext(ctx, m.stmt); err != nil {
+					t.Fatalf("fixture migration %d: %v", m.version, err)
+				}
+				if _, err = db.ExecContext(ctx, "INSERT INTO schema_migrations VALUES (?, ?)", m.version, time.Now().UTC().Format(time.RFC3339)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// PR #5 used v11 for research_runs.updated_at, whereas this branch
+			// used v11 for inbound_leads.privacy_notice_version.
+			if _, err = db.ExecContext(ctx, "ALTER TABLE research_runs ADD COLUMN updated_at TEXT"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.ExecContext(ctx, "INSERT INTO schema_migrations VALUES (11, ?)", time.Now().UTC().Format(time.RFC3339)); err != nil {
+				t.Fatal(err)
+			}
+			if v12Applied {
+				if _, err = db.ExecContext(ctx, "ALTER TABLE inbound_leads ADD COLUMN privacy_notice_version TEXT"); err != nil {
+					t.Fatal(err)
+				}
+				if _, err = db.ExecContext(ctx, "INSERT INTO schema_migrations VALUES (12, ?)", time.Now().UTC().Format(time.RFC3339)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := db.Close(); err != nil {
+				t.Fatal(err)
+			}
+			s, err := NewStore(ctx, path)
+			if err != nil {
+				t.Fatalf("reconcile existing PR #5 database: %v", err)
+			}
+			defer s.Close()
+			for _, query := range []string{
+				"SELECT updated_at FROM research_runs LIMIT 0",
+				"SELECT privacy_notice_version FROM inbound_leads LIMIT 0",
+				"SELECT payload_sha256 FROM idempotency_keys LIMIT 0",
+			} {
+				rows, err := s.db.QueryContext(ctx, query)
+				if err != nil {
+					t.Fatalf("schema missing after v13: %s: %v", query, err)
+				}
+				rows.Close()
+			}
+			var adopted int
+			if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations WHERE version IN (12, 13)").Scan(&adopted); err != nil || adopted != 2 {
+				t.Fatalf("both reconciliation versions must be recorded: count=%d err=%v", adopted, err)
+			}
+			if err := s.migrate(ctx); err != nil {
+				t.Fatalf("repeat migration failed: %v", err)
+			}
+		})
 	}
 }
 

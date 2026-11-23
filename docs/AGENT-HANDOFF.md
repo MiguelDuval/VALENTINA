@@ -1,7 +1,18 @@
 # VALENTINA — active agent handoff
 
-**Updated:** 2026-11-21 (Cline recovery checkpoint)
-**Status:** PARTIAL — local manual RSS implementation/tests restored; full desktop build, real source onboarding and intake security audit pending
+**Updated:** 2026-11-23 (isolated intake acceptance; prior history retained below)
+**Status:** PARTIAL — hot-intake idempotency/draft-PR migration convergence locally tested 2026-11-23; Windows CI/runtime and signed-request freshness acceptance pending
+
+## 2026-11-23 isolated hot-intake security pass
+- Working branch: `feature/valentina-intake-security-20261123`, based on `43c98e2751272f8411780a09cb8c8f58a71e2247`; isolated Git worktree `VALENTINA-CLINE-INTAKE-20261123`, origin `MiguelDuval/VALENTINA`; pinned Huginn `f01c1d84c08b1de972d8cc268da25602598adff8`. Canonical dirty workspace and PR #5 were not modified.
+- Fresh VS Code Cline task `1795445681314_3znio` stopped after six tool/read_files errors; it did not author code. The technical-lead implementation used direct isolated file edits rather than retrying the old or failed Cline task.
+- Intake now binds the 30-day idempotency key to SHA256 of the exact authenticated body in SQLite migration v13: identical retry returns original ID; changed body with the same key returns HTTP 409 without a second lead or contact information; pre-v13 keys with NULL fingerprint fail closed and require a new key.
+- Migration v13 adds `idempotency_keys.payload_sha256`; reconciles both historic v11 states by ensuring `research_runs.updated_at` and `inbound_leads.privacy_notice_version` plus source URL index. Records PR #5 v12 as adopted after ensuring its privacy column to prevent a subsequent duplicate ALTER. PR #5 remains Draft and must not be merged without code/diff review.
+- Offline evidence: all four `go test ./internal/valentina/...` packages PASS on a disposable clean exact pinned Huginn archive; added synthetic signed 201/200/409 API tests, SQLite reopen/legacy-key tests, PR-v11/v12 migration fixtures; `go test -run '^$' ./internal/server` PASS; `go vet ./internal/valentina/...` PASS; non-embedded `go build .` PASS; `git diff --check` PASS. Full Windows frontend CI for this new branch not yet evidenced; earlier successful #44936601301 belongs to base `43c98e2`, not these changes.
+- Remaining: signed timestamp/freshness anti-replay (legacy HMAC signs body only), live owned website secret and notice metadata, real source approval and UI runtime smoke; never enable public intake, unattended fetch, or outbound messages without review.
+- Files: `valentina/api/handlers.go`, `handlers_test.go`, `valentina/domain/storage.go`, `storage_test.go`, `docs/AGENT-HANDOFF.md`, `docs/WORK-QUEUE.md`, task specification. Follow-up: verify new CI and downloadable EXE, then design versioned timestamp HMAC compatibility and manual RSS/UI smoke. No releases or PR merge.
+
+
 
 ## 2026-11-21 checkpoint for the next agent
 - VS Code Cline session `1795043585019_o8c7l` ended in NVIDIA NIM `Too Many Requests` after a very long task. Do **not** Retry the old session. Start a fresh bounded task with a new context instead.
@@ -9,7 +20,7 @@
 - Recovery: wired operator-triggered RSS/Atom `handleCreateResearchRun` to a source-scoped policy fetch; added source-specific evidence duplicate lookup; repaired research status/completion-time persistence; added nullable `privacy_notice_version` with additive SQLite v11 migration; fixed Go compilation.
 - Verified: `go test ./internal/valentina/...` passed on the local Huginn internal test mirror on 2026-11-21, including synthetic RSS and intake tests. This is **not** proof of production feed connectivity or a full Windows build.
 - Safety: no source has been approved for real fetching by this checkpoint; intake remains HMAC-gated and must not be exposed externally. Verify mismatched idempotency keys, validation of policy version, frontend contract, real app build and security acceptance before declaring the intake feature ready.
-- PR #5 merge guard: draft branch `feature/valentina-manual-rss-runner-20261120` also declares SQLite migration `v11` but adds both `research_runs.updated_at` and `inbound_leads.privacy_notice_version`. Current branch `v11` adds privacy_notice_version only. Before merging, reconcile migration history against both already-migrated databases and clean installs; never blindly apply duplicate ALTER TABLE statements.
+- PR #5 merge guard (clarified 2026-11-23): draft branch `feature/valentina-manual-rss-runner-20261120` uses `v11` for `research_runs.updated_at` and `v12` for `inbound_leads.privacy_notice_version`; the CI-portability branch uses `v11` for the privacy column. The additive reconciliation in this feature branch is tested against both histories. PR #5 still requires explicit conflict/diff review; never blindly apply duplicate ALTER TABLE statements.
 - Keep the next assignment narrow: one end-to-end acceptance goal; perform tests; report exact files, checks, SHA, and blockers. Codex is the preferred primary executor; Cline may be used only in a fresh short task.
 
 **Historical status (2026-11-18):** READY_FOR_REVIEW — research + inbound-intake milestone implemented and pushed

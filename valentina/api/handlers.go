@@ -751,7 +751,14 @@ func (s *Server) handleIntakeLead(w http.ResponseWriter, r *http.Request) {
 			Purpose: req.ContactPurpose,
 		}
 	}
-	duplicate, leadID, err := s.store.CreateInboundLeadIdempotent(r.Context(), lead, req.IdempotencyKey)
+	// The original HMAC-authenticated bytes are the idempotency identity.
+	// This persists only a digest, not a second copy of the contact payload.
+	digest := sha256.Sum256(body)
+	duplicate, leadID, err := s.store.CreateInboundLeadIdempotent(r.Context(), lead, req.IdempotencyKey, hex.EncodeToString(digest[:]))
+	if errors.Is(err, domain.ErrIdempotencyConflict) {
+		writeError(w, http.StatusConflict, "idempotency key was already used for a different payload")
+		return
+	}
 	if err != nil {
 		writeDomainError(w, err)
 		return
