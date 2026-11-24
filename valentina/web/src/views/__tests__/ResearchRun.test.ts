@@ -69,3 +69,65 @@ describe('Manual research contract', () => {
     wrapper.unmount()
   })
 })
+
+
+describe('Research admission and recovery feedback', () => {
+  it.each([
+    ['research source busy', 'Источник уже используется'],
+    ['research quota unavailable', 'Достигнут дневной лимит'],
+  ])('shows safe admission error %s and reloads stored history', async (message, text) => {
+    api.mockImplementation(async (path, options) => {
+      if (options?.method === 'POST') throw new Error(message)
+      if (path === '/api/v1/valentina/sources') return { sources }
+      return { runs: [{ run_id: 'recovered-run', status: 'failed', completed_at: '2026-11-24T10:00:00Z', candidate_count: 3, verified_count: 0, duplicate_count: 1, notes: 'Interrupted by application shutdown; manual retry required' }] }
+    })
+    const wrapper = mount(ResearchView)
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain(text)
+    expect(wrapper.text()).toContain('Ошибка / прервано')
+    expect(wrapper.text()).toContain('3 кандидатов')
+    expect(wrapper.text()).toContain('Завершено:')
+    expect(wrapper.text()).toContain('Interrupted by application shutdown')
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+  it('does not display arbitrary server error payloads', async () => {
+    api.mockImplementation(async (path, options) => {
+      if (options?.method === 'POST') throw new Error('private-source-diagnostics')
+      if (path === '/api/v1/valentina/sources') return { sources }
+      return { runs: [] }
+    })
+    const wrapper = mount(ResearchView)
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('private-source-diagnostics')
+    expect(wrapper.text()).toContain('Не удалось запустить исследование')
+    wrapper.unmount()
+  })
+  it('acknowledges cancellation without claiming execution has stopped', async () => {
+    api.mockImplementation(async (path, options) => {
+      if (options?.method === 'POST') return { status: 'cancellation_requested' }
+      if (path === '/api/v1/valentina/sources') return { sources }
+      return { runs: [{ run_id: 'active-run', status: 'running', candidate_count: 0 }] }
+    })
+    const wrapper = mount(ResearchView)
+    await flushPromises()
+    await wrapper.get('.valentina-btn-danger').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Отмена запрошена')
+    expect(wrapper.text()).toContain('Выполняется')
+    wrapper.unmount()
+  })
+  it('preserves approval reasons and shows nested rate limits', async () => {
+    api.mockResolvedValue({ sources: [{ ...sources[0], approval_reason: 'Synthetic reviewed permission', rate_limits: { minimum_interval_seconds: 60, daily_request_limit: 2, timeout_seconds: 10 } }] })
+    const wrapper = mount(SourcesView)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Synthetic reviewed permission')
+    expect(wrapper.text()).toContain('Минимальный интервал: 60с')
+    expect(wrapper.text()).toContain('Лимит попыток в день (UTC): 2')
+    wrapper.unmount()
+  })
+})

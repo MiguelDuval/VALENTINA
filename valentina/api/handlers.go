@@ -28,6 +28,9 @@ type Server struct {
 	store             *domain.Store
 	log               *slog.Logger
 	fetchSource       func(context.Context, *domain.Source) (*sourceadapter.FetchResult, error)
+	researchMu        sync.Mutex
+	activeResearch    map[string]context.CancelFunc
+	researchNow       func() time.Time
 	allowLegacyIntake bool
 }
 
@@ -42,6 +45,8 @@ func NewServer(store *domain.Store) *Server {
 	}
 	return &Server{
 		store:             store,
+		activeResearch:    make(map[string]context.CancelFunc),
+		researchNow:       time.Now,
 		log:               slog.Default(),
 		fetchSource:       nil,
 		allowLegacyIntake: os.Getenv("VALENTINA_INTAKE_ALLOW_LEGACY_V1") == "1",
@@ -393,6 +398,15 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	seen := make(map[string]bool, len(body.SourceIDs))
+	for _, id := range body.SourceIDs {
+		if strings.TrimSpace(id) == "" || seen[id] {
+			writeError(w, http.StatusBadRequest, "source IDs must be nonempty and unique")
+			return
+		}
+		seen[id] = true
+	}
+
 	allSources, err := s.store.ListSources(r.Context())
 	if err != nil {
 		writeDomainError(w, err)
@@ -493,34 +507,58 @@ func (s *Server) handleCreateResearchRun(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	if err := s.checkResearchBudget(r.Context(), selected); err != nil {
-		writeError(w, http.StatusBadRequest, "source request budget exceeded or unavailable")
-		return
-	}
 	ids := make([]string, 0, len(selected))
 	for _, src := range selected {
 		ids = append(ids, src.SourceID)
 	}
-	run := &domain.ResearchRun{Status: "running", SourceIDs: ids}
-	if err := s.store.CreateResearchRun(r.Context(), run); err != nil {
-		writeDomainError(w, err)
+	runCtx, stop := context.WithCancel(r.Context())
+	defer stop()
+	// SQLite owns admission; this mutex owns cancellation registration and finalization.
+	s.researchMu.Lock()
+	run, err := s.store.AdmitResearchRun(runCtx, ids, s.researchNow())
+	if err == nil {
+		s.activeResearch[run.RunID] = stop
+	}
+	s.researchMu.Unlock()
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrResearchBusy):
+			writeError(w, http.StatusConflict, "research source busy")
+		case errors.Is(err, domain.ErrResearchQuota):
+			writeError(w, http.StatusTooManyRequests, "research quota unavailable")
+		case errors.Is(err, domain.ErrResearchPolicy):
+			writeError(w, http.StatusBadRequest, "research policy invalid")
+		default:
+			writeError(w, http.StatusServiceUnavailable, "research admission unavailable")
+		}
 		return
 	}
-	note, runErr := s.executeManualResearch(r.Context(), run, selected)
+	note, runErr := s.executeManualResearch(runCtx, run, selected)
+	s.researchMu.Lock()
+	defer s.researchMu.Unlock()
+	defer delete(s.activeResearch, run.RunID)
 	status := "completed"
 	if runErr != nil {
 		status = "failed"
 	}
-	if err := s.store.UpdateResearchRun(context.WithoutCancel(r.Context()), run.RunID, status,
+	if runCtx.Err() != nil {
+		status = "failed"
+		note += "; research interrupted or cancelled; manual retry required"
+	}
+	// Disconnects must not prevent terminal persistence. Bounded, no retries.
+	persistCtx, cancelPersist := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+	defer cancelPersist()
+	if err := s.store.UpdateResearchRun(persistCtx, run.RunID, status,
 		run.CandidateCount, run.VerifiedCount, run.DuplicateCount, run.AcceptedCount,
 		run.RejectedCount, note); err != nil {
-		writeDomainError(w, err)
+		writeError(w, http.StatusServiceUnavailable, "research finalization unavailable")
 		return
 	}
-	run.Status = status
-	now := time.Now().UTC()
-	run.CompletedAt = &now
-	run.Notes = &note
+	run, err = s.store.GetResearchRun(persistCtx, run.RunID)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "research result unavailable")
+		return
+	}
 	writeJSON(w, http.StatusCreated, map[string]interface{}{"run": run})
 }
 

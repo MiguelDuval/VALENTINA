@@ -1,0 +1,18 @@
+# Research admission & recovery — Codex implementation, 2026-11-24
+
+WORKTREE C:\Users\migue\Projects\VALENTINA-CODEX-RESEARCH-20261124
+BRANCH feature/valentina-research-admission-recovery-20261124
+BASE 6b09fb01d1daeea47c7db90a084b120c378651a2
+PIN f01c1d84c08b1de972d8cc268da25602598adff8
+
+Implement one LARGE coherent owner-approved MANUAL RSS/Atom research hardening pass, not a plan. Mandatory preflight: root, origin, branch, SHA, status and pinned submodule, verify no concurrent editor agents. Read AGENTS.md, docs/SECURITY-AND-SECRETS.md, docs/AGENT-HANDOFF.md (top), WORK-QUEUE, SOURCE-REGISTRY, QUALITY-AND-OPERATIONS, DATA-AND-EVIDENCE, PRODUCT-AND-WORKFLOWS and relevant MVP ROADMAP, ARCHITECTURE. ADR-007 may not exist in this branch; do not invent. Use native Windows PowerShell commands, not Unix syntax. Avoid repeated massive reads.
+
+1. Atomic source admission. Current research_runner.checkResearchBudget reads run history before handlers.CreateResearchRun writes, a concurrency TOCTOU race. Replace with ONE SQLite transaction that checks all selected source IDs, per-source daily cap/UTC-day, minimum interval, any overlapping running research and inserts the running run atomically (all-or-nothing). Reject duplicate request source IDs instead of fetching twice. At most one active manual fetch per source (conservative vs per-source parallel setting), no accidental unbounded retry, budget counts attempted runs even if failed, limits survive SQLite reopen. Preserve existing migrations/data. Fail closed for invalid limits. Map quota/busy to safe 409 or 429, not leaked source metadata.
+
+2. Durable crash/cancel recovery. On server startup once, mark abandoned running runs failed/interrupted with completed_at, safe note; never mutate truly active in-process runs. Preserve their quota consumption and all evidence. On client request cancellation ensure a terminal run record is persisted using safe bounded detached context; cancellation endpoint must not claim to cancel terminal runs. Do not schedule unattended jobs.
+
+3. Research and Sources UI: present safe busy/quota errors and stored run status/counts, preserve evidence-only unverified candidates and source approval reasons, with Vue tests where relevant. No changes to providers or unrelated features.
+
+4. Add deterministic synthetic tests: concurrently POST same source: only one accepted and fetched; two-source atomic all-or-nothing, limit across restart, minimum interval, UTC midnight using injectable clock if practical, duplicate IDs, startup abandoned run recovery, request cancellation persisted terminal. All offline; no network/live RSS/NIM. No source auto approval; policy remains fail closed.
+
+5. Tests and deliverable: verified pinned upstream archive plus four patches + first party Go/Vue sources in ignored disposable source tree; Go test all valentina packages, go vet, server compile. Vue targeted Vitest, typecheck/Vite build from trusted preexisting node_modules if available, not modifying lockfile. Diff --check, secrets scan. docs/AGENT-HANDOFF.md + WORK-QUEUE updated with exact evidence and remaining acceptance. Maintain local-only binding, no public webhook, no official release, no changes to main, previous worktrees, PR #5, or dirty canonical C:\Users\migue\Projects\VALENTINA. No reset/rebase/stash/force-push. Scoped commit/push only if checks green and metadata write permitted; otherwise leave changes for supervisor (sandbox shared .git index.lock may deny write). Deliver code, tests and handoff now.

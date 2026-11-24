@@ -264,6 +264,10 @@ func NewStore(ctx context.Context, dbPath string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+	if err := s.recoverResearchRuns(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("recover research: %w", err)
+	}
 	return s, nil
 }
 

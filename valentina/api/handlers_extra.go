@@ -16,11 +16,16 @@ func (s *Server) handleCancelResearchRun(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "research run id is required")
 		return
 	}
-	if err := s.store.UpdateResearchRun(r.Context(), id, "cancelled", 0, 0, 0, 0, 0, "cancelled by operator"); err != nil {
-		writeDomainError(w, err)
+	s.researchMu.Lock()
+	defer s.researchMu.Unlock()
+	stop, active := s.activeResearch[id]
+	if !active {
+		writeError(w, http.StatusConflict, "research run is not active")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled", "run_id": id})
+	stop()
+	// Acknowledge only the request; reservation remains until execution stops.
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "cancellation_requested", "run_id": id})
 }
 
 // sourceUpdateRequest is the payload for source approve/pause operations.

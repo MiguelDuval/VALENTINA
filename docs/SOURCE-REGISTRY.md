@@ -105,3 +105,9 @@ When a source changes structure, terms, access rules or rate limits:
 - Record the change and reason.
 
 Adding a source does not justify a new crawler framework or one service per website.
+
+## 10. Manual RSS/Atom admission and recovery (2026-11-24)
+
+The manual API reserves all selected sources atomically in SQLite before fetching. One active run per source is enforced conservatively, even if the source profile allows more parallel requests. Daily caps count admitted attempts in UTC (including failed/interrupted runs); the minimum interval is measured from the most recent persisted start. A rejected multi-source request consumes no quota and performs no fetch. Duplicate IDs are rejected. Invalid negative/zero required limits fail closed; the existing optional daily cap and zero minimum interval remain supported.
+
+Cancellation is a request to stop, not an immediate release of source admission. Terminal persistence occurs after execution stops. On startup, before serving requests, the single owning Store recovers abandoned running records as failed/interrupted without deleting evidence or quota history. Manual retry is always explicit. See SECURITY-AND-SECRETS section 11 for failure behavior; no scheduler or source auto-approval is enabled.

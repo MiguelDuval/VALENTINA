@@ -19,11 +19,13 @@
           <div class="valentina-card-publisher">{{ s.publisher }}</div>
           <p v-if="!s.manual_run_allowed" class="valentina-toolbar-count">{{ s.manual_run_reason || 'Запуск не разрешён сервером' }}</p>
           <p v-else>RSS/Atom разрешён для ручного запуска: <a href="#/valentina/research">Исследования</a>. Кандидаты требуют ручной проверки.</p>
+          <p v-if="s.approval_reason">Основание решения: {{ s.approval_reason }}</p>
           <div class="valentina-source-policy">
             <span v-if="s.terms_reviewed_at">Условия проверены: {{ s.terms_reviewed_at }}</span>
-            <span v-if="s.max_parallel_requests !== undefined">Параллельность: {{ s.max_parallel_requests }}</span>
-            <span v-if="s.daily_request_limit !== undefined">Лимит в день: {{ s.daily_request_limit }}</span>
-            <span v-if="s.timeout_seconds !== undefined">Таймаут: {{ s.timeout_seconds }}с</span>
+            <span>Не более одного активного ручного запуска на источник</span>
+            <span v-if="s.rate_limits">Минимальный интервал: {{ s.rate_limits.minimum_interval_seconds }}с</span>
+            <span v-if="s.rate_limits?.daily_request_limit != null">Лимит попыток в день (UTC): {{ s.rate_limits.daily_request_limit }}</span>
+            <span v-if="s.rate_limits">Таймаут: {{ s.rate_limits.timeout_seconds }}с</span>
           </div>
           <div class="valentina-source-actions">
             <button v-if="s.approval_status !== 'approved'" type="button" class="valentina-btn valentina-btn-success" @click="approveSource(s.source_id)">Утвердить</button>

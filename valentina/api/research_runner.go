@@ -33,6 +33,9 @@ func sourceRunReason(src *domain.Source) string {
 	if src.ApprovalReason == nil || strings.TrimSpace(*src.ApprovalReason) == "" {
 		return "Не указано основание утверждения"
 	}
+	if domain.ValidateResearchLimits(src.RateLimits) != nil {
+		return "Некорректные ограничения запросов источника"
+	}
 	if src.AuthenticationRequired {
 		return "Источники с авторизацией пока не поддерживаются"
 	}
@@ -97,48 +100,6 @@ func fetchApprovedFeed(ctx context.Context, src *domain.Source) (*sourceadapter.
 		return nil, errors.New("approved source feed fetch failed")
 	}
 	return result, nil
-}
-
-// checkResearchBudget uses durable run history to enforce a conservative per-
-// source run budget even when a new policy HTTP client is built each time.
-// Every manual run makes at most one request per source.
-func (s *Server) checkResearchBudget(ctx context.Context, sources []*domain.Source) error {
-	previous, err := s.store.ListResearchRuns(ctx)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	for _, src := range sources {
-		countToday := 0
-		var last time.Time
-		for _, r := range previous {
-			used := false
-			for _, id := range r.SourceIDs {
-				if id == src.SourceID {
-					used = true
-					break
-				}
-			}
-			if !used {
-				continue
-			}
-			if r.StartedAt.UTC().Format("2006-01-02") == now.Format("2006-01-02") {
-				countToday++
-			}
-			if r.StartedAt.After(last) {
-				last = r.StartedAt
-			}
-		}
-		if src.RateLimits.DailyRequestLimit != nil &&
-			countToday >= *src.RateLimits.DailyRequestLimit {
-			return fmt.Errorf("daily research budget exhausted for source %s", src.SourceID)
-		}
-		if src.RateLimits.MinimumIntervalSeconds > 0 &&
-			!last.IsZero() && now.Sub(last) < time.Duration(src.RateLimits.MinimumIntervalSeconds)*time.Second {
-			return fmt.Errorf("minimum research interval not reached for source %s", src.SourceID)
-		}
-	}
-	return nil
 }
 
 // executeManualResearch stores only source-backed, unverified candidates.
