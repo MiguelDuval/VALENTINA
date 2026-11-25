@@ -1,5 +1,14 @@
 # VALENTINA — active agent handoff
 
+## 2026-11-25 Gate 2 projects / estimates / documents
+
+- Isolated worktree VALENTINA-CODEX-PROJECTS-20261124; branch feature/valentina-project-estimates-hub-20261124, base 58e6924e022ff0a5454290e94aef65103e2124e4; clean pinned Huginn f01c1d84c08b1de972d8cc268da25602598adff8. Canonical workspace (122 dirty/untracked entries) untouched.
+- Codex turn failed at quota limit; supervisor independently reviewed and verified saved implementation. Append-only migration v14, unique human-qualified lead conversion, optimistic project versions, immutable EUR-cent estimates with separate approval, metadata-only documents. All 12 routes retain bearer auth. No new dependencies or external actions.
+- Independent QA PASS: fresh pinned archive plus four patches; SHA256 match of all 47 first-party Go/Vue files against worktree, pinned lockfile matched. Go 1.25.0 tests (four packages), vet, server compile, 38 targeted Vitest tests, vue-tsc, Vite build and embedded EXE build passed. Initial QA preparation failed on missing copy destinations; repaired in a fresh disposable tree.
+- Local EXE 67,352,064 bytes, SHA256 F25DD8C4E9C1BF666E7708FD3C8658DCBDB1AEF9B32DBC39B75C85544A75E939. Isolated localhost runtime smoke PASS: signed intake, loopback, all 12 new routes return 401 without bearer, unique qualified lead conversion, cents/VAT, revisions, approval, registry and restart persistence. Edge browser smoke PASS: lead link, creation, status, two-line estimate, approval, revision, registry, reload, original lead, no page errors.
+- Remaining: exact-commit Windows Actions CI and SHA-labelled EXE; broad upstream suites/race detector, installer acceptance and owner-approved RSS/NIM/original-page verification not run. ADR-007 proposed for review. No attachments, public webhook, autonomous sending or production acceptance. Existing Vite large chunk and old Browserslist warnings remain. Previous handoff below is historical.
+
+
 **Updated:** 2026-11-24 (manual research admission and recovery)
 **Status:** Implementation, independent pinned-archive QA, Windows runtime and headless Edge UI smoke PASS; GitHub publication/CI and owner-approved real-source acceptance remain pending.
 

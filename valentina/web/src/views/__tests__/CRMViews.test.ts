@@ -7,6 +7,7 @@ import LeadsView from '../LeadsView.vue'
 import CompaniesView from '../CompaniesView.vue'
 import SourcesView from '../SourcesView.vue'
 import ResearchView from '../ResearchView.vue'
+import ProjectsView from '../ProjectsView.vue'
 import { apiFetch } from '../../composables/useApi'
 
 // Vitest hoists vi.mock() above normal module declarations; keep its factory dependencies in vi.hoisted().
@@ -35,10 +36,11 @@ const expectedRoutes: { path: string; component: object }[] = [
   { path: '/valentina/companies', component: CompaniesView },
   { path: '/valentina/sources', component: SourcesView },
   { path: '/valentina/research', component: ResearchView },
+  { path: '/valentina/projects/:id?', component: ProjectsView },
 ]
 
 describe('CRM Routes (real application router)', () => {
-  it('registers all six CRM routes under /valentina/', () => {
+  it('registers all seven CRM routes under /valentina/', () => {
     const routes = realRouter.getRoutes()
     for (const expected of expectedRoutes) {
       const route = routes.find(r => r.path === expected.path)
@@ -75,9 +77,9 @@ describe('CRM Routes (real application router)', () => {
   it('does not catch CRM routes with catch-all', () => {
     const routes = realRouter.getRoutes()
     const crmPaths = routes.filter(r => r.path.startsWith('/valentina/')).map(r => r.path)
-    expect(crmPaths).toHaveLength(6)
+    expect(crmPaths).toHaveLength(7)
     for (const p of crmPaths) {
-      expect(p).toMatch(/\/valentina\/(opportunities(?:\/:id)?|leads|companies|sources|research)$/)
+      expect(p).toMatch(/\/valentina\/(opportunities(?:\/:id)?|projects\/:id\?|leads|companies|sources|research)$/)
     }
     const catchAll = routes.find(r => r.path === '/:pathMatch(.*)*')
     expect(catchAll).toBeDefined()

@@ -213,6 +213,7 @@ var migrations = []migration{
 	// v12 is reserved by Draft PR #5; v13 tracks intake payload fingerprints.
 	{version: 13, stmt: `
 		ALTER TABLE idempotency_keys ADD COLUMN payload_sha256 TEXT;`},
+	{version: 14, stmt: projectSchema},
 }
 
 // companiesTable is the CREATE TABLE statement for the companies table.

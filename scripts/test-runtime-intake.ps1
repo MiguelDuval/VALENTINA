@@ -38,7 +38,7 @@ $serverB = $null
 function Start-SmokeServer([int]$cycle) {
     $out = Join-Path $root ('stdout-' + $cycle + '.log')
     $err = Join-Path $root ('stderr-' + $cycle + '.log')
-    $p = Start-Process -FilePath $exe -ArgumentList @('-no-tray', 'serve', '--foreground') -WorkingDirectory $root -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+    $p = Start-Process -FilePath $exe -ArgumentList @('-no-tray', 'serve', '--foreground') -WorkingDirectory $root -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -WindowStyle Hidden
     try {
         for ($i = 0; $i -lt 25; $i++) {
             Start-Sleep -Milliseconds 650
@@ -86,6 +86,20 @@ function Signed-Intake([string]$body, [bool]$badSignature = $false, [long]$unixS
 function Require-Result([bool]$condition, [string]$message) {
     if (-not $condition) { throw ('VALENTINA runtime smoke failed: ' + $message) }
 }
+function Invoke-ProjectAPI([string]$method, [string]$path, $body = $null, [int]$expected = 200) {
+    $params = @{ Uri = ($base + '/api/v1/valentina' + $path); Method = $method; Headers = $script:crmHeaders; UseBasicParsing = $true; TimeoutSec = 8 }
+    if ($null -ne $body) { $params.Body = [Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Depth 8 -Compress)); $params.ContentType = 'application/json' }
+    $response = Invoke-WebRequest @params
+    Require-Result ([int]$response.StatusCode -eq $expected) ('project API status: ' + $method + ' ' + $path)
+    return ($response.Content | ConvertFrom-Json)
+}
+function Require-ProjectAuth($endpoints) {
+    foreach ($endpoint in $endpoints) {
+        try { $null = Invoke-WebRequest -Uri ($base+'/api/v1/valentina'+$endpoint[1]) -Method $endpoint[0] -UseBasicParsing -TimeoutSec 5; $code = 200 }
+        catch { if (-not $_.Exception.Response) { throw }; $code = [int]$_.Exception.Response.StatusCode }
+        Require-Result ($code -eq 401) ('project route requires bearer: '+$endpoint[0]+' '+$endpoint[1]+'; HTTP '+$code)
+    }
+}
 try {
     $serverA = Start-SmokeServer 1
     $rootResponse = Invoke-WebRequest -Uri ($base + '/') -UseBasicParsing -TimeoutSec 5
@@ -110,14 +124,58 @@ try {
         $otherStatus = [int]$_.Exception.Response.StatusCode
     }
     Require-Result ($otherStatus -eq 401) 'all other CRM APIs must retain bearer auth'
-    $listen = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
-    Require-Result ($listen.Count -eq 1 -and $listen[0].LocalAddress -eq '127.0.0.1') 'loopback-only bind'
+    # Tokens remain in process memory; never print them or pass them on a command line.
+    $localToken = Invoke-RestMethod -Uri ($base + '/api/v1/token') -TimeoutSec 5
+    $script:crmHeaders = @{ Authorization = ('Bearer ' + $localToken.token) }
+    foreach ($status in @('triage', 'qualified')) {
+        $null = Invoke-ProjectAPI 'POST' '/review-decisions' @{entity_type='inbound_lead';entity_id=$first.LeadID;new_status=$status;decision_reason='Synthetic human review'} 201
+    }
+    $projectBody = @{title='Synthetic connected project';source_lead_id=$first.LeadID;service_scope='Synthetic scope'}
+    $project = Invoke-ProjectAPI 'POST' '/projects' $projectBody 201
+    $retryProject = Invoke-ProjectAPI 'POST' '/projects' $projectBody 201
+    Require-Result ($project.project_id -eq $retryProject.project_id) 'unique lead conversion'
+    $projectPath = '/projects/' + $project.project_id
+    $linked = Invoke-ProjectAPI 'GET' ('/leads/' + $first.LeadID + '/project')
+    Require-Result ($linked.project.project_id -eq $project.project_id) 'lead project link'
+    $project = Invoke-ProjectAPI 'POST' ($projectPath + '/status') @{status='active';version=$project.version}
+    $estimateBody = @{base_revision=0;lines=@(@{kind='labor';name='Synthetic labor';quantity_milli=1500;unit_cents=101;vat_bps=2100},@{kind='material';name='Synthetic material';quantity_milli=1000;unit_cents=100;vat_bps=1000})}
+    $preview = Invoke-ProjectAPI 'POST' ($projectPath + '/estimates/preview') $estimateBody
+    Require-Result ($preview.total_cents -eq 294) 'integer estimate preview'
+    $estimate = Invoke-ProjectAPI 'POST' ($projectPath + '/estimates') $estimateBody 201
+    $null = Invoke-ProjectAPI 'POST' ($projectPath + '/estimates/' + $estimate.estimate_id + '/approve') @{}
+    $estimateBody.base_revision = 1
+    $estimateBody.lines[0].unit_cents = 200
+    $null = Invoke-ProjectAPI 'POST' ($projectPath + '/estimates') $estimateBody 201
+    $document = Invoke-ProjectAPI 'POST' ($projectPath + '/documents') @{type='estimate';name='Synthetic register entry';estimate_id=$estimate.estimate_id;annotation='Metadata only'} 201
+    $authRoutes = @(
+        @('GET','/projects'), @('POST','/projects'), @('GET',$projectPath), @('PUT',$projectPath),
+        @('POST',($projectPath+'/status')), @('GET',($projectPath+'/estimates')), @('POST',($projectPath+'/estimates')),
+        @('POST',($projectPath+'/estimates/preview')), @('POST',($projectPath+'/estimates/'+$estimate.estimate_id+'/approve')),
+        @('GET',($projectPath+'/documents')), @('POST',($projectPath+'/documents')), @('GET',('/leads/'+$first.LeadID+'/project'))
+    )
+    # Split assertions across the two existing process lifecycles so each stays
+    # below Huginn's ten-auth-failures/minute limit. Do not disable that limiter.
+    Require-ProjectAuth $authRoutes[0..5]
+    # The managed OS TCP inventory does not require CIM privileges. Fail closed
+    # if the actual listening endpoint cannot be inspected or is not loopback.
+    $listen = @([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object { $_.Port -eq $port })
+    Require-Result ($listen.Count -eq 1 -and $listen[0].Address.ToString() -eq '127.0.0.1') 'loopback-only bind'
     Stop-Process -Id $serverA.Id -ErrorAction Stop
     $serverA = $null
     Start-Sleep -Milliseconds 800
     $serverB = Start-SmokeServer 2
     $afterRestart = Signed-Intake $body
     Require-Result ($afterRestart.Code -eq 200 -and $afterRestart.LeadID -eq $first.LeadID) 'idempotency persisted across restart'
+    $localToken = Invoke-RestMethod -Uri ($base + '/api/v1/token') -TimeoutSec 5
+    $script:crmHeaders = @{ Authorization = ('Bearer ' + $localToken.token) }
+    $restored = Invoke-ProjectAPI 'GET' $projectPath
+    $history = Invoke-ProjectAPI 'GET' ($projectPath + '/estimates')
+    $registry = Invoke-ProjectAPI 'GET' ($projectPath + '/documents')
+    Require-Result ($restored.status -eq 'active' -and $restored.source_lead_id -eq $first.LeadID) 'project persists across restart'
+    Require-Result ($history.estimates.Count -eq 2 -and $history.estimates[1].total_cents -eq 294 -and $history.estimates[1].status -eq 'approved' -and $history.estimates[0].status -eq 'draft') 'immutable estimate history persists'
+    Require-Result ($registry.storage -eq 'metadata_only' -and $registry.documents[0].document_id -eq $document.document_id) 'document metadata persists'
+    Require-ProjectAuth $authRoutes[6..11]
+    Write-Output 'VALENTINA_PROJECTS_SMOKE=PASS (human-qualified lead, unique project, cents/VAT, revisions, approval, registry, all 12 routes auth 401, restart)'
     Write-Output 'VALENTINA_RUNTIME_SMOKE=PASS (UI 200, intake 201/200/409/401, stale/future 401, CRM auth 401, restart 200, loopback)'
 } finally {
     foreach ($p in @($serverA, $serverB)) {
@@ -126,11 +184,13 @@ try {
         }
     }
     Start-Sleep -Milliseconds 850
-    if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+    if (@([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object { $_.Port -eq $port }).Count -gt 0) {
         Write-Warning 'Runtime smoke port still bound; check test child process'
     }
     # Only remove the unique disposable test profile that this script created.
-    if (Test-Path -LiteralPath $root) {
+    $resolvedTestRoot = [IO.Path]::GetFullPath($root)
+    $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    if ($resolvedTestRoot.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolvedTestRoot -Leaf).StartsWith('valentina-runtime-smoke-') -and (Test-Path -LiteralPath $root)) {
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

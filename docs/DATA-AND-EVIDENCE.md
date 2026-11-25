@@ -1,5 +1,7 @@
 # VALENTINA data model and evidence contract
 
+Current Gate 2 extension: [Projects, estimates and document registry](PROJECTS-AND-ESTIMATES.md) documents migration 14, qualified-lead provenance, immutable integer-money snapshots and metadata-only documents. It extends the existing local SQLite domain; it does not introduce another service. Earlier provisional and historical sections below remain context for the discovery contract.
+
 **Status:** Provisional logical data contract v0.1; not a database migration  
 **Date:** 2026-11-04
 

@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   sectionFromPath,
   showChatSidebar,
@@ -108,6 +108,7 @@ describe('showChatSidebar / showContextPanel', () => {
       'cloud',
       'crm-opportunities',
       'crm-leads',
+      'crm-projects',
       'crm-companies',
       'crm-sources',
       'crm-research',
@@ -143,6 +144,7 @@ describe('NAV_GROUPS', () => {
     expect(crmItems.map((item) => item.section)).toEqual([
       'crm-opportunities',
       'crm-leads',
+      'crm-projects',
       'crm-companies',
       'crm-sources',
       'crm-research',
@@ -150,11 +152,12 @@ describe('NAV_GROUPS', () => {
     expect(crmItems.map((item) => item.path)).toEqual([
       '/valentina/opportunities',
       '/valentina/leads',
+      '/valentina/projects',
       '/valentina/companies',
       '/valentina/sources',
       '/valentina/research',
     ])
-    expect(new Set(crmItems.map((item) => item.section)).size).toBe(5)
+    expect(new Set(crmItems.map((item) => item.section)).size).toBe(6)
   })
 
   it('keeps NAV_ITEMS flattened in group order', () => {
@@ -173,6 +176,7 @@ describe('NAV_GROUPS', () => {
       'inbox',
       'crm-opportunities',
       'crm-leads',
+      'crm-projects',
       'crm-companies',
       'crm-sources',
       'crm-research',

@@ -40,6 +40,7 @@ export function sectionFromPath(path: string): AppSection {
     switch (second) {
       case 'opportunities': return 'crm-opportunities'
       case 'leads': return 'crm-leads'
+      case 'projects': return 'crm-projects'
       case 'companies': return 'crm-companies'
       case 'sources': return 'crm-sources'
       case 'research': return 'crm-research'
@@ -75,6 +76,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
   'cloud',
   'crm-opportunities',
   'crm-leads',
+  'crm-projects',
   'crm-companies',
   'crm-sources',
   'crm-research',
@@ -128,6 +130,7 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
     items: [
       { section: 'crm-opportunities', label: 'Возможности', path: '/valentina/opportunities', icon: 'crm' },
       { section: 'crm-leads',         label: 'Заявки',      path: '/valentina/leads',         icon: 'crm' },
+      { section: 'crm-projects',      label: 'Проекты',     path: '/valentina/projects',      icon: 'crm' },
       { section: 'crm-companies',     label: 'Компании',    path: '/valentina/companies',   icon: 'crm' },
       { section: 'crm-sources',       label: 'Источники',   path: '/valentina/sources',     icon: 'crm' },
       { section: 'crm-research',      label: 'Исследования',path: '/valentina/research',    icon: 'crm' },

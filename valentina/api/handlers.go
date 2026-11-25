@@ -194,7 +194,7 @@ func (rl *intakeRateLimiter) checkRateLimit(clientIP string) bool {
 
 // Routes returns a map of HTTP method+path to handler for VALENTINA API routes.
 func (s *Server) Routes() map[string]http.HandlerFunc {
-	return map[string]http.HandlerFunc{
+	routes := map[string]http.HandlerFunc{
 		"GET /api/v1/valentina/opportunities":              s.handleListOpportunities,
 		"POST /api/v1/valentina/opportunities":             s.handleCreateOpportunity,
 		"GET /api/v1/valentina/opportunities/{id}":         s.handleGetOpportunity,
@@ -219,6 +219,10 @@ func (s *Server) Routes() map[string]http.HandlerFunc {
 		"GET /api/v1/valentina/query-packs":                s.handleListQueryPacks,
 		"GET /api/v1/valentina/geography":                  s.handleGetGeography,
 	}
+	for pattern, handler := range s.projectRoutes() {
+		routes[pattern] = handler
+	}
+	return routes
 }
 
 // handleHealth returns the health of the VALENTINA domain service.

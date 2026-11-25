@@ -60,6 +60,7 @@
           </div>
         </div>
         <div class="valentina-detail-actions">
+          <RouterLink v-if="selectedLead.status === 'qualified' || linkedProject" :to="linkedProject ? '/valentina/projects/' + linkedProject.project_id : { path: '/valentina/projects', query: { lead: selectedLead.lead_id } }">{{ linkedProject ? 'Открыть проект' : 'Создать проект из заявки' }}</RouterLink>
           <button type="button" class="valentina-btn" :class="`valentina-btn-${actionClass('triage')}`" @click="changeStatus('triage')" :disabled="!canTransition('triage')">В триаж</button>
           <button type="button" class="valentina-btn" :class="`valentina-btn-${actionClass('qualified')}`" @click="changeStatus('qualified')" :disabled="!canTransition('qualified')">Квалифицировать</button>
           <button type="button" class="valentina-btn" :class="`valentina-btn-${actionClass('declined')}`" @click="changeStatus('declined')" :disabled="!canTransition('declined')">Отклонить</button>
@@ -131,7 +132,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, RouterLink } from 'vue-router'
 import { apiFetch } from '../composables/useApi'
 
 const PAGE_SIZE = 25
@@ -143,6 +145,8 @@ const error = ref(null)
 const leads = ref([])
 
 const selectedLead = ref(null)
+const linkedProject = ref(null)
+const route = useRoute()
 const detailLoading = ref(false)
 const detailError = ref(null)
 
@@ -245,6 +249,9 @@ const selectLead = async (leadID) => {
   try {
     const res = await apiFetch('/api/v1/valentina/leads/' + encodeURIComponent(leadID))
     selectedLead.value = res.lead || res
+    linkedProject.value = null
+    const linked = await apiFetch('/api/v1/valentina/leads/' + encodeURIComponent(leadID) + '/project')
+    linkedProject.value = linked.project || null
   } catch (e) {
     detailError.value = 'Не удалось загрузить детали заявки'
     console.error(e)
@@ -252,6 +259,8 @@ const selectLead = async (leadID) => {
     detailLoading.value = false
   }
 }
+
+watch(() => route?.query?.lead, (id) => { if (typeof id === 'string') selectLead(id) }, { immediate: true })
 
 const changeStatus = async (newStatus) => {
   if (!selectedLead.value || !canTransition(newStatus)) return

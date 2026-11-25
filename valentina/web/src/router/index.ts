@@ -18,6 +18,7 @@ import LeadsView from '../views/LeadsView.vue'
 import CompaniesView from '../views/CompaniesView.vue'
 import SourcesView from '../views/SourcesView.vue'
 import ResearchView from '../views/ResearchView.vue'
+import ProjectsView from '../views/ProjectsView.vue'
 
 export default createRouter({
   history: createWebHashHistory(),
@@ -45,6 +46,7 @@ export default createRouter({
     { path: '/valentina/companies', component: CompaniesView },
     { path: '/valentina/sources', component: SourcesView },
     { path: '/valentina/research', component: ResearchView },
+    { path: '/valentina/projects/:id?', component: ProjectsView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

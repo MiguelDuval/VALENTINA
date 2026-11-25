@@ -1,5 +1,9 @@
 # Security, secrets, and configuration policy
 
+## Gate 2 business records (2026-11-24)
+
+Projects, estimates and document metadata use the existing private local SQLite database and authenticated Huginn route wrapper. No new public endpoint, external action, credential flow or agent write permission is introduced. Qualified lead conversion preserves original enquiry/review history. New references are checked transactionally. Estimates are immutable saved snapshots with separate explicit operator approval; no automatic sending exists. The document registry is metadata-only: no uploaded file content, filesystem path field or download endpoint. Real project scopes, company associations, commercial prices and annotations are private operational data and must remain outside Git, logs and public build artifacts. Existing database backup/retention protections apply. See [PROJECTS-AND-ESTIMATES.md](PROJECTS-AND-ESTIMATES.md).
+
 **Status:** Mandatory project policy  
 **Applies to:** All contributors, coding agents, workflows, tests, local installations, and deployment environments  
 **Repository:** [MiguelDuval/VALENTINA](https://github.com/MiguelDuval/VALENTINA)  
