@@ -1,11 +1,25 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [string]$ExecutablePath
+    [string]$ExecutablePath,
+    # Installer CI retains its synthetic runtime data to verify upgrade/uninstall
+    # preservation. These options are forbidden on ordinary workstations.
+    [string]$TestProfileRoot,
+    [switch]$RetainTestProfile
 )
 $ErrorActionPreference = 'Stop'
 $exe = (Resolve-Path -LiteralPath $ExecutablePath -ErrorAction Stop).Path
 $root = Join-Path ([IO.Path]::GetTempPath()) ('valentina-runtime-smoke-' + [guid]::NewGuid().ToString('N'))
+if ($TestProfileRoot -or $RetainTestProfile) {
+    if (-not $TestProfileRoot -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or -not $env:RUNNER_TEMP) {
+        throw 'Retained runtime profiles require a disposable GitHub-hosted runner'
+    }
+    $root = [IO.Path]::GetFullPath($TestProfileRoot)
+    $runnerPrefix = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+    if (-not $root.StartsWith($runnerPrefix, [StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $root)) {
+        throw 'Runtime profile must be a new directory under RUNNER_TEMP'
+    }
+}
 $probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
 $probe.Start()
 $port = ([Net.IPEndPoint]$probe.LocalEndpoint).Port
@@ -190,7 +204,7 @@ try {
     # Only remove the unique disposable test profile that this script created.
     $resolvedTestRoot = [IO.Path]::GetFullPath($root)
     $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
-    if ($resolvedTestRoot.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolvedTestRoot -Leaf).StartsWith('valentina-runtime-smoke-') -and (Test-Path -LiteralPath $root)) {
+    if (-not $RetainTestProfile -and $resolvedTestRoot.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolvedTestRoot -Leaf).StartsWith('valentina-runtime-smoke-') -and (Test-Path -LiteralPath $root)) {
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

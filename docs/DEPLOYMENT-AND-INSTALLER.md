@@ -110,4 +110,35 @@ VALENTINA does not publish official releases. Do not create GitHub Releases, rel
 
 For owner testing, a successful Windows GitHub Actions run attaches the built `VALENTINA.exe` as a SHA-labelled workflow artifact. The download is a ZIP containing the executable, retained for 30 days. Failed or cancelled runs have no downloadable executable artifact. The owner downloads it from the completed run's **Artifacts** section.
 
-The workflow artifact is a test-build delivery mechanism, not a claim that the product, installer or Windows acceptance gates are complete. The first artifact is the standalone `VALENTINA.exe`; a future NSIS setup executable may also be uploaded as a workflow artifact when the installer is actually implemented and tested.
+The workflow artifact is a test-build delivery mechanism, not a claim that the product or Windows 11 owner acceptance gates are complete. The standalone `VALENTINA.exe` artifact remains unchanged. The workflow now also builds and tests the NSIS setup before uploading either binary artifact.
+
+## 9. Stage 6 implementation (2026-11-26)
+
+`scripts/package-valentina-installer.ps1` requires PowerShell 7 and consumes the existing `dist/package`. It verifies the executable SHA256/size, AMD64 PE header, checksum file, build validation metadata, exact clean upstream pin and byte-identical upstream license. In CI the build manifest must identify the checked-out HEAD. Output must be a new directory: stale setups are never silently reused.
+
+The compiler is **NSIS 3.11**, a reproducibility pin, not a claim of latest version:
+- Verified download mirror: `https://distfiles.macports.org/nsis/nsis-3.11.zip` (original NSIS 3.11 ZIP; verified against pinned SHA256). The SourceForge redirect returned HTML on MIGUELHP, so packaging uses this mirror and still fails closed on any unexpected bytes.
+- SHA256: `c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1`
+- Download uses HTTPS, checks every redirect and verifies SHA256 before extracting/executing anything. A failed download or hash mismatch stops packaging; no package-manager installation, elevation or fallback version.
+- Compiler scratch lives in unique ignored `build/installer-*` directories. Only the explicit payload is packed; the compiler and scratch never enter an artifact.
+- Offline: `pwsh -NoProfile -File scripts/package-valentina-installer.ps1 -NsisArchivePath <verified-archive.zip>`. Optional `-MakeNsisPath <local-makensis.exe>` requires that archive and verifies every distributed tool file against it. Compilation uses a fresh verified extraction with `/NOCONFIG`, avoiding extra local plugins/configuration.
+
+`installer/valentina.nsi` requests user privileges, defaults to `%LOCALAPPDATA%\Programs\VALENTINA`, creates one current-user Start Menu shortcut and 64-bit HKCU uninstall entry. It installs only EXE, README, build manifest, checksum, full upstream license, available third-party notices and its generated uninstaller. No service, firewall rule, startup task, model or runtime dependency is installed. The shortcut runs `VALENTINA.exe serve` with the user profile as its working directory. Without `serve`, pinned Huginn starts a terminal UI instead of its local web server. On a first run without configured agents, the daemon opens the browser; later starts may use the tray. Interactive Windows 11 acceptance remains outstanding.
+
+Fresh targets must be empty, a different registered install location cannot be taken over, and junction/symlink target ancestry is rejected. Upgrade/uninstall checks executable write access without truncating it; a mapped or otherwise locked EXE fails with exit 2 and is never killed/replaced at reboot. Other guard failures return 1/3, write failures 4. Uninstall deletes only explicitly installed files, with nonrecursive directory removal; unknown files and all mutable application data are preserved. Concurrent installer instances in the session are rejected.
+
+Safety contract and negative package tests run before packaging. `scripts/test-installer.ps1 -DisposableRunner` refuses ordinary workstations and self-hosted runners. On a disposable GitHub-hosted Windows runner it verifies fresh silent installation into a unique path with spaces, occupied/other-location rejection, exact EXE/license/shortcut/HKCU metadata, locked-file upgrade/uninstall rejection, installed and upgraded runtime HMAC/business/persistence/loopback checks, silent uninstall, and preservation of synthetic sentinels, actual retained runtime config/database files and unknown program-directory files. No fallback deletion hides failures. Existing runtime smoke behavior is unchanged unless the guarded retained-profile option is explicitly selected.
+
+After all gates pass, `VALENTINA-installer-windows-x64-<GITSHA>` contains `VALENTINA-Setup-x64.exe`, `SHA256SUMS.txt` and `VALENTINA-INSTALLER-MANIFEST.json`, retained 30 days. The existing EXE artifact remains separate. No GitHub Release/tag is created. Tests do not use NIM secrets or live sources. GitHub Windows runner acceptance does **not** establish Windows 11 owner-machine acceptance, non-admin interactive UX, browser auto-opening, backup/restore or live provider/source readiness.
+
+Legal scope: full pinned BSL is installed verbatim. Available tracked vendored license/notice text is collected into one notices file, preserving paths/text. This is **not a complete frontend/transitive license inventory**; no fonts are added by this installer. About → Licenses UI and complete dependency audit remain acceptance limitations; this packaging pass does not rebuild the frontend solely to add that screen.
+
+### Кратко для владельца
+
+1. Откройте успешный запуск Actions → Artifacts → `VALENTINA-installer-windows-x64-<SHA>`.
+2. Распакуйте ZIP-обёртку. Сверьте SHA256 Setup с `SHA256SUMS.txt` (например, `Get-FileHash .\VALENTINA-Setup-x64.exe`).
+3. Запустите Setup без прав администратора, затем VALENTINA из меню Пуск.
+4. Для обновления сначала закройте приложение и установите новую сборку в тот же каталог.
+5. Удаление через настройки Windows сохраняет данные и ключи. Установщик не предлагает удалять их.
+
+Локальная компиляция на тестовом EXE не заменяет успешный запуск CI. Не распространяйте локальные fixture-сборки из `build/`.

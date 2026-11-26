@@ -57,14 +57,20 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/test-runtime-intake.ps1 -ExecutablePath ./dist/package/VALENTINA.exe
-      - name: Upload debug log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-debug-log-${{ github.sha }}
-          path: build-debug.log
-          if-no-files-found: warn
-          retention-days: 30
+      - name: Validate installer safety contract
+        shell: pwsh
+        run: |
+          ./scripts/test-installer-contract.ps1
+          ./scripts/test-installer-package.ps1
+      - name: Package with verified portable NSIS 3.11
+        timeout-minutes: 6
+        shell: pwsh
+        run: ./scripts/package-valentina-installer.ps1
+      - name: Accept per-user install upgrade and uninstall
+        id: installer_acceptance
+        timeout-minutes: 8
+        shell: pwsh
+        run: ./scripts/test-installer.ps1 -DisposableRunner
       - name: Compute EXE SHA256
         shell: pwsh
         run: |
@@ -85,6 +91,18 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+      - name: Upload VALENTINA installer artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VALENTINA-installer-windows-x64-${{ github.sha }}
+          path: |
+            dist/installer/VALENTINA-Setup-x64.exe
+            dist/installer/SHA256SUMS.txt
+            dist/installer/VALENTINA-INSTALLER-MANIFEST.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
       - name: Job summary
         if: always()
         shell: pwsh
@@ -99,7 +117,7 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|-------|-------|"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Product | VALENTINA |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Commit SHA | ${{ github.sha }} |"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Branch | ${{ github.ref_name }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Branch | ${env:GITHUB_REF_NAME} |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Upstream Huginn SHA | f01c1d84c08b1de972d8cc268da25602598adff8 |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Go version | From upstream/huginn/go.mod |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Node version | 22 |"
@@ -109,5 +127,12 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Artifact name | $artifactName |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Artifact download | $runUrl |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| CI run URL | $runUrl |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Installer acceptance | ${{ steps.installer_acceptance.outcome }} |"
+          if (Test-Path ./dist/installer/VALENTINA-INSTALLER-MANIFEST.json) {
+            $setup = Get-Content ./dist/installer/VALENTINA-INSTALLER-MANIFEST.json -Raw | ConvertFrom-Json
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Setup SHA256 | $($setup.binary.sha256) |"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Setup size | $($setup.binary.file_size) bytes |"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Setup artifact (successful jobs only) | VALENTINA-installer-windows-x64-${env:GITHUB_SHA} |"
+          }
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> **Verification:** After downloading the artifact, run `certutil -hashfile VALENTINA.exe SHA256` and compare with the EXE SHA256 above and the `binary.sha256` field in `VALENTINA-BUILD-MANIFEST.json`."

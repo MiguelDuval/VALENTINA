@@ -34,7 +34,10 @@ This queue is the product-level source of task priority. Status changes require 
 - VAL-GATE2-001 Projects and human-qualified lead conversion - LOCAL QA PASS 2026-11-25; migration v14, Go API, Vue UI, authenticated runtime and browser verified.
 - VAL-GATE2-002 Versioned EUR-cent estimates - LOCAL QA PASS; immutable revisions, grouped VAT rounding, separate approval and history verified.
 - VAL-GATE2-003 Document register - LOCAL QA PASS; metadata only, same-project estimate reference. Attachments outside scope.
-- VAL-GATE2-004 Publication and acceptance - PENDING exact-commit Windows Actions runtime smoke and SHA-labelled EXE. Live RSS/NIM requires owner authorization; no production acceptance claimed.
+- VAL-GATE2-004 Publication and acceptance - WINDOWS CI PASS: run #135, commit `7cfa08c844dd57badb51bbac323bb588a6f50baf`, signed-intake runtime smoke and SHA-labelled EXE artifact confirmed 2026-11-26. Live RSS/NIM and Windows 11 owner acceptance still require authorization; no production acceptance claimed.
+
+## Stage 6 — per-user installer (2026-11-26)
+- VAL-INSTALLER-001 — LOCAL CONTRACT + NSIS FIXTURE PASS: per-user installer, safe upgrade/uninstall, SHA-pinned NSIS 3.11 and GitHub-only install/upgrade/uninstall tests implemented. Supervisor corrected Start Menu shortcut to `serve` and pinned HTTPS mirror; static and negative tests plus local fixture compiler passed. Publication and exact-commit CI installer acceptance remain pending. Full third-party license inventory, About → Licenses and Windows 11 owner acceptance remain open.
 
 ## Execution rules
 - Owner explicitly authorizes P2 hot inbound intake and P3 internet opportunity discovery as of 2026-11-18.
