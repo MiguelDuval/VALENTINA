@@ -1,5 +1,15 @@
 # VALENTINA — active agent handoff
 
+## 2026-11-26 Stage 7A - owner readiness acceptance (independent local QA)
+
+- Origin `MiguelDuval/VALENTINA`, feature branch `feature/valentina-owner-readiness-20261126`, base SHA `f1de0befced902f6b54098516a8d360f986ceee4`. Cline new session `1795701830658_zf3in` finished and stopped at idle; supervisor reviewed the dirty worktree. Canonical clone retains 122 user changes untouched. Pinned Huginn `f01c1d84c08b1de972d8cc268da25602598adff8` clean.
+- Stage 6 precursor PUBLISHED AND ACCEPTED: Windows CI #136 https://github.com/MiguelDuval/VALENTINA/actions/runs/45816694900 passed install/upgrade/uninstall and HMAC smoke. Both SHA-labelled Setup and EXE artifacts uploaded; this does not mean Stage 7A CI or owner Windows 11 acceptance has passed.
+- Delivered in current isolated branch: pinned new browser-launch patch 005 and Start Menu `serve --open-browser` with verified loopback/API-token readiness and safe repeated launch; reachable Russian About/Licenses route with verbatim BSL and honest third-party limitations; authenticated human-triggered CRM-only SQLite VACUUM INTO snapshot, size bound 128 MiB, integrity/schema/SHA256, private scratch and sanitised no-cache download. No live restore, credentials backup, NIM/source activation, PR merge or release.
+- Independent QA PASS on a fresh git-archive of the exact pinned upstream plus patches 001-005: all five patch checks/applies, byte-identical license. Go 1.25.0 `go test ./internal/valentina/... -count=1 -timeout=90s`, `go vet`, root `TestValentinaBrowserLaunch`, server compile PASS. 45 targeted Vitest tests / 7 files PASS; `vue-tsc -b` and Vite production PASS. Initial nav test mismatches (2 assertions) corrected and rechecked. Vite emits known Browserslist age and large-chunk warnings.
+- Fresh embedded Windows EXE build PASS, 67,380,224 bytes, SHA256 `B4756851A68C60525281D59EE32AFC0AE46D7BDF4418958ABFD3F3ACCAB1F0F4`; local isolated `test-runtime-intake.ps1` PASS: signed hot intake, 401s, projects/estimates/docs, restart, loopback and new backup/license checks. `test-installer-contract.ps1` PASS. All testing synthetic/offline; no user installation.
+- Independent local headless Edge browser E2E PASS on that EXE (qualified lead -> project -> estimates -> document, About/BSL/backup download, no page JS errors). Pending: scoped diff/security scan, commit/push and exact-commit Windows CI with genuine installed shortcut/Edge acceptance; real Windows 11 operator acceptance, complete dependency license audit, owner-approved RSS and NVIDIA NIM tests remain blocked. No user data or secrets were intentionally included in source changes.
+
+
 ## 2026-11-26 Stage 6 — per-user NSIS installer
 
 - Status: local compiler and negative checks PASS; publication and exact-commit GitHub install/upgrade/uninstall acceptance PENDING. Windows 11 owner-machine acceptance remains separate. No PR, push, successful CI run or downloadable Actions artifact is claimed for these changes.

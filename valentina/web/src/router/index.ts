@@ -19,10 +19,12 @@ import CompaniesView from '../views/CompaniesView.vue'
 import SourcesView from '../views/SourcesView.vue'
 import ResearchView from '../views/ResearchView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
+import AboutView from '../views/AboutView.vue'
 
 export default createRouter({
   history: createWebHashHistory(),
   routes: [
+    { path: '/about', component: AboutView },
     { path: '/', redirect: '/overview' },
     { path: '/overview', component: OverviewView },
     { path: '/chat/:sessionId?', component: ChatView, props: true },

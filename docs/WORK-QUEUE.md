@@ -37,8 +37,13 @@ This queue is the product-level source of task priority. Status changes require 
 - VAL-GATE2-004 Publication and acceptance - WINDOWS CI PASS: run #135, commit `7cfa08c844dd57badb51bbac323bb588a6f50baf`, signed-intake runtime smoke and SHA-labelled EXE artifact confirmed 2026-11-26. Live RSS/NIM and Windows 11 owner acceptance still require authorization; no production acceptance claimed.
 
 ## Stage 6 — per-user installer (2026-11-26)
-- VAL-INSTALLER-001 — LOCAL CONTRACT + NSIS FIXTURE PASS: per-user installer, safe upgrade/uninstall, SHA-pinned NSIS 3.11 and GitHub-only install/upgrade/uninstall tests implemented. Supervisor corrected Start Menu shortcut to `serve` and pinned HTTPS mirror; static and negative tests plus local fixture compiler passed. Publication and exact-commit CI installer acceptance remain pending. Full third-party license inventory, About → Licenses and Windows 11 owner acceptance remain open.
+- VAL-INSTALLER-001 - WINDOWS CI PASS: exact commit `f1de0befced902f6b54098516a8d360f986ceee4`, Actions run #136 `45816694900`; SHA-labelled Setup and EXE artifacts confirmed. Verified hosted Windows install/upgrade/uninstall with synthetic retained data. Owner-machine Windows 11 acceptance and complete third-party licenses remain pending.
 
+## Stage 7A - owner readiness (2026-11-26)
+- VAL-READINESS-001 Start Menu repeated local browser launch: IMPLEMENTED, local browser-launch Go tests / pinned patch apply PASS; real installed shortcut/Edge acceptance PENDING exact SHA GitHub CI.
+- VAL-READINESS-002 About/Licenses: IMPLEMENTED, exact pinned BSL and Russian Vue UI; local Vue typecheck and Vitest PASS. Complete transitive license inventory PENDING.
+- VAL-READINESS-003 Private CRM SQLite snapshot: IMPLEMENTED, local SQLite/WAL/concurrency/cleanup and authenticated runtime smoke PASS; size/integrity/SHA256 headers verified. This is CRM-only export, NOT credentials/settings backup or online restore.
+- VAL-READINESS-004 Publication: local QA PASS (Go/Vue/build/EXE/runtime/headless Edge), scoped commit/push and Windows CI for Stage 7A PENDING. No live feeds/NIM without source/key approval.
 ## Execution rules
 - Owner explicitly authorizes P2 hot inbound intake and P3 internet opportunity discovery as of 2026-11-18.
 - This authorization does not approve any particular source, terms, crawling scope, credential, public endpoint, recurring schedule or external write action.

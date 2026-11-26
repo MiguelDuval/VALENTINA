@@ -29,6 +29,7 @@ type Server struct {
 	log               *slog.Logger
 	fetchSource       func(context.Context, *domain.Source) (*sourceadapter.FetchResult, error)
 	researchMu        sync.Mutex
+	backupMu          sync.Mutex
 	activeResearch    map[string]context.CancelFunc
 	researchNow       func() time.Time
 	allowLegacyIntake bool
@@ -195,6 +196,8 @@ func (rl *intakeRateLimiter) checkRateLimit(clientIP string) bool {
 // Routes returns a map of HTTP method+path to handler for VALENTINA API routes.
 func (s *Server) Routes() map[string]http.HandlerFunc {
 	routes := map[string]http.HandlerFunc{
+		"GET /api/v1/valentina/licenses":                   s.handleLicenses,
+		"GET /api/v1/valentina/backup":                     s.handleCRMBackup,
 		"GET /api/v1/valentina/opportunities":              s.handleListOpportunities,
 		"POST /api/v1/valentina/opportunities":             s.handleCreateOpportunity,
 		"GET /api/v1/valentina/opportunities/{id}":         s.handleGetOpportunity,

@@ -157,7 +157,7 @@ Section "VALENTINA"
   IfErrors install_failed
   ; Use a data-independent working directory; no mutable state in Programs.
   SetOutPath "$PROFILE"
-  CreateShortcut "$SMPROGRAMS\VALENTINA.lnk" "$INSTDIR\VALENTINA.exe" "serve" "$INSTDIR\VALENTINA.exe" 0
+  CreateShortcut "$SMPROGRAMS\VALENTINA.lnk" "$INSTDIR\VALENTINA.exe" "serve --open-browser" "$INSTDIR\VALENTINA.exe" 0
   WriteRegStr HKCU "${REGKEY}" "DisplayName" "VALENTINA"
   WriteRegStr HKCU "${REGKEY}" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr HKCU "${REGKEY}" "InstallLocation" "$INSTDIR"

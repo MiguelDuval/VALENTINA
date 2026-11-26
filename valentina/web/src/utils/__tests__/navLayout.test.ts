@@ -40,6 +40,7 @@ describe('sectionFromPath', () => {
     expect(sectionFromPath('/stats')).toBe('stats')
     expect(sectionFromPath('/logs')).toBe('logs')
     expect(sectionFromPath('/settings')).toBe('settings')
+    expect(sectionFromPath('/about')).toBe('about')
     expect(sectionFromPath('/agents')).toBe('agents')
     expect(sectionFromPath('/agents/atlas')).toBe('agents')
     expect(sectionFromPath('/connections')).toBe('connections')
@@ -58,6 +59,7 @@ describe('showChatSidebar / showContextPanel', () => {
     '/stats',
     '/logs',
     '/settings',
+    '/about',
     '/agents',
     '/agents/atlas',
     '/connections',
@@ -98,6 +100,7 @@ describe('showChatSidebar / showContextPanel', () => {
       'stats',
       'logs',
       'settings',
+      'about',
       'agents',
       'connections',
       'skills',
@@ -133,7 +136,7 @@ describe('NAV_GROUPS', () => {
     const admin = NAV_GROUPS.find((group) => group.id === 'admin')!.items.map((item) => item.section)
     const logs = NAV_GROUPS.find((group) => group.id === 'logs')!.items.map((item) => item.section)
 
-    expect(admin).toEqual(['agents', 'memory', 'models', 'automation', 'connections', 'skills', 'settings'])
+    expect(admin).toEqual(['agents', 'memory', 'models', 'automation', 'connections', 'skills', 'settings', 'about'])
     expect(logs).toEqual(['stats', 'logs', 'inbox'])
     expect(admin).not.toEqual(expect.arrayContaining(['stats', 'logs', 'inbox']))
     expect(logs).not.toContain('settings')
@@ -171,6 +174,7 @@ describe('NAV_GROUPS', () => {
       'connections',
       'skills',
       'settings',
+      'about',
       'stats',
       'logs',
       'inbox',

@@ -34,6 +34,7 @@ $Patch1 = Join-Path $Repo "patches\upstream-ui\001-valentina-ui-foundation.patch
 $Patch2 = Join-Path $Repo "patches\upstream-ui\002-valentina-crm-integration.patch"
 $Patch3 = Join-Path $Repo "patches\upstream-ui\003-stable-number-formatting.patch"
 $Patch4 = Join-Path $Repo "patches\upstream-ui\004-valentina-route-registration.patch"
+$Patch5 = Join-Path $Repo "patches\upstream-ui\005-valentina-browser-launch.patch"
 $ExpectedUpstreamSha = "f01c1d84c08b1de972d8cc268da25602598adff8"
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $Repo "dist" }
 elseif (-not [IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $Repo $OutputDirectory }
@@ -61,7 +62,7 @@ if ($Profile -eq "Full") {
     if (-not (Test-Path $Patch2)) { Throw-BuildError "Build step failed" }
     if (-not (Test-Path $Patch3)) { Throw-BuildError "Build step failed" }
     if (-not (Test-Path $Patch4)) { Throw-BuildError "Build step failed" }
-    $patches = @($Patch1, $Patch2, $Patch3, $Patch4)
+    $patches = @($Patch1, $Patch2, $Patch3, $Patch4, $Patch5)
 }
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("valentina-build-" + [guid]::NewGuid().ToString("N"))
 $copy = Join-Path $tmp "source"
@@ -104,11 +105,15 @@ try {
     $validationResults.upstream_pin_verification = @{ status = "passed"; command = "git -C upstream/huginn rev-parse HEAD"; result = "matched pinned SHA" }
     if ($Profile -eq "Full") {
         Write-Host "DEBUG: Step 5 - Copying CRM sources" -ForegroundColor Cyan; Write-Host "Copying CRM Go source and Vue views for Full profile" -ForegroundColor Cyan
+        Copy-Item -LiteralPath (Join-Path $Repo "valentina/launcher/launcher_test.go") -Destination (Join-Path $copy "valentina_launcher_test.go")
         $destValentina = Join-Path $copy "internal\valentina"
         New-Item -ItemType Directory -Path $destValentina -Force | Out-Null
         $destDomain = Join-Path $destValentina "domain"
         New-Item -ItemType Directory -Path $destDomain -Force | Out-Null
         Copy-TrackedTree "valentina/domain" $destDomain
+        $licenseAsset = Join-Path $Repo "valentina/api/LICENSE.huginn.txt"
+        if ((Get-FileHash -LiteralPath $licenseAsset).Hash -ne (Get-FileHash -LiteralPath (Join-Path $copy "LICENSE")).Hash) { Throw-BuildError "Embedded pinned license differs" }
+        $validationResults.embedded_license = @{ status = "passed"; command = "SHA256 exact pinned LICENSE"; result = "byte-identical" }
         $destApi = Join-Path $destValentina "api"
         New-Item -ItemType Directory -Path $destApi -Force | Out-Null
         Copy-TrackedTree "valentina/api" $destApi
@@ -220,6 +225,8 @@ try {
         if ($goDomainTestExitCode -ne 0) { Throw-BuildError "Build step failed" }
         Write-Host "Go domain tests passed." -ForegroundColor Green
         $validationResults.go_domain_tests = @{ status = "passed"; command = "go test ./internal/valentina/..."; result = "exit code 0" }
+        & go test -run '^TestValentinaBrowserLaunch$' . 2>&1
+        if ($LASTEXITCODE -ne 0) { Throw-BuildError "Go test failed" }
         Write-Host "Running Go server compile check..." -ForegroundColor Cyan
         & go test -run '^$' ./internal/server 2>&1
         $goServerCompileExitCode = $LASTEXITCODE

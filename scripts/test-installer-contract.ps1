@@ -9,7 +9,7 @@ Assert ($nsi -match 'RequestExecutionLevel user') 'Installer must never elevate'
 Assert ($nsi -notmatch '(?im)^\s*(RMDir\s+/r|Delete\s+/REBOOTOK|WriteReg\w+\s+HKLM|ExecWait|ExecShell)') 'Unsafe installer operation'
 Assert ($nsi -notmatch '(?im)^\s*(File|Delete)\s+.*\*') 'Wildcard payload or deletion'
 Assert ($nsi -match 'SetShellVarContext current') 'Current user shell required'
-Assert ($nsi -match 'CreateShortcut\s+"\$SMPROGRAMS\\VALENTINA\.lnk"\s+"\$INSTDIR\\VALENTINA\.exe"\s+"serve"') 'Start Menu shortcut must launch the local web server, not the TUI'
+Assert ($nsi -match 'CreateShortcut\s+"\$SMPROGRAMS\\VALENTINA\.lnk"\s+"\$INSTDIR\\VALENTINA\.exe"\s+"serve --open-browser"') 'Start Menu shortcut must launch the local web server, not the TUI'
 foreach ($file in @('package-valentina-installer.ps1', 'test-installer.ps1', 'test-installer-package.ps1', 'test-runtime-intake.ps1')) {
     $tokens = $null; $errors = $null
     $null = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot $file), [ref]$tokens, [ref]$errors)

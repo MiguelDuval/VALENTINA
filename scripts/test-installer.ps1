@@ -63,7 +63,7 @@ function Check-Installed {
     Require (Test-Path $shortcut) 'Missing Start Menu shortcut'
     $shell = New-Object -ComObject WScript.Shell
     $link = $shell.CreateShortcut($shortcut)
-    Require ($link.TargetPath -eq (Join-Path $install 'VALENTINA.exe') -and $link.Arguments -eq 'serve') 'Shortcut target/arguments'
+    Require ($link.TargetPath -eq (Join-Path $install 'VALENTINA.exe') -and $link.Arguments -eq 'serve --open-browser') 'Shortcut target/arguments'
     Check-Sentinels
 }
 try {
@@ -100,6 +100,8 @@ try {
     # in a child PowerShell; its synthetic environment never leaks into setup.
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'test-runtime-intake.ps1') -ExecutablePath (Join-Path $install 'VALENTINA.exe') -TestProfileRoot $runtimeProfile -RetainTestProfile
     Require ($LASTEXITCODE -eq 0) 'Installed runtime smoke failed'
+    & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'test-browser-launch.ps1') -ShortcutPath $shortcut
+    Require ($LASTEXITCODE -eq 0) 'Installed shortcut browser launch failed'
     # Snapshot real synthetic config and persistent records, not only placeholders.
     foreach ($file in Get-ChildItem -LiteralPath $runtimeProfile -Recurse -File) {
         $runtimeBaseline[$file.FullName] = (Get-FileHash -LiteralPath $file.FullName).Hash

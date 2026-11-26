@@ -1,4 +1,4 @@
-﻿/** Route → layout mapping for the Vue shell.
+/** Route → layout mapping for the Vue shell.
  *
  * Chat / space / DM stay a three-column layout:
  *   icon rail + company/channel/DM sidebar + main pane.
@@ -19,6 +19,7 @@ export type AppSection =
   | 'skills'
   | 'stats'
   | 'settings'
+  | 'about'
   | 'logs'
   | 'inbox'
   | 'cloud'
@@ -66,6 +67,7 @@ export const TOP_LEVEL_SECTIONS: readonly string[] = [
   'stats',        // analytics
   'logs',
   'settings',
+  'about',
   'agents',       // people
   'connections',  // plugins
   'skills',       // plugins / skill library
@@ -115,6 +117,7 @@ export const NAV_GROUPS: readonly RailNavGroup[] = [
       { section: 'connections', label: 'Подключения',  path: '/connections',    icon: 'connections' },
       { section: 'skills',      label: 'Навыки',       path: '/skills/browse',  icon: 'skills' },
       { section: 'settings',    label: 'Настройки',    path: '/settings',       icon: 'settings' },
+      { section: 'about',       label: 'О программе', path: '/about',          icon: 'settings' },
     ],
   },
   {

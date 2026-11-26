@@ -169,6 +169,13 @@ try {
     )
     # Split assertions across the two existing process lifecycles so each stays
     # below Huginn's ten-auth-failures/minute limit. Do not disable that limiter.
+    Require-ProjectAuth @(@('GET','/backup'), @('GET','/licenses'))
+    $license = Invoke-ProjectAPI 'GET' '/licenses'
+    Require-Result ($license.upstream_commit -eq 'f01c1d84c08b1de972d8cc268da25602598adff8' -and $license.license.Length -gt 1000) 'embedded pinned license'
+    $backupPath = Join-Path $root 'synthetic-crm-backup.sqlite'
+    $backupResponse = Invoke-WebRequest -Uri ($base + '/api/v1/valentina/backup') -Headers $script:crmHeaders -OutFile $backupPath -PassThru -TimeoutSec 40
+    Require-Result ((Get-FileHash $backupPath).Hash.ToLowerInvariant() -eq [string]$backupResponse.Headers['X-Backup-SHA256']) 'CRM backup bytes match SHA256'
+    Require-Result ([string]$backupResponse.Headers['Cache-Control'] -eq 'no-store' -and [string]$backupResponse.Headers['X-Backup-Schema-Version'] -eq '14') 'CRM backup safety headers'
     Require-ProjectAuth $authRoutes[0..5]
     # The managed OS TCP inventory does not require CIM privileges. Fail closed
     # if the actual listening endpoint cannot be inspected or is not loopback.

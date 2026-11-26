@@ -1,0 +1,105 @@
+diff --git a/main.go b/main.go
+index 7df33d2..9bba890 100644
+--- a/main.go
++++ b/main.go
+@@ -149,9 +149,10 @@ func main() {
+ 		case "serve":
+ 			serveFlags := flag.NewFlagSet("serve", flag.ContinueOnError)
+ 			foregroundFlag := serveFlags.Bool("foreground", false, "run server in foreground (don't daemonize)")
++			openBrowserFlag := serveFlags.Bool("open-browser", false, "open the local browser after server readiness (Start Menu)")
+ 			daemonFlag := serveFlags.Bool("daemon", false, "internal: already running as daemon subprocess")
+ 			_ = serveFlags.Parse(flag.Args()[1:])
+-			cmdServe(cfg, *noTrayFlag, *foregroundFlag, *daemonFlag)
++			cmdServe(cfg, *noTrayFlag, *foregroundFlag, *daemonFlag, *openBrowserFlag)
+ 			return
+ 		case "tray":
+ 			trayFlags := flag.NewFlagSet("tray", flag.ContinueOnError)
+@@ -4018,7 +4019,8 @@ func startServer(cfg *config.Config) (srv *server.Server, token string, cleanup
+ // subprocess (skipped if the tray is already running).
+ // By default the server daemonizes itself (gives back the terminal). Pass
+ // --foreground to keep the server attached to the terminal.
+-func cmdServe(cfg *config.Config, noTray, foreground, daemon bool) {
++func cmdServe(cfg *config.Config, noTray, foreground, daemon bool, openBrowser ...bool) {
++	interactiveLaunch := len(openBrowser) > 0 && openBrowser[0] && !foreground && !daemon
+ 	if !foreground && !daemon {
+ 		// Daemonize: re-exec self with --daemon in background, write logs to file.
+ 		huginnHome, err := huginnDir()
+@@ -4033,6 +4035,12 @@ func cmdServe(cfg *config.Config, noTray, foreground, daemon bool) {
+ 			fatalf("serve: check lockfile: %v", err)
+ 		}
+ 		if !owned {
++			if interactiveLaunch {
++				if err := valentinaOpenBrowser(cfg.WebUI.Port); err != nil {
++					fatalf("VALENTINA: local server not ready")
++				}
++				return
++			}
+ 			fmt.Fprintln(os.Stderr, "huginn serve: server is already running. Use 'huginn serve --foreground' to force, or kill the existing process.")
+ 			os.Exit(1)
+ 		}
+@@ -4075,7 +4083,11 @@ func cmdServe(cfg *config.Config, noTray, foreground, daemon bool) {
+ 		// so users land directly in the web UI to complete setup.
+ 		agentCfg, agentErr := agentslib.LoadAgents()
+ 		isFirstRun := agentErr != nil || agentCfg == nil || len(agentCfg.Agents) == 0
+-		if isFirstRun {
++		if interactiveLaunch {
++			if err := valentinaOpenBrowser(cfg.WebUI.Port); err != nil {
++				fatalf("VALENTINA: local server not ready")
++			}
++		} else if isFirstRun {
+ 			fmt.Printf("\n  Opening browser for first-time setup...\n")
+ 			// Give the daemon a moment to bind before the browser hits it.
+ 			time.Sleep(1500 * time.Millisecond)
+@@ -4837,3 +4849,52 @@ func autoCreateDMSpaces(store spaces.StoreInterface) {
+ 		}
+ 	}
+ }
++
++// valentinaOpenBrowser checks this profile's authenticated CRM, not just an open
++// port. Redirects and environment proxies are forbidden. Tokens never enter URLs.
++func valentinaOpenBrowser(port int) error {
++	if port < 1 || port > 65535 {
++		return fmt.Errorf("invalid local port")
++	}
++	home, err := huginnDir()
++	if err != nil {
++		return err
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
++	defer cancel()
++	return valentinaWaitAndOpen(ctx, port, home, traypkg.OpenURL)
++}
++
++func valentinaWaitAndOpen(ctx context.Context, port int, home string, open func(string) error) error {
++	if port < 1 || port > 65535 {
++		return fmt.Errorf("invalid local port")
++	}
++	address := fmt.Sprintf("http://127.0.0.1:%d", port)
++	transport := &http.Transport{Proxy: nil}
++	defer transport.CloseIdleConnections()
++	client := &http.Client{Transport: transport, Timeout: time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
++	for ctx.Err() == nil {
++		token, readErr := os.ReadFile(filepath.Join(home, "server.token"))
++		if readErr == nil && len(bytes.TrimSpace(token)) > 0 {
++			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, address+"/api/v1/valentina/licenses", nil)
++			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(string(token)))
++			response, requestErr := client.Do(req)
++			if requestErr == nil {
++				var result struct {
++					Commit string `json:"upstream_commit"`
++				}
++				decodeErr := json.NewDecoder(io.LimitReader(response.Body, 32768)).Decode(&result)
++				response.Body.Close()
++				if response.StatusCode == http.StatusOK && decodeErr == nil && result.Commit == "f01c1d84c08b1de972d8cc268da25602598adff8" {
++					return open(address)
++				}
++			}
++		}
++		select {
++		case <-ctx.Done():
++			return ctx.Err()
++		case <-time.After(200 * time.Millisecond):
++		}
++	}
++	return ctx.Err()
++}

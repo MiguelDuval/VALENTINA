@@ -93,6 +93,17 @@ try {
   assert.equal((original.lead||original).status,'qualified')
   await page.getByRole('link',{name:lead.lead_id,exact:true}).click()
   await page.getByRole('link',{name:'Открыть проект',exact:true}).waitFor()
+  await page.getByRole('button',{name:'О программе',exact:true}).click()
+  await page.getByRole('heading',{name:'Лицензии',exact:true}).waitFor()
+  await page.locator('pre').filter({hasText:'Business Source License'}).waitFor()
+  const backupButton=page.getByRole('button',{name:'Скачать копию CRM',exact:true})
+  assert.equal(await backupButton.isDisabled(),true)
+  await page.getByRole('checkbox').check()
+  const downloadPromise=page.waitForEvent('download')
+  await backupButton.click()
+  const download=await downloadPromise
+  assert.equal(download.suggestedFilename(),'VALENTINA-CRM.sqlite')
+  await page.getByRole('status').filter({hasText:'Копия подготовлена'}).waitFor()
   assert.deepEqual(pageErrors,[],'no browser JavaScript errors')
   console.log('VALENTINA_PROJECT_BROWSER=PASS (lead link, create, status, two-line cents/VAT, approve, revise, metadata, reload, original lead, no page errors)')
 } finally {

@@ -142,3 +142,10 @@ Legal scope: full pinned BSL is installed verbatim. Available tracked vendored l
 5. Удаление через настройки Windows сохраняет данные и ключи. Установщик не предлагает удалять их.
 
 Локальная компиляция на тестовом EXE не заменяет успешный запуск CI. Не распространяйте локальные fixture-сборки из `build/`.
+## 10. Stage 7A - browser launch, About and CRM-only backup candidate
+
+The next isolated feature branch adds an explicit Start Menu `serve --open-browser` mode (patch 005 on exact pinned Huginn) to open the loopback VALENTINA UI on each operator launch, even when the daemon is already present. The loopback readiness check requests the authenticated local license endpoint with the runtime token; it blocks redirects, proxies and nonmatching service identity. Ordinary `serve --foreground` and unattended headless smoke remain unchanged.
+
+A reachable Russian About/Licenses screen contains the byte-identical pinned BSL text and states that frontend/transitive third-party notice inventory is incomplete. In the same screen the operator may acknowledge private client data and manually download a CRM-only SQLite consistent snapshot (VACUUM INTO, integrity check, max 128 MiB, SHA256 verification and no-store bearer-auth route). It does not export Huginn settings, keys or other local profile files. Store this backup securely; no live restore/import flow is authorized or provided. Offline recovery of the CRM SQLite snapshot in a stopped, isolated profile needs a separately reviewed restore procedure.
+
+Independent local Go/Vue/EXE, synthetic localhost API/runtime and headless Edge browser E2E tests passed on 2026-11-26. GitHub CI for this new Stage 7A branch and genuine installed shortcut/Edge behavior have not yet been accepted. Never install or test against the owner's active profile without explicit separate approval.
