@@ -55,7 +55,7 @@ try {
         $token=(Invoke-RestMethod "$base/api/v1/token").token
         $headers=@{Authorization="Bearer $token"}
         if ($cycle -eq 1) {
-            $body=@{request_summary='Synthetic shortcut persistence';inbound_channel='manual';consent=$true;privacy_notice=$true} | ConvertTo-Json
+            $body=@{request_summary='Synthetic shortcut persistence';inbound_channel='manual';privacy_notice=$true} | ConvertTo-Json
             $lead=Invoke-RestMethod "$base/api/v1/valentina/leads" -Method Post -Headers $headers -ContentType 'application/json' -Body $body
         } else {
             $retained=Invoke-RestMethod "$base/api/v1/valentina/leads/$($lead.lead_id)" -Headers $headers
